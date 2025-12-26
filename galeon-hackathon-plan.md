@@ -1,1275 +1,1698 @@
-# Galeon: Private Business Payments with Verifiable Receipts
+# Galeon: Private Payments. Verifiable Proof.
 
-## Mantle Global Hackathon 2025 - Project Plan
+## Mantle Global Hackathon 2025
 
 **Project Name:** Galeon
 **Tagline:** "Your payments. Your treasure. Hidden in plain sight."
 **Team:** Mateo & Carlos (Barranquilla, Colombia)
 **Submission Deadline:** January 15, 2026
-**Demo Day:** February 1, 2026
 **Hackathon:** [Mantle Global Hackathon 2025](https://www.hackquest.io/hackathons/Mantle-Global-Hackathon-2025)
 
 ---
 
-## The Name: Why "Galeon"
+## Core Concepts
 
-In 1708, the Spanish galleon *San José* sank off the coast of Cartagena, Colombia—carrying what's now estimated at **$20 billion in gold and emeralds**. For over 300 years, this treasure has remained hidden beneath the Caribbean waves, visible to no one.
+### Ports (Payment Endpoints)
 
-**Galeon** embodies this story:
-- 💰 **Hidden treasure** — Your payments exist, but only you can see them
-- 🇨🇴 **Colombian roots** — Built by a Colombian developer, inspired by Colombian history
-- 🚢 **Safe passage** — Your funds arrive safely, privately, with proof
-
-*"Like the San José's gold—your payments are real, valuable, and hidden from prying eyes."*
-
----
-
-## Executive Summary
-
-Galeon is private B2B payment infrastructure enabling vendors (freelancers, contractors, SMBs) to receive crypto payments **without publicly exposing their income**, while maintaining **verifiable receipts** for tax compliance and accounting.
-
-**Core Innovation:** Combining EIP-5564 stealth addresses with on-chain receipt anchoring to solve the "privacy vs. compliance" dilemma.
-
----
-
-## Problem Statement
-
-### The Visibility Problem
-
-Every crypto payment a vendor receives is **permanently public**:
+A **Port** is Galeon's core privacy primitive - a payment endpoint with its own unique stealth meta-address. Each Port provides **cryptographic isolation**: if one Port's viewing key is compromised, other Ports remain completely private.
 
 ```
-WHAT EVERYONE CAN SEE:
-├── maria.eth received $5,000 from client-a.eth
-├── maria.eth received $3,000 from client-b.eth
-├── maria.eth received $8,000 from client-c.eth
-├── maria.eth total income: $16,000 this month
-└── Competitors, clients, and tax authorities all know this
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              PORTS                                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Each Port has:                                                          │
+│  • Unique stealth meta-address (spending + viewing public keys)          │
+│  • Unique spending key (to claim funds)                                  │
+│  • Unique viewing key (to scan for payments)                             │
+│  • Name/label (user-defined)                                             │
+│  • Type (permanent, recurring, one-time, burner)                         │
+│                                                                          │
+│  PORT TYPES:                                                             │
+│                                                                          │
+│  1. PERMANENT    - Long-lived, for ongoing business payments             │
+│     └─ Example: "Main Business", "Supplier Payments"                     │
+│                                                                          │
+│  2. RECURRING    - Scheduled/periodic payments from same payers          │
+│     └─ Example: "Q1 2025 Invoices", "Monthly Subscriptions"              │
+│                                                                          │
+│  3. ONE-TIME     - Single expected payment, auto-archives after use      │
+│     └─ Example: "Invoice #1234", "Project Alpha Payment"                 │
+│                                                                          │
+│  4. BURNER       - Disposable, for maximum privacy                       │
+│     └─ Example: "Anonymous Donation", "Travel Expenses Trip X"           │
+│                                                                          │
+│  PRIVACY GUARANTEE:                                                      │
+│  Compromising Port A's viewing key reveals NOTHING about Port B.         │
+│  Each Port is cryptographically independent.                             │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Pain Points
-
-| Stakeholder | Pain |
-|-------------|------|
-| **Freelancers** | Competitors see rates, clients see what they charge others |
-| **SMBs** | Revenue visible to competitors, employees see all financials |
-| **Contractors** | Income profiling before tax filing |
-| **All Vendors** | Negotiation disadvantage, security risks (targeting high earners) |
-
-### Why Current Solutions Fail
-
-| Solution | Problem |
-|----------|---------|
-| **Mixers (Tornado Cash)** | No receipts, sanctioned, looks like money laundering |
-| **Multiple wallets** | Still linkable over time, accounting nightmare |
-| **Traditional banking** | 3-5% fees, multi-day delays, requires bank account |
-| **Privacy coins** | Limited liquidity, regulatory issues, no EVM compatibility |
-
----
-
-## Solution: Galeon
-
-### How It Works
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   BEFORE GALEON:                                                │
-│   ──────────────                                                │
-│   Client pays $5,000 → maria.eth                                │
-│   PUBLIC: Everyone sees Maria got $5,000 from this client       │
-│                                                                 │
-│   AFTER GALEON:                                                 │
-│   ─────────────                                                 │
-│   Client pays $5,000 → 0x7f3a...random (stealth address)        │
-│   PUBLIC: Someone paid $5,000 to some address                   │
-│   MARIA: Payment received! Here's your signed receipt.          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Key Components
-
-1. **Stealth Addresses (EIP-5564):** One-time addresses only the recipient can detect and spend from
-2. **Receipt System:** Cryptographically signed payment confirmations with on-chain anchoring
-3. **Vendor Dashboard:** Scan for payments, manage receipts, export for accounting
-4. **Payer Flow:** Simple payment link with automatic receipt generation
-
----
-
-## Multi-Track Submission Strategy
-
-### Track Selections (8 Tracks)
-
-| Track | Select | Narrative Angle |
-|-------|--------|-----------------|
-| **Grand Prize** | ✅ | Full vision: privacy infrastructure for real-world commerce |
-| **RWA / RealFi** | ✅ PRIMARY | Receipts = real business compliance, tax-ready infrastructure |
-| **ZK & Privacy** | ✅ SECONDARY | Stealth addresses = cryptographic privacy primitive |
-| **Infrastructure & Tooling** | ✅ | Payment infrastructure developers can build on |
-| **Best Mantle Integration** | ✅ | Native MNT + USDC, leverages low fees |
-| **Best UX/Demo** | ✅ | Polished payment flow, clear value prop |
-| **Community Choice** | ✅ | Compelling story, real problem |
-| **Incubation Grants** | ✅ | Clear roadmap, real market need |
-
-### Track-Specific Framing
-
-#### RWA / RealFi (Primary)
-> "Galeon bridges crypto payments to real-world business requirements. Every payment generates an **auditable receipt anchored on-chain**—tax-ready, auditor-friendly, legally defensible. **Privacy without mixers** for professional commerce."
-
-**Key talking points:**
-- **Auditable receipts on-chain**: timestamped, immutable, verifiable
-- Export to JSON/CSV with COP conversion for accountants
-- Dual signatures (payer + vendor) for dispute resolution
-- Aligns with Mantle's RWA narrative
-
-#### ZK & Privacy (Secondary)
-> "Galeon uses **EIP-5564 stealth addresses** for **privacy without mixers or pools**. Each payment goes to a unique one-time address that only the recipient can detect. No mixing, no sanctions risk—just cryptographic unlinkability."
-
-**Key talking points:**
-- Stealth addresses use ECDH (Diffie-Hellman key exchange)
-- Recipient anonymity: payer can't be linked to recipient's main wallet
-- Payment unlinkability: multiple payments can't be correlated
-- **Privacy WITHOUT mixers**: no Tornado Cash, no regulatory concerns
-
-**Honest framing:** "We use stealth addresses (cryptographic privacy), not ZK proofs. The privacy guarantees come from unlinkability, not zero-knowledge circuits."
-
-#### Infrastructure & Tooling
-> "Galeon provides **payment infrastructure** with **auditable receipts on-chain** as a primitive. Private payments that any dApp can integrate—with proof that payments happened."
-
-**Key talking points:**
-- Reusable stealth address library
-- Receipt generation/verification utilities
-- Smart contract for any project to use
-- Mantle's ~$0.02 per payment roundtrip makes this economically viable
-
-#### Best Mantle Integration
-> "Galeon is **built native to Mantle**. Each stealth payment requires 3 on-chain operations—~$0.02 total on Mantle vs $5+ on Ethereum. This fee structure makes private B2B payments viable for real businesses."
-
-**Key talking points:**
-- Payment roundtrip: transfer + ephemeral key + receipt anchor = ~$0.02
-- Deployed exclusively on Mantle (testnet → mainnet)
-- Supports MNT (native) and USDC
-- Fee economics enable the receipt anchoring model
-
-### Prize Probability Analysis
-
-| Prize | Amount | Probability | Expected Value |
-|-------|--------|-------------|----------------|
-| Grand Prize | $30,000 | 3-5% | $1,200 |
-| RWA / RealFi | $15,000 | 20-25% | $3,375 |
-| ZK & Privacy | $15,000 | 10-15% | $1,875 |
-| Infrastructure | $15,000 | 12-18% | $2,250 |
-| Best UX/Demo | $5,000 | 15-20% | $875 |
-| Best Mantle Integration | $4,000 | 10-15% | $500 |
-| Community Choice | $6,000 | 5-10% | $450 |
-| Incubation | $15,000 | 15-20% | $2,625 |
-
-**Total Expected Value:** ~$13,150
-**Probability of winning AT LEAST ONE prize:** 55-65%
-
----
-
-## Technical Architecture
-
-### Stealth Address Implementation (EIP-5564)
-
-```
-VENDOR SETUP (Once):
-├── Generate spending keypair: (sk_spend, K_spend)
-├── Generate viewing keypair: (sk_view, K_view)
-├── Publish stealth meta-address: (K_spend, K_view)
-└── Share payment link: galeon.xyz/vendor-name
-
-PAYMENT FLOW:
-├── Payer gets vendor's meta-address
-├── Payer generates ephemeral key: r (random)
-├── Payer computes stealth address: P = K_spend + hash(r·K_view)·G
-├── Payer sends funds to P
-├── Payer publishes R = r·G (ephemeral public key) on-chain
-└── Payer signs receipt with payment details
-
-RECEIVING FLOW:
-├── Vendor scans for ephemeral keys (R) on-chain
-├── For each R: compute P' = K_spend + hash(sk_view·R)·G
-├── If P' has balance → payment detected
-├── Derive private key: p = sk_spend + hash(sk_view·R)
-└── Claim funds + store receipt
-```
-
-### Receipt Structure
+### Port Data Model
 
 ```typescript
-interface GaleonReceipt {
-  // Public metadata
-  receipt_id: string;          // "GR-2025-001234"
-  amount: string;              // "5000.00"
-  currency: string;            // "USDC" | "MNT"
-  timestamp: string;           // ISO 8601
-  description: string;         // "Website development - Phase 1"
+// Port stored in database
+interface Port {
+  id: string                    // UUID
+  ownerId: number               // FK to User
+  portId: bytes32               // On-chain identifier (keccak256 of name + random)
+  name: string                  // User-defined label
+  type: 'permanent' | 'recurring' | 'one-time' | 'burner'
 
-  // Privacy-preserving linkage
-  stealth_address: string;     // The one-time address
-  ephemeral_pubkey: string;    // R value for recipient to detect
+  // Stealth keys (encrypted at rest)
+  spendingPrivateKey: string    // Encrypted with user's master key
+  viewingPrivateKey: string     // Encrypted with user's master key
+  stealthMetaAddress: string    // Public: spending pubkey + viewing pubkey
 
-  // Signatures for verification
-  payer_signature: string;     // Payer attests to payment
-  payer_address: string;       // Payer's public address
+  // Metadata
+  active: boolean
+  archived: boolean
+  createdAt: DateTime
+  archivedAt: DateTime | null
 
-  // On-chain anchor
-  receipt_hash: string;        // keccak256(receipt) anchored on-chain
-  tx_hash: string;             // Payment transaction hash
-  anchor_block: number;        // Block where anchored
+  // Stats (denormalized for performance)
+  totalReceived: string         // Total MNT/ETH received
+  paymentCount: number
+}
+
+// Port creation flow
+interface CreatePortRequest {
+  name: string
+  type: 'permanent' | 'recurring' | 'one-time' | 'burner'
 }
 ```
 
-### Smart Contract
+### Dual Modes: Vendor & User
+
+Galeon supports two modes with tailored analytics. The same wallet can operate in both modes.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          DUAL MODES                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────────┐  ┌─────────────────────────────┐       │
+│  │        VENDOR MODE          │  │         USER MODE           │       │
+│  │      (Receive Payments)     │  │      (Send Payments)        │       │
+│  ├─────────────────────────────┤  ├─────────────────────────────┤       │
+│  │                             │  │                             │       │
+│  │  PRIMARY ACTIONS:           │  │  PRIMARY ACTIONS:           │       │
+│  │  • Create Ports             │  │  • Pay to any Port/address  │       │
+│  │  • Share payment links      │  │  • Create expense Ports     │       │
+│  │  • Collect funds            │  │  • Track spending           │       │
+│  │  • View income              │  │  • Export reports           │       │
+│  │                             │  │                             │       │
+│  │  ANALYTICS:                 │  │  ANALYTICS:                 │       │
+│  │  • Income by Port           │  │  • Spending by category     │       │
+│  │  • Income by period         │  │  • Spending by Port         │       │
+│  │  • Top payers               │  │  • Monthly budgets          │       │
+│  │  • Payment frequency        │  │  • Payment history          │       │
+│  │  • Tax reports (quarterly)  │  │  • Receipt organization     │       │
+│  │  • Outstanding invoices     │  │  • Merchant breakdown       │       │
+│  │                             │  │                             │       │
+│  │  USE CASES:                 │  │  USE CASES:                 │       │
+│  │  • Restaurants              │  │  • Regular consumers        │       │
+│  │  • Freelancers              │  │  • Business expenses        │       │
+│  │  • B2B suppliers            │  │  • Travel budgets           │       │
+│  │  • E-commerce               │  │  • Anonymous donations      │       │
+│  │                             │  │                             │       │
+│  └─────────────────────────────┘  └─────────────────────────────┘       │
+│                                                                          │
+│  NOTE: Same wallet can be both Vendor AND User simultaneously.          │
+│  Mode is selected in dashboard, not mutually exclusive.                  │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Collection Flow (Claiming Funds)
+
+"Collect" is the nautical-themed action for withdrawing funds from stealth addresses.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        COLLECTION FLOW                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  TERMINOLOGY: "Collect" (fits Galeon nautical theme)                     │
+│                                                                          │
+│  TWO COLLECTION MODES:                                                   │
+│                                                                          │
+│  1. COLLECT ALL (Primary CTA)                                            │
+│     ┌──────────────────────────────────────────────────────────────┐    │
+│     │  [Collect All - 2.5 MNT available]                           │    │
+│     │                                                               │    │
+│     │  Scans ALL Ports, finds ALL unclaimed payments,               │    │
+│     │  batches them into a single transaction.                      │    │
+│     │                                                               │    │
+│     │  Best for: Regular collection, simple UX                      │    │
+│     └──────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  2. COLLECT BY PORT (Secondary, expandable)                              │
+│     ┌──────────────────────────────────────────────────────────────┐    │
+│     │  Select Ports to collect from:                                │    │
+│     │                                                               │    │
+│     │  [x] Main Business         1.2 MNT  (3 payments)              │    │
+│     │  [x] Q4 Invoices           0.8 MNT  (1 payment)               │    │
+│     │  [ ] Travel Budget         0.5 MNT  (2 payments)              │    │
+│     │                                                               │    │
+│     │  [Collect Selected - 2.0 MNT]                                 │    │
+│     │                                                               │    │
+│     │  Best for: Accounting separation, selective withdrawal        │    │
+│     └──────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  TECHNICAL FLOW:                                                         │
+│                                                                          │
+│  1. Frontend requests scan for selected Ports                            │
+│  2. Backend scans Announcements using each Port's viewing key            │
+│  3. Backend returns list of claimable stealth addresses + amounts        │
+│  4. Frontend displays preview                                            │
+│  5. User confirms → Relayer executes batch withdraw                      │
+│  6. Funds arrive at user's main wallet                                   │
+│                                                                          │
+│  GAS: Relayer pays gas (hackathon). Future: user pays or subscription.   │
+│                                                                          │
+│  BATCH LIMIT: Up to 10 stealth addresses per transaction.                │
+│  If more, split into multiple transactions automatically.                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Contract Architecture
+
+### Design Decision: Own EIP-5564/6538 Copies + GaleonRegistry
+
+We deploy **our own copies** of ERC-5564 and ERC-6538 contracts plus our custom **GaleonRegistry**.
+
+**Why not canonical addresses?**
+- Canonical contracts are NOT deployed on Mantle (verified: address is empty EOA)
+- CREATE2 deployment to canonical addresses requires exact init code + salt (complex)
+- No other EIP-5564 wallets exist on Mantle, so interop is not a concern
+- We can request ScopeLift to deploy canonical contracts later if needed
+
+**This approach:**
+1. **Standards compliance** - Uses official EIP implementations (same code)
+2. **Simple deployment** - Standard `deploy()`, no CREATE2 complexity
+3. **Self-contained** - Our system works fully without external dependencies
+4. **Future-proof** - Can migrate to canonical addresses later if needed
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      CONTRACT ARCHITECTURE                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  GALEON CONTRACTS (Our deployments, EIP-compliant):                      │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  ERC5564Announcer                                                │    │
+│  │  Address: Deployed per chain (updated after deployment)          │    │
+│  │                                                                  │    │
+│  │  • Emits Announcement events for stealth payments                │    │
+│  │  • Recipients scan these to find their payments                  │    │
+│  │  • Standard EIP-5564 interface                                   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                           │                                              │
+│                           │ calls                                        │
+│                           ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  ERC6538Registry                                                 │    │
+│  │  Address: Deployed per chain (updated after deployment)          │    │
+│  │                                                                  │    │
+│  │  • Stores stealth meta-addresses by registrant + schemeId        │    │
+│  │  • Standard ERC-6538 interface                                   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                           │                                              │
+│                           │ calls                                        │
+│                           ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  GaleonRegistry (Galeon-specific)                                │    │
+│  │  Address: Deployed per chain (updated after deployment)          │    │
+│  │                                                                  │    │
+│  │  FEATURES:                                                       │    │
+│  │  • Port registration (links portId → stealthMetaAddress)         │    │
+│  │  • Single-tx payment (transfer + announce in one call)           │    │
+│  │  • Receipt hash anchoring (on-chain proof of payment)            │    │
+│  │  • Native MNT/ETH and ERC-20 support                             │    │
+│  │  • Batch operations for collection                               │    │
+│  │                                                                  │    │
+│  │  CALLS:                                                          │    │
+│  │  • announcer.announce() - on every payment                       │    │
+│  │  • registry.registerKeys() - on Port creation                    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Chain Configuration
+
+```typescript
+// packages/contracts/config/chains.ts
+
+export interface ChainConfig {
+  chainId: number
+  name: string
+  rpcUrl: string
+  explorer: string
+  nativeCurrency: {
+    name: string
+    symbol: string
+    decimals: number
+  }
+  contracts: {
+    announcer: `0x${string}`
+    registry: `0x${string}`
+    galeon: `0x${string}`
+  }
+}
+
+// Supported chains - addresses updated after deployment
+export const chains: Record<number, ChainConfig> = {
+  // Mantle Sepolia (Testnet) - Primary for hackathon
+  5003: {
+    chainId: 5003,
+    name: 'Mantle Sepolia',
+    rpcUrl: 'https://rpc.sepolia.mantle.xyz',
+    explorer: 'https://sepolia.mantlescan.xyz',
+    nativeCurrency: { name: 'Mantle', symbol: 'MNT', decimals: 18 },
+    contracts: {
+      announcer: '0x...', // TODO: Update after deployment
+      registry: '0x...',  // TODO: Update after deployment
+      galeon: '0x...',    // TODO: Update after deployment
+    },
+  },
+
+  // Mantle Mainnet - For production
+  5000: {
+    chainId: 5000,
+    name: 'Mantle',
+    rpcUrl: 'https://rpc.mantle.xyz',
+    explorer: 'https://mantlescan.xyz',
+    nativeCurrency: { name: 'Mantle', symbol: 'MNT', decimals: 18 },
+    contracts: {
+      announcer: '0x...', // TODO: Update after deployment
+      registry: '0x...',  // TODO: Update after deployment
+      galeon: '0x...',    // TODO: Update after deployment
+    },
+  },
+
+  // Arbitrum Sepolia (for Sippy testing) - Future
+  421614: {
+    chainId: 421614,
+    name: 'Arbitrum Sepolia',
+    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    explorer: 'https://sepolia.arbiscan.io',
+    nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+    contracts: {
+      announcer: '0x...', // TODO: Update after deployment
+      registry: '0x...',  // TODO: Update after deployment
+      galeon: '0x...',    // TODO: Update after deployment
+    },
+  },
+}
+
+// Helper functions
+export function getChainConfig(chainId: number): ChainConfig {
+  const config = chains[chainId]
+  if (!config) throw new Error(`Unsupported chain: ${chainId}`)
+  return config
+}
+
+export function getContracts(chainId: number) {
+  const config = getChainConfig(chainId)
+  return config.contracts
+}
+```
+
+### Smart Contracts
+
+#### ERC5564Announcer.sol
 
 ```solidity
+// packages/contracts/contracts/ERC5564Announcer.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
+
+/// @title ERC-5564 Announcer
+/// @notice Standard implementation for stealth address announcements
+contract ERC5564Announcer {
+    /// @notice Emitted when a stealth payment is announced
+    /// @param schemeId The stealth address scheme (1 = secp256k1)
+    /// @param stealthAddress The generated stealth address receiving funds
+    /// @param caller The address making the announcement (usually payer)
+    /// @param ephemeralPubKey The ephemeral public key for deriving stealth address
+    /// @param metadata Additional data (view tag, receipt hash, token info)
+    event Announcement(
+        uint256 indexed schemeId,
+        address indexed stealthAddress,
+        address indexed caller,
+        bytes ephemeralPubKey,
+        bytes metadata
+    );
+
+    /// @notice Announce a stealth payment
+    /// @param schemeId The stealth address scheme (1 = secp256k1)
+    /// @param stealthAddress The stealth address receiving funds
+    /// @param ephemeralPubKey The ephemeral public key (33 bytes compressed)
+    /// @param metadata Additional data (view tag + optional data)
+    function announce(
+        uint256 schemeId,
+        address stealthAddress,
+        bytes calldata ephemeralPubKey,
+        bytes calldata metadata
+    ) external {
+        emit Announcement(schemeId, stealthAddress, msg.sender, ephemeralPubKey, metadata);
+    }
+}
+```
+
+#### ERC6538Registry.sol
+
+```solidity
+// packages/contracts/contracts/ERC6538Registry.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/// @title ERC-6538 Stealth Meta-Address Registry
+/// @notice Standard implementation for storing stealth meta-addresses
+contract ERC6538Registry {
+    /// @notice Emitted when a stealth meta-address is registered
+    /// @param registrant The address registering the meta-address
+    /// @param schemeId The stealth address scheme (1 = secp256k1)
+    /// @param stealthMetaAddress The stealth meta-address (spending + viewing pubkeys)
+    event StealthMetaAddressSet(
+        address indexed registrant,
+        uint256 indexed schemeId,
+        bytes stealthMetaAddress
+    );
+
+    /// @notice Mapping: registrant => schemeId => stealthMetaAddress
+    mapping(address => mapping(uint256 => bytes)) private _stealthMetaAddresses;
+
+    /// @notice Register or update a stealth meta-address
+    /// @param schemeId The stealth address scheme (1 = secp256k1)
+    /// @param stealthMetaAddress The stealth meta-address (66 bytes for secp256k1)
+    function registerKeys(uint256 schemeId, bytes calldata stealthMetaAddress) external {
+        _stealthMetaAddresses[msg.sender][schemeId] = stealthMetaAddress;
+        emit StealthMetaAddressSet(msg.sender, schemeId, stealthMetaAddress);
+    }
+
+    /// @notice Get a registrant's stealth meta-address
+    /// @param registrant The address to query
+    /// @param schemeId The stealth address scheme
+    /// @return The stealth meta-address (empty if not registered)
+    function stealthMetaAddressOf(
+        address registrant,
+        uint256 schemeId
+    ) external view returns (bytes memory) {
+        return _stealthMetaAddresses[registrant][schemeId];
+    }
+}
+```
+
+#### GaleonRegistry.sol (Galeon-specific)
+
+```solidity
+// packages/contracts/contracts/GaleonRegistry.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./interfaces/IERC5564Announcer.sol";
+import "./interfaces/IERC6538Registry.sol";
 
-contract GaleonRegistry {
+/// @title GaleonRegistry
+/// @notice Main Galeon contract: Port management, payments, and receipt anchoring
+/// @dev Integrates with ERC-5564 and ERC-6538 contracts
+contract GaleonRegistry is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    // Receipt hash → timestamp (proves receipt existed at time T)
-    mapping(bytes32 => uint256) public receiptTimestamps;
+    // ============ Constants ============
 
-    // Vendor stealth meta-address registry
-    mapping(address => bytes) public stealthMetaAddresses;
+    /// @notice Stealth address scheme ID (1 = secp256k1 with view tags)
+    uint256 public constant SCHEME_ID = 1;
 
-    // Events for indexing
+    // ============ Immutables ============
+
+    /// @notice ERC-5564 Announcer contract
+    IERC5564Announcer public immutable announcer;
+
+    /// @notice ERC-6538 Registry contract
+    IERC6538Registry public immutable registry;
+
+    // ============ Events ============
+
+    /// @notice Emitted when a receipt hash is anchored on-chain
     event ReceiptAnchored(
+        address indexed stealthAddress,
         bytes32 indexed receiptHash,
+        address indexed payer,
+        uint256 amount,
+        address token,        // address(0) for native
         uint256 timestamp
     );
 
-    event StealthPayment(
-        address indexed stealthAddress,
-        bytes32 indexed receiptHash,
-        bytes ephemeralPubKey,
-        uint256 amount,
-        address token  // address(0) for native MNT
-    );
-
-    event MetaAddressRegistered(
+    /// @notice Emitted when a new Port is registered
+    event PortRegistered(
         address indexed owner,
-        bytes metaAddress
+        bytes32 indexed portId,
+        string name,
+        bytes stealthMetaAddress
     );
 
-    /// @notice Register vendor's stealth meta-address
-    function registerMetaAddress(bytes calldata metaAddress) external {
-        stealthMetaAddresses[msg.sender] = metaAddress;
-        emit MetaAddressRegistered(msg.sender, metaAddress);
+    /// @notice Emitted when a Port is deactivated
+    event PortDeactivated(
+        address indexed owner,
+        bytes32 indexed portId
+    );
+
+    // ============ State ============
+
+    /// @notice Port ID => stealth meta-address
+    mapping(bytes32 => bytes) public portMetaAddresses;
+
+    /// @notice Port ID => owner address
+    mapping(bytes32 => address) public portOwners;
+
+    /// @notice Port ID => active status
+    mapping(bytes32 => bool) public portActive;
+
+    // ============ Constructor ============
+
+    /// @param _announcer Address of ERC-5564 Announcer
+    /// @param _registry Address of ERC-6538 Registry
+    constructor(address _announcer, address _registry) {
+        require(_announcer != address(0), "Invalid announcer");
+        require(_registry != address(0), "Invalid registry");
+        announcer = IERC5564Announcer(_announcer);
+        registry = IERC6538Registry(_registry);
     }
 
-    /// @notice Pay native MNT with receipt
+    // ============ Port Management ============
+
+    /// @notice Register a new Port
+    /// @param portId Unique identifier for the Port (keccak256 of name + random)
+    /// @param name Human-readable name for the Port
+    /// @param stealthMetaAddress The Port's stealth meta-address (66 bytes)
+    function registerPort(
+        bytes32 portId,
+        string calldata name,
+        bytes calldata stealthMetaAddress
+    ) external {
+        require(portOwners[portId] == address(0), "Port already exists");
+        require(stealthMetaAddress.length == 66, "Invalid meta-address length");
+
+        portMetaAddresses[portId] = stealthMetaAddress;
+        portOwners[portId] = msg.sender;
+        portActive[portId] = true;
+
+        // Also register in canonical registry (for interoperability)
+        // Note: We register under msg.sender's address
+        registry.registerKeys(SCHEME_ID, stealthMetaAddress);
+
+        emit PortRegistered(msg.sender, portId, name, stealthMetaAddress);
+    }
+
+    /// @notice Deactivate a Port (owner only)
+    /// @param portId The Port to deactivate
+    function deactivatePort(bytes32 portId) external {
+        require(portOwners[portId] == msg.sender, "Not port owner");
+        require(portActive[portId], "Port already inactive");
+
+        portActive[portId] = false;
+        emit PortDeactivated(msg.sender, portId);
+    }
+
+    /// @notice Get a Port's stealth meta-address
+    /// @param portId The Port to query
+    /// @return The stealth meta-address (empty if not found)
+    function getPortMetaAddress(bytes32 portId) external view returns (bytes memory) {
+        return portMetaAddresses[portId];
+    }
+
+    // ============ Native Payments ============
+
+    /// @notice Pay native currency (MNT/ETH) to a stealth address
+    /// @param stealthAddress The stealth address to pay
+    /// @param ephemeralPubKey The ephemeral public key (33 bytes compressed)
+    /// @param viewTag Single byte view tag for efficient scanning
+    /// @param receiptHash Hash of the off-chain receipt (for verification)
     function payNative(
         address stealthAddress,
         bytes calldata ephemeralPubKey,
+        bytes1 viewTag,
         bytes32 receiptHash
-    ) external payable {
-        require(msg.value > 0, "No payment");
-        require(receiptTimestamps[receiptHash] == 0, "Receipt exists");
+    ) external payable nonReentrant {
+        require(msg.value > 0, "No value sent");
+        require(stealthAddress != address(0), "Invalid stealth address");
+        require(ephemeralPubKey.length == 33, "Invalid ephemeral key length");
 
-        // Transfer to stealth address
+        // Transfer native currency to stealth address
         (bool success, ) = stealthAddress.call{value: msg.value}("");
-        require(success, "Transfer failed");
+        require(success, "Native transfer failed");
 
-        // Anchor receipt
-        receiptTimestamps[receiptHash] = block.timestamp;
+        // Build metadata: viewTag (1 byte) + receiptHash (32 bytes)
+        bytes memory metadata = abi.encodePacked(viewTag, receiptHash);
 
-        emit StealthPayment(
+        // Announce via canonical contract
+        announcer.announce(SCHEME_ID, stealthAddress, ephemeralPubKey, metadata);
+
+        // Emit receipt anchor event
+        emit ReceiptAnchored(
             stealthAddress,
             receiptHash,
-            ephemeralPubKey,
+            msg.sender,
             msg.value,
-            address(0)
+            address(0),
+            block.timestamp
         );
     }
 
-    /// @notice Pay ERC20 (USDC) with receipt
-    function payERC20(
+    // ============ Token Payments ============
+
+    /// @notice Pay ERC-20 tokens to a stealth address
+    /// @param token The ERC-20 token contract
+    /// @param stealthAddress The stealth address to pay
+    /// @param amount The amount of tokens to pay
+    /// @param ephemeralPubKey The ephemeral public key (33 bytes compressed)
+    /// @param viewTag Single byte view tag for efficient scanning
+    /// @param receiptHash Hash of the off-chain receipt (for verification)
+    function payToken(
         address token,
         address stealthAddress,
         uint256 amount,
         bytes calldata ephemeralPubKey,
+        bytes1 viewTag,
         bytes32 receiptHash
-    ) external {
-        require(amount > 0, "No payment");
-        require(receiptTimestamps[receiptHash] == 0, "Receipt exists");
+    ) external nonReentrant {
+        require(amount > 0, "Zero amount");
+        require(stealthAddress != address(0), "Invalid stealth address");
+        require(token != address(0), "Invalid token");
+        require(ephemeralPubKey.length == 33, "Invalid ephemeral key length");
 
-        // Transfer tokens
+        // Transfer tokens to stealth address
         IERC20(token).safeTransferFrom(msg.sender, stealthAddress, amount);
 
-        // Anchor receipt
-        receiptTimestamps[receiptHash] = block.timestamp;
+        // Build metadata: viewTag (1) + receiptHash (32) + token (20) + amount (32)
+        bytes memory metadata = abi.encodePacked(viewTag, receiptHash, token, amount);
 
-        emit StealthPayment(
+        // Announce via canonical contract
+        announcer.announce(SCHEME_ID, stealthAddress, ephemeralPubKey, metadata);
+
+        // Emit receipt anchor event
+        emit ReceiptAnchored(
             stealthAddress,
             receiptHash,
-            ephemeralPubKey,
+            msg.sender,
             amount,
-            token
+            token,
+            block.timestamp
         );
     }
 
-    /// @notice Verify a receipt was anchored
-    function verifyReceipt(bytes32 receiptHash)
-        external
-        view
-        returns (bool exists, uint256 timestamp)
-    {
-        timestamp = receiptTimestamps[receiptHash];
-        exists = timestamp > 0;
-    }
+    // ============ Batch Collection (Future) ============
 
-    /// @notice Get vendor's meta-address
-    function getMetaAddress(address vendor)
-        external
-        view
-        returns (bytes memory)
-    {
-        return stealthMetaAddresses[vendor];
-    }
+    // TODO: Implement batch withdraw for relayer
+    // function batchWithdrawNative(
+    //     address[] calldata stealthAddresses,
+    //     bytes[] calldata signatures,
+    //     address recipient
+    // ) external;
 }
 ```
 
-### Tech Stack
+#### Interfaces
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| **Blockchain** | Mantle L2 | Low fees, EVM compatible |
-| **Cryptography** | @noble/secp256k1, @noble/hashes | Audited, browser-compatible |
-| **Smart Contracts** | Solidity + Hardhat | Standard tooling |
-| **Frontend** | Next.js 14 + TypeScript | App router, fast iteration |
-| **Styling** | Tailwind CSS | Rapid UI development |
-| **Wallet** | wagmi v2 + viem | Modern, type-safe |
-| **State** | Zustand | Lightweight, simple |
-| **Backend** | Next.js API Routes | No separate server, simpler deployment |
-| **Indexer** | Ponder | Real-time blockchain indexing, GraphQL API |
-| **Database** | PostgreSQL + Drizzle ORM | Type-safe, simple migrations |
-| **Hosting** | Vercel (web) + Railway (Ponder + DB) | Quick deployment |
+```solidity
+// packages/contracts/contracts/interfaces/IERC5564Announcer.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
-### Architecture Overview
+interface IERC5564Announcer {
+    event Announcement(
+        uint256 indexed schemeId,
+        address indexed stealthAddress,
+        address indexed caller,
+        bytes ephemeralPubKey,
+        bytes metadata
+    );
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         GALEON ARCHITECTURE                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    NEXT.JS (Vercel)                      │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │   │
-│  │  │   Frontend  │  │ API Routes  │  │  Stealth Crypto │  │   │
-│  │  │   (React)   │  │  /api/*     │  │   (client-side) │  │   │
-│  │  └─────────────┘  └──────┬──────┘  └─────────────────┘  │   │
-│  └──────────────────────────┼──────────────────────────────┘   │
-│                             │                                   │
-│         ┌───────────────────┼───────────────────┐              │
-│         │                   │                   │              │
-│         ▼                   ▼                   ▼              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │  PostgreSQL │    │   Ponder    │    │   Mantle    │        │
-│  │  (Railway)  │    │  (Railway)  │    │  Blockchain │        │
-│  │             │    │  GraphQL    │    │             │        │
-│  │  - vendors  │    │  - payments │    │  - contract │        │
-│  │  - receipts │    │  - events   │    │  - events   │        │
-│  └─────────────┘    └─────────────┘    └─────────────┘        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Data flow:**
-- **Vendor/receipt data** → PostgreSQL (via Next.js API routes)
-- **On-chain events** → Ponder indexes → GraphQL API
-- **Stealth crypto** → Client-side (browser)
-
-### Database Schema
-
-```sql
--- Vendors table
-CREATE TABLE vendors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  wallet_address VARCHAR(42) UNIQUE NOT NULL,
-  name VARCHAR(255),
-  slug VARCHAR(100) UNIQUE NOT NULL,  -- for galeon.xyz/slug
-  stealth_meta_address TEXT NOT NULL, -- encoded (K_spend, K_view)
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Receipts table
-CREATE TABLE receipts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  receipt_id VARCHAR(50) UNIQUE NOT NULL,  -- "GR-2025-001234"
-  vendor_id UUID REFERENCES vendors(id),
-
-  -- Payment details
-  amount DECIMAL(36, 18) NOT NULL,
-  currency VARCHAR(10) NOT NULL,  -- "MNT", "USDC"
-  description TEXT,
-
-  -- Blockchain data
-  stealth_address VARCHAR(42) NOT NULL,
-  ephemeral_pubkey TEXT NOT NULL,
-  tx_hash VARCHAR(66),
-  anchor_block BIGINT,
-  receipt_hash VARCHAR(66) NOT NULL,
-
-  -- Signatures
-  payer_address VARCHAR(42) NOT NULL,
-  payer_signature TEXT NOT NULL,
-  vendor_signature TEXT,  -- Added when vendor acknowledges
-
-  -- Status
-  status VARCHAR(20) DEFAULT 'pending',  -- pending, confirmed, claimed
-  detected_at TIMESTAMP,
-  claimed_at TIMESTAMP,
-
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Index for fast lookups
-CREATE INDEX idx_receipts_vendor ON receipts(vendor_id);
-CREATE INDEX idx_receipts_stealth ON receipts(stealth_address);
-CREATE INDEX idx_vendors_slug ON vendors(slug);
-```
-
-### API Endpoints
-
-```typescript
-// Next.js API Routes (app/api/*)
-
-// === VENDORS ===
-
-// Register new vendor
-POST /api/vendors
-Body: { walletAddress, name, slug, stealthMetaAddress }
-Response: { vendor, paymentLink }
-
-// Get vendor by slug (public - for payers)
-GET /api/vendors/:slug
-Response: { name, slug, stealthMetaAddress }
-
-// Get vendor profile (authenticated)
-GET /api/vendors/me
-Headers: { Authorization: "Bearer <signature>" }
-Response: { vendor, stats }
-
-// === RECEIPTS ===
-
-// Create receipt (called by payer after payment)
-POST /api/receipts
-Body: {
-  vendorSlug, amount, currency, description,
-  stealthAddress, ephemeralPubkey, txHash,
-  receiptHash, payerAddress, payerSignature
+    function announce(
+        uint256 schemeId,
+        address stealthAddress,
+        bytes calldata ephemeralPubKey,
+        bytes calldata metadata
+    ) external;
 }
-Response: { receipt }
-
-// Get receipts for vendor (authenticated)
-GET /api/vendors/me/receipts
-Headers: { Authorization: "Bearer <signature>" }
-Query: { status?, page?, limit? }
-Response: { receipts, pagination }
-
-// Get single receipt (public - for verification)
-GET /api/receipts/:receiptId
-Response: { receipt, verification }
-
-// Vendor acknowledges/signs receipt
-POST /api/receipts/:receiptId/sign
-Headers: { Authorization: "Bearer <signature>" }
-Body: { vendorSignature }
-Response: { receipt }
-
-// Export receipts
-GET /api/vendors/me/receipts/export
-Headers: { Authorization: "Bearer <signature>" }
-Query: { format: "json" | "csv", dateFrom?, dateTo? }
-Response: File download
-
-// === VERIFICATION ===
-
-// Verify receipt authenticity
-POST /api/verify
-Body: { receiptId } | { receiptHash }
-Response: { valid, receipt, onChainTimestamp }
 ```
 
-### Authentication Strategy
+```solidity
+// packages/contracts/contracts/interfaces/IERC6538Registry.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
-Simple signature-based auth (no JWT complexity):
+interface IERC6538Registry {
+    event StealthMetaAddressSet(
+        address indexed registrant,
+        uint256 indexed schemeId,
+        bytes stealthMetaAddress
+    );
 
-```typescript
-// Client signs a message to prove wallet ownership
-const message = `Galeon Auth\nTimestamp: ${Date.now()}`;
-const signature = await signMessage({ message });
-
-// Send in header
-headers: {
-  'X-Wallet-Address': address,
-  'X-Signature': signature,
-  'X-Timestamp': timestamp
+    function registerKeys(uint256 schemeId, bytes calldata stealthMetaAddress) external;
+    function stealthMetaAddressOf(address registrant, uint256 schemeId) external view returns (bytes memory);
 }
-
-// Server verifies
-const isValid = await verifyMessage({
-  address: walletAddress,
-  message: `Galeon Auth\nTimestamp: ${timestamp}`,
-  signature
-});
 ```
 
 ---
 
-## MVP Scope: Must-Have vs Nice-to-Have
-
-### ✅ MUST HAVE (Week 1-2)
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Stealth address generation | P0 | Core crypto |
-| Smart contract deployment | P0 | On Mantle testnet |
-| Native MNT payments | P0 | Simplest path |
-| Receipt generation + signing | P0 | Core value prop |
-| Receipt on-chain anchoring | P0 | Proves existence |
-| Vendor dashboard | P0 | Shows payments, analytics |
-| Payment link generation | P0 | How payers pay |
-| Payer flow UI | P0 | Connect wallet → pay |
-| Ponder indexer | P0 | Real-time payment detection |
-
-### 🟡 SHOULD HAVE (Week 3)
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| USDC payments | P1 | ERC20 support |
-| Receipt export (JSON/CSV) | P1 | Tax-ready format |
-| **COP conversion + manual override** | P1 | DIAN compliance, fallback if API fails |
-| Receipt verification UI | P1 | Public receipt verification |
-| Smoke tests on Mantle | P1 | E2E validation on testnet |
-| **Stealth mode for payers** | P1 | Payer privacy (don't block core flow) |
-
-### ❌ NOT IN MVP
-
-| Feature | Why Not |
-|---------|---------|
-| DIAN factura electrónica | Complex integration, post-hackathon |
-| Invoice generation | Post-hackathon |
-| Multi-chain | Mantle only |
-| Mobile app | Web only |
-
----
-
-## User Flows
-
-### Merchant Flow
-
-```
-1. SETUP
-   └── Connect wallet → Generate stealth keys → Register → Get payment link
-
-2. RECEIVE PAYMENT
-   └── Client pays → Ponder indexes → Dashboard shows payment
-
-3. MANAGE
-   └── View analytics → Export receipts (JSON/CSV with COP) → Verify receipts
-```
-
-### Client Flow (Standard)
-
-```
-1. PAY
-   └── Click payment link → Enter amount/description → Pay to stealth address
-
-2. RECEIPT
-   └── Sign receipt → Download/share receipt
-```
-
-### Client Flow (Stealth Mode - Private Payer)
-
-```
-1. ENABLE STEALTH MODE
-   └── Toggle "Pay Anonymously" → Generate ephemeral wallet in-browser
-
-2. FUND EPHEMERAL WALLET
-   └── Transfer funds from main wallet → Ephemeral wallet
-
-3. PAY ANONYMOUSLY
-   └── Pay from ephemeral wallet → Merchant's stealth address
-
-4. CLEANUP
-   └── Ephemeral wallet discarded (or sweep remaining funds back)
-```
-
-**Privacy levels:**
-
-| Mode | Client Privacy | Merchant Privacy |
-|------|----------------|------------------|
-| Standard | 🟡 Visible (pays from main wallet) | ✅ Full (receives to stealth) |
-| Stealth | ✅ Full (pays from ephemeral) | ✅ Full (receives to stealth) |
-
----
-
-## Tax Compliance (DIAN-Ready)
-
-### Receipt Fields for Export
-
-```typescript
-interface ExportableReceipt {
-  // Core identifiers
-  receipt_id: string;           // "GR-2025-001234"
-  date: string;                 // ISO 8601
-
-  // Amounts
-  amount: string;               // "500.00"
-  currency: string;             // "USDC" | "MNT"
-  amount_cop: string;           // "2,150,000.00" (converted)
-  exchange_rate: string;        // "4300.00" (COP per token)
-  rate_source: string;          // "CoinGecko"
-  rate_timestamp: string;       // When rate was fetched
-
-  // Parties
-  vendor_name: string;
-  vendor_wallet: string;        // Public wallet (for NIT mapping)
-  payer_wallet: string;         // Or "Anonymous" if stealth mode
-
-  // Description
-  description: string;          // "Diseño de logo - Proyecto X"
-
-  // Verification
-  tx_hash: string;
-  receipt_hash: string;
-  on_chain_timestamp: string;
-  payer_signature: string;
-  vendor_signature: string;
-}
-```
-
-### Export Formats
-
-**JSON Export:**
-```json
-{
-  "export_date": "2025-01-15T10:00:00Z",
-  "vendor": "Maria's Design Studio",
-  "period": "2025-01",
-  "total_cop": "15,450,000.00",
-  "receipts": [...]
-}
-```
-
-**CSV Export:**
-```csv
-receipt_id,date,amount,currency,amount_cop,description,payer_wallet,tx_hash
-GR-2025-001234,2025-01-10,500.00,USDC,2150000.00,Diseño de logo,0x1234...abcd,0xabc...
-```
-
-### COP Conversion
-
-```typescript
-// lib/prices.ts
-import { getCoinPrice } from './coingecko';
-
-export async function convertToCOP(
-  amount: number,
-  currency: 'MNT' | 'USDC'
-): Promise<{ cop: number; rate: number; timestamp: Date }> {
-  // Get token price in USD
-  const usdPrice = await getCoinPrice(currency);
-
-  // Get USD/COP rate
-  const copRate = await getCoinPrice('USD', 'COP'); // ~4300 COP
-
-  return {
-    cop: amount * usdPrice * copRate,
-    rate: usdPrice * copRate,
-    timestamp: new Date(),
-  };
-}
-```
-
-**Rate sources (fallback chain):**
-1. CoinGecko API (primary)
-2. CoinMarketCap API (backup)
-3. Manual entry (if APIs fail)
-
----
-
-## Development Plan
-
-### Project Structure
+## Project Structure (Turborepo Monorepo)
 
 ```
 galeon/
 ├── apps/
-│   ├── web/                    # Next.js (frontend + API routes)
+│   ├── web/                    # Next.js 15 (frontend only)
 │   │   ├── app/
 │   │   │   ├── page.tsx              # Landing
 │   │   │   ├── setup/
-│   │   │   │   └── page.tsx          # Vendor onboarding
+│   │   │   │   └── page.tsx          # Onboarding (create first Port)
 │   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx          # Vendor dashboard
+│   │   │   │   ├── page.tsx          # Main dashboard
+│   │   │   │   ├── vendor/
+│   │   │   │   │   └── page.tsx      # Vendor mode (receive)
+│   │   │   │   ├── user/
+│   │   │   │   │   └── page.tsx      # User mode (send)
+│   │   │   │   └── ports/
+│   │   │   │       └── page.tsx      # Port management
 │   │   │   ├── pay/
-│   │   │   │   └── [slug]/
-│   │   │   │       └── page.tsx      # Payer flow
+│   │   │   │   └── [portId]/
+│   │   │   │       └── page.tsx      # Payer flow (by Port)
+│   │   │   ├── collect/
+│   │   │   │   └── page.tsx          # Collection interface
 │   │   │   ├── receipt/
 │   │   │   │   └── [id]/
 │   │   │   │       └── page.tsx      # Receipt viewer
-│   │   │   └── api/                  # API routes (backend)
-│   │   │       ├── vendors/
-│   │   │       │   ├── route.ts          # POST /api/vendors
-│   │   │       │   ├── [slug]/
-│   │   │       │   │   └── route.ts      # GET /api/vendors/:slug
-│   │   │       │   └── me/
-│   │   │       │       ├── route.ts      # GET /api/vendors/me
-│   │   │       │       └── receipts/
-│   │   │       │           └── route.ts  # GET /api/vendors/me/receipts
-│   │   │       ├── receipts/
-│   │   │       │   ├── route.ts          # POST /api/receipts
-│   │   │       │   └── [id]/
-│   │   │       │       └── route.ts      # GET /api/receipts/:id
-│   │   │       └── verify/
-│   │   │           └── route.ts          # POST /api/verify
+│   │   │   └── verify/
+│   │   │       └── page.tsx          # Public verification
 │   │   ├── components/
 │   │   │   ├── ui/                   # Shadcn components
 │   │   │   ├── WalletConnect.tsx
 │   │   │   ├── PaymentForm.tsx
 │   │   │   ├── ReceiptCard.tsx
-│   │   │   └── DashboardStats.tsx
+│   │   │   ├── PortCard.tsx
+│   │   │   ├── PortCreator.tsx
+│   │   │   ├── CollectionPanel.tsx
+│   │   │   ├── DashboardStats.tsx
+│   │   │   └── ModeSwitch.tsx        # Vendor/User toggle
 │   │   ├── lib/
-│   │   │   ├── wagmi.ts              # Wallet config
-│   │   │   ├── ponder.ts             # Ponder GraphQL client
-│   │   │   ├── db/                   # Drizzle ORM
-│   │   │   │   ├── schema.ts
-│   │   │   │   └── index.ts
-│   │   │   └── stealth/              # Core crypto (EIP-5564)
-│   │   │       ├── index.ts
-│   │   │       ├── keys.ts           # Keypair generation
-│   │   │       ├── address.ts        # Stealth address math
-│   │   │       └── types.ts
+│   │   │   ├── wagmi.ts              # Wallet config (multi-chain)
+│   │   │   ├── api.ts                # AdonisJS API client
+│   │   │   └── transmit.ts           # SSE client
 │   │   ├── hooks/
-│   │   │   ├── useVendor.ts
+│   │   │   ├── useAuth.ts
+│   │   │   ├── usePorts.ts
 │   │   │   ├── useReceipts.ts
-│   │   │   ├── useStealth.ts
-│   │   │   └── usePayments.ts        # Query Ponder for payments
+│   │   │   ├── useCollection.ts
+│   │   │   └── usePaymentStream.ts   # Transmit SSE hook
+│   │   └── package.json
+│   │
+│   ├── api/                    # AdonisJS 6 (backend)
+│   │   ├── app/
+│   │   │   ├── controllers/
+│   │   │   │   ├── auth_controller.ts
+│   │   │   │   ├── ports_controller.ts
+│   │   │   │   ├── receipts_controller.ts
+│   │   │   │   ├── collection_controller.ts
+│   │   │   │   └── webhooks_controller.ts
+│   │   │   ├── models/
+│   │   │   │   ├── user.ts
+│   │   │   │   ├── port.ts
+│   │   │   │   └── receipt.ts
+│   │   │   ├── jobs/
+│   │   │   │   ├── process_payment.ts
+│   │   │   │   ├── scan_port.ts
+│   │   │   │   └── fetch_fx_rate.ts
+│   │   │   ├── validators/
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── port.ts
+│   │   │   │   └── receipt.ts
+│   │   │   ├── middleware/
+│   │   │   │   └── auth_middleware.ts
+│   │   │   └── services/
+│   │   │       ├── siwe_service.ts
+│   │   │       ├── stealth_service.ts    # Wraps @galeon/stealth
+│   │   │       ├── collection_service.ts
+│   │   │       └── relayer_service.ts
+│   │   ├── config/
+│   │   │   ├── app.ts
+│   │   │   ├── database.ts
+│   │   │   ├── redis.ts
+│   │   │   ├── transmit.ts
+│   │   │   ├── auth.ts
+│   │   │   └── jobs.ts
+│   │   ├── database/
+│   │   │   └── migrations/
+│   │   │       ├── 001_create_users_table.ts
+│   │   │       ├── 002_create_ports_table.ts
+│   │   │       └── 003_create_receipts_table.ts
+│   │   ├── start/
+│   │   │   ├── env.ts
+│   │   │   ├── kernel.ts
+│   │   │   ├── routes.ts
+│   │   │   └── transmit.ts
 │   │   └── package.json
 │   │
 │   └── indexer/                # Ponder (blockchain indexing)
-│       ├── ponder.config.ts          # RPC, contracts config
-│       ├── ponder.schema.ts          # Indexed data schema
+│       ├── ponder.config.ts
+│       ├── ponder.schema.ts
 │       ├── src/
-│       │   └── index.ts              # Event handlers
+│       │   └── index.ts              # Event handlers + webhook
 │       └── package.json
 │
 ├── packages/
-│   └── contracts/              # Solidity + Hardhat
-│       ├── contracts/
-│       │   └── GaleonRegistry.sol
-│       ├── test/
-│       ├── scripts/
-│       │   └── deploy.ts
-│       ├── hardhat.config.ts
+│   ├── contracts/              # Solidity + Hardhat
+│   │   ├── contracts/
+│   │   │   ├── ERC5564Announcer.sol
+│   │   │   ├── ERC6538Registry.sol
+│   │   │   ├── GaleonRegistry.sol
+│   │   │   └── interfaces/
+│   │   │       ├── IERC5564Announcer.sol
+│   │   │       └── IERC6538Registry.sol
+│   │   ├── config/
+│   │   │   └── chains.ts
+│   │   ├── scripts/
+│   │   │   └── deploy.ts             # Deploy all contracts
+│   │   ├── test/
+│   │   │   └── GaleonRegistry.test.ts
+│   │   ├── hardhat.config.ts
+│   │   └── package.json
+│   │
+│   └── stealth/                # Shared stealth crypto library
+│       ├── src/
+│       │   ├── index.ts              # Main exports + createStealthClient
+│       │   ├── keys.ts               # Key derivation
+│       │   ├── address.ts            # Stealth address generation
+│       │   ├── scan.ts               # Announcement scanning
+│       │   ├── config.ts             # Chain configuration
+│       │   └── types.ts              # TypeScript types
+│       ├── __tests__/
+│       │   ├── properties.test.ts    # fast-check property tests
+│       │   └── vectors.test.ts       # EIP-5564 test vectors
 │       └── package.json
 │
 ├── galeon-hackathon-plan.md
 ├── pnpm-workspace.yaml
 ├── turbo.json
+├── package.json
 └── README.md
 ```
 
-### apps/web - Next.js (Frontend + API)
+---
 
-Everything in one deployment:
-- **Pages:** `/`, `/setup`, `/dashboard`, `/pay/[slug]`, `/receipt/[id]`
-- **API Routes:** `/api/vendors`, `/api/receipts`, `/api/verify`
-- **Stealth Crypto:** `lib/stealth/` (client-side)
+## Stealth Library (packages/stealth)
 
-### apps/indexer - Ponder (Blockchain Indexer)
-
-Indexes on-chain events in real-time:
+### Main Exports
 
 ```typescript
-// apps/indexer/ponder.schema.ts
-import { onchainTable } from "ponder";
+// packages/stealth/src/index.ts
 
-export const stealthPayments = onchainTable("stealth_payments", (t) => ({
-  id: t.text().primaryKey(),
-  stealthAddress: t.hex().notNull(),
-  ephemeralPubKey: t.hex().notNull(),
-  amount: t.bigint().notNull(),
-  token: t.hex().notNull(),           // address(0) for MNT
-  receiptHash: t.hex().notNull(),
-  blockNumber: t.bigint().notNull(),
-  timestamp: t.bigint().notNull(),
-}));
+export * from './keys'
+export * from './address'
+export * from './scan'
+export * from './config'
+export * from './types'
 
-export const metaAddresses = onchainTable("meta_addresses", (t) => ({
-  id: t.text().primaryKey(),
-  owner: t.hex().notNull(),
-  metaAddress: t.hex().notNull(),
-  registeredAt: t.bigint().notNull(),
-}));
+import { chains, getChainConfig, getContracts } from './config'
+import { deriveStealthKeys, derivePortKeys } from './keys'
+import { generateStealthAddress } from './address'
+import { scanAnnouncements } from './scan'
+
+/**
+ * Create a chain-specific stealth client
+ * @param chainId - The chain ID to use
+ * @returns Stealth client with chain-specific configuration
+ */
+export function createStealthClient(chainId: number) {
+  const config = getChainConfig(chainId)
+  const contracts = getContracts(chainId)
+
+  return {
+    chainId,
+    config,
+    contracts,
+
+    // Key operations
+    deriveKeys: deriveStealthKeys,
+    derivePortKeys,
+
+    // Address operations
+    generateAddress: generateStealthAddress,
+
+    // Scanning
+    scan: scanAnnouncements,
+  }
+}
+
+// Re-export chain config
+export { chains, getChainConfig, getContracts }
 ```
+
+### Key Derivation
 
 ```typescript
-// apps/indexer/src/index.ts
-import { ponder } from "ponder:registry";
-import { stealthPayments, metaAddresses } from "ponder:schema";
+// packages/stealth/src/keys.ts
 
-ponder.on("GaleonRegistry:StealthPayment", async ({ event, context }) => {
-  await context.db.insert(stealthPayments).values({
-    id: event.log.id,
-    stealthAddress: event.args.stealthAddress,
-    ephemeralPubKey: event.args.ephemeralPubKey,
-    amount: event.args.amount,
-    token: event.args.token,
-    receiptHash: event.args.receiptHash,
-    blockNumber: event.block.number,
-    timestamp: event.block.timestamp,
-  });
-});
+import { secp256k1 } from '@noble/curves/secp256k1'
+import { keccak_256 } from '@noble/hashes/sha3'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 
-ponder.on("GaleonRegistry:MetaAddressRegistered", async ({ event, context }) => {
-  await context.db.insert(metaAddresses).values({
-    id: event.log.id,
-    owner: event.args.owner,
-    metaAddress: event.args.metaAddress,
-    registeredAt: event.block.timestamp,
-  });
-});
+export interface StealthKeys {
+  spendingPrivateKey: Uint8Array
+  spendingPublicKey: Uint8Array
+  viewingPrivateKey: Uint8Array
+  viewingPublicKey: Uint8Array
+  stealthMetaAddress: `st:eth:0x${string}`
+}
+
+/**
+ * Derive stealth keys from a signature (deterministic)
+ * @param signature - Wallet signature of a specific message
+ * @returns Complete stealth key set
+ */
+export function deriveStealthKeys(signature: `0x${string}`): StealthKeys {
+  const sigBytes = hexToBytes(signature.slice(2))
+
+  // Derive spending key from first half of signature hash
+  const spendingEntropy = keccak_256(new Uint8Array([...sigBytes, 0x01]))
+  const spendingPrivateKey = secp256k1.utils.normPrivateKeyToScalar(spendingEntropy)
+  const spendingPublicKey = secp256k1.getPublicKey(spendingPrivateKey, true)
+
+  // Derive viewing key from second half of signature hash
+  const viewingEntropy = keccak_256(new Uint8Array([...sigBytes, 0x02]))
+  const viewingPrivateKey = secp256k1.utils.normPrivateKeyToScalar(viewingEntropy)
+  const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
+
+  // Build stealth meta-address (st:eth:0x<spending><viewing>)
+  const stealthMetaAddress = `st:eth:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as const
+
+  return {
+    spendingPrivateKey: new Uint8Array(spendingPrivateKey.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))),
+    spendingPublicKey,
+    viewingPrivateKey: new Uint8Array(viewingPrivateKey.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))),
+    viewingPublicKey,
+    stealthMetaAddress,
+  }
+}
+
+/**
+ * Generate unique keys for a new Port (from master signature + port index)
+ * @param masterSignature - User's master signature
+ * @param portIndex - Unique index for this Port
+ * @returns Port-specific stealth keys
+ */
+export function derivePortKeys(masterSignature: `0x${string}`, portIndex: number): StealthKeys {
+  const sigBytes = hexToBytes(masterSignature.slice(2))
+  const indexBytes = new Uint8Array(4)
+  new DataView(indexBytes.buffer).setUint32(0, portIndex, false)
+
+  // Combine signature with port index for unique derivation
+  const combined = new Uint8Array([...sigBytes, ...indexBytes])
+  const portSignature = `0x${bytesToHex(keccak_256(combined))}` as `0x${string}`
+
+  return deriveStealthKeys(portSignature)
+}
 ```
 
-**Ponder provides:**
-- GraphQL API (auto-generated)
-- Real-time event indexing
-- Query payments by stealth address, time range, etc.
-
-### Week 1: Foundation (Dec 18-24)
-
-**Goal:** Core crypto + contract + Ponder indexer deployed
-
-| Day | Tasks |
-|-----|-------|
-| 1 | Monorepo setup (pnpm, turbo), Railway PostgreSQL |
-| 2 | `lib/stealth/keys.ts` - keypair generation |
-| 3 | `lib/stealth/address.ts` - stealth address math |
-| 4 | `GaleonRegistry.sol` + tests |
-| 5 | Deploy contract to Mantle testnet |
-| 6 | Ponder setup, schema, event handlers |
-| 7 | Deploy Ponder to Railway, test indexing |
-
-**Week 1 Milestone:**
-- Stealth address math works
-- Contract deployed on Mantle testnet
-- Ponder indexing events in real-time
-
-### Week 2: Frontend + Integration (Dec 25-31)
-
-**Goal:** Full flow working in browser
-
-| Day | Tasks |
-|-----|-------|
-| 8 | Next.js setup, wagmi config, Drizzle schema |
-| 9 | API routes: `/api/vendors`, `/api/receipts` |
-| 10 | `/setup` - vendor onboarding (generate keys, register) |
-| 11 | `/pay/[slug]` - payment flow (compute stealth, pay) |
-| 12 | `/dashboard` - vendor dashboard (query Ponder) |
-| 13 | Receipt signing, payment detection via Ponder |
-| 14 | E2E testing, bug fixes |
-
-**Week 2 Milestone:**
-- Full flow: Setup → Pay → Detect → Receipt
-- Dashboard shows payments from Ponder
-- Basic UI working
-
-### Week 3: Robustness + Evidence Bundle (Jan 1-7)
-
-**Goal:** Production-quality system with proof package for judges
-
-| Day | Tasks |
-|-----|-------|
-| 15 | USDC payment support |
-| 16 | Manual COP override (fallback for oracle failures) |
-| 17 | Receipt verification UI polish, error states |
-| 18 | Smoke tests on Mantle testnet (full E2E) |
-| 19 | Generate evidence bundle (see below), README |
-| 20 | Submission descriptions (8 tracks), final testing |
-| 21 | Submit! Buffer for issues |
-
-**Week 3 Milestone:**
-- USDC + MNT both working
-- Evidence bundle complete
-- All 8 tracks submitted
-
-### Deployment Summary
-
-| Service | Platform | URL |
-|---------|----------|-----|
-| **Next.js** (web + API) | Vercel | galeon.vercel.app |
-| **Ponder** (indexer) | Railway | galeon-indexer.railway.app |
-| **PostgreSQL** | Railway | (internal connection) |
-| **Contract** | Mantle Testnet | explorer.testnet.mantle.xyz |
-
----
-
-## Judge Walkthrough (Click-Order)
-
-**Time to complete: ~3 minutes**
-
-### Step 1: Verify Contract (30s)
-1. [Contract on Mantlescan](https://explorer.testnet.mantle.xyz/address/0x...) → ✅ Source verified
-2. Click "Read Contract" → `verifyReceipt("0xabc123...")` → returns timestamp
-
-### Step 2: Make a Test Payment (60s)
-1. [galeon.vercel.app/pay/demo-vendor](https://galeon.vercel.app/pay/demo-vendor)
-2. Import test wallet (see below) or use your own
-3. Pay **0.01 MNT** → observe tx goes to `0x7f3a...` (stealth address)
-4. [View tx on Mantlescan](https://explorer.testnet.mantle.xyz/tx/0x...)
-
-### Step 3: See Payment Detected (30s)
-1. [galeon.vercel.app/dashboard](https://galeon.vercel.app/dashboard) (connect as demo-vendor)
-2. Payment appears in ~10s (Ponder indexing)
-3. Click receipt → see signatures, hash, on-chain anchor
-
-### Step 4: Verify Receipt (30s)
-1. [galeon.vercel.app/verify](https://galeon.vercel.app/verify)
-2. Enter receipt ID: `GR-2025-000001`
-3. See: on-chain timestamp, payer signature ✅, vendor signature ✅
-
-### Step 5: Query Ponder GraphQL (30s)
-1. [galeon-indexer.railway.app/graphql](https://galeon-indexer.railway.app/graphql)
-2. Run query:
-```graphql
-query { stealthPayments(first: 5) { items { stealthAddress, amount, receiptHash } } }
-```
-3. See indexed payments from Mantle
-
-### Step 6: Privacy Proof (30s)
-1. Look at [stealth address on Mantlescan](https://explorer.testnet.mantle.xyz/address/0x7f3a...)
-2. **No history** — this address was just created
-3. **Cannot link** to vendor's main wallet `0xvendor...`
-4. Yet receipt **proves** vendor received it
-
----
-
-## Test Wallet (Pre-Funded)
-
-**For judges to test without setup:**
-
-```
-Address: 0x... (will be populated before submission)
-Private Key: ... (in evidence/test-credentials.md)
-Balance: 1 MNT (testnet)
-```
-
-**Get more testnet MNT:**
-- Faucet: https://faucet.testnet.mantle.xyz
-- Enter address → receive 0.5 MNT
-
-**Import to MetaMask:**
-1. Settings → Networks → Add Network
-2. Network: `Mantle Testnet`
-3. RPC: `https://rpc.testnet.mantle.xyz`
-4. Chain ID: `5003`
-5. Import private key from test-credentials.md
-
----
-
-## Competitive Landscape
-
-| Project | What It Does | Why Galeon Wins |
-|---------|--------------|-----------------|
-| **Tornado Cash** | General mixing | No receipts, sanctioned, not for business |
-| **Railgun** | Privacy pool | Not payment-focused, no receipt layer |
-| **Aztec** | ZK L2 | Separate chain, complex, no receipts |
-| **Request Network** | Invoicing | No privacy, payments are public |
-| **Umbra (Scopelift)** | Stealth addresses | No receipt system, minimal UX |
-
-**Key Differentiator:** No one combines stealth addresses with business-grade receipts.
-
----
-
-## Risk Mitigation
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Stealth crypto bugs | 25% | High | Use audited @noble libraries, property tests |
-| Mantle testnet issues | 15% | Medium | Have Sepolia fallback ready |
-| Time overrun | 40% | High | Cut USDC/polish before core features |
-| Oracle/FX API fails | 20% | Medium | Manual COP entry flag |
-| Scope creep | 30% | Medium | Strict MVP checklist, say no to features |
-
----
-
-## Resilience Measures
-
-### Network Failovers
+### Stealth Address Generation
 
 ```typescript
-// lib/rpc.ts
-export const MANTLE_RPCS = [
-  process.env.MANTLE_RPC_PRIMARY,    // Alchemy/Infura
-  "https://rpc.mantle.xyz",           // Official public
-  "https://mantle.drpc.org",          // DRPC fallback
-];
+// packages/stealth/src/address.ts
 
-// Sepolia mirror for emergencies
-export const SEPOLIA_FALLBACK = process.env.SEPOLIA_RPC;
-```
+import { secp256k1 } from '@noble/curves/secp256k1'
+import { keccak_256 } from '@noble/hashes/sha3'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 
-**Strategy:**
-- Primary RPC via Alchemy/Infura (reliable, rate-limited)
-- Public RPC as first fallback
-- **Sepolia mirror**: Deploy same contract to Sepolia, switch if Mantle testnet has extended downtime
+export interface StealthAddressResult {
+  stealthAddress: `0x${string}`
+  ephemeralPublicKey: Uint8Array
+  viewTag: number
+}
 
-### FX Rate Fallbacks
+/**
+ * Generate a stealth address for a payment
+ * @param stealthMetaAddress - Recipient's stealth meta-address
+ * @returns Stealth address, ephemeral key, and view tag
+ */
+export function generateStealthAddress(
+  stealthMetaAddress: `st:eth:0x${string}`
+): StealthAddressResult {
+  // Parse meta-address: st:eth:0x<spending:33><viewing:33>
+  const hexPart = stealthMetaAddress.slice(7) // Remove "st:eth:"
+  const bytes = hexToBytes(hexPart.slice(2)) // Remove "0x"
 
-```typescript
-// lib/prices.ts
-export async function getCOPRate(currency: 'MNT' | 'USDC'): Promise<FXResult> {
-  try {
-    // 1. CoinGecko (primary)
-    return await fetchCoinGecko(currency);
-  } catch {
-    try {
-      // 2. CoinMarketCap (backup)
-      return await fetchCMC(currency);
-    } catch {
-      // 3. Return null → triggers manual entry UI
-      return { rate: null, requiresManualEntry: true };
-    }
+  const spendingPubKey = bytes.slice(0, 33)
+  const viewingPubKey = bytes.slice(33, 66)
+
+  // Generate random ephemeral key pair
+  const ephemeralPrivateKey = secp256k1.utils.randomPrivateKey()
+  const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralPrivateKey, true)
+
+  // Compute shared secret: ECDH(ephemeral, viewing)
+  const sharedPoint = secp256k1.getSharedSecret(ephemeralPrivateKey, viewingPubKey)
+  const sharedSecret = keccak_256(sharedPoint.slice(1)) // Remove prefix byte
+
+  // Derive stealth public key: spending + hash(shared) * G
+  const stealthScalar = secp256k1.utils.normPrivateKeyToScalar(sharedSecret)
+  const sharedPublicKey = secp256k1.ProjectivePoint.BASE.multiply(stealthScalar)
+  const spendingPoint = secp256k1.ProjectivePoint.fromHex(spendingPubKey)
+  const stealthPoint = spendingPoint.add(sharedPublicKey)
+  const stealthPubKey = stealthPoint.toRawBytes(false) // Uncompressed
+
+  // Derive Ethereum address from stealth public key
+  const addressHash = keccak_256(stealthPubKey.slice(1)) // Remove 0x04 prefix
+  const stealthAddress = `0x${bytesToHex(addressHash.slice(-20))}` as `0x${string}`
+
+  // Compute view tag (first byte of hashed shared secret for efficient scanning)
+  const viewTag = sharedSecret[0]
+
+  return {
+    stealthAddress,
+    ephemeralPublicKey,
+    viewTag,
   }
 }
 ```
 
-**Manual COP Override UI:**
-- If APIs fail, show input field for vendor to enter rate
-- Store rate source as "manual" in receipt
-- Flag for accountant review
-
-### Stealth Math Property Tests
+### Announcement Scanning
 
 ```typescript
-// lib/stealth/__tests__/properties.test.ts
-import { fc } from 'fast-check';
+// packages/stealth/src/scan.ts
 
-describe('Stealth Address Properties', () => {
-  it('recipient can always derive private key', () => {
-    fc.assert(
-      fc.property(fc.uint8Array({ minLength: 32, maxLength: 32 }), (seed) => {
-        const { spendKey, viewKey } = generateKeypair(seed);
-        const { stealthAddress, ephemeralPubKey } = computeStealthAddress(spendKey.publicKey, viewKey.publicKey);
-        const derivedPrivKey = deriveStealthPrivateKey(spendKey.privateKey, viewKey.privateKey, ephemeralPubKey);
-        const derivedAddress = privateKeyToAddress(derivedPrivKey);
-        return derivedAddress === stealthAddress;
+import { secp256k1 } from '@noble/curves/secp256k1'
+import { keccak_256 } from '@noble/hashes/sha3'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+
+export interface Announcement {
+  stealthAddress: `0x${string}`
+  ephemeralPubKey: Uint8Array
+  metadata: Uint8Array
+  txHash: `0x${string}`
+  blockNumber: bigint
+}
+
+export interface ScannedPayment {
+  stealthAddress: `0x${string}`
+  stealthPrivateKey: Uint8Array
+  amount: bigint
+  token: `0x${string}` | null
+  receiptHash: `0x${string}`
+  txHash: `0x${string}`
+  blockNumber: bigint
+}
+
+/**
+ * Scan announcements to find payments belonging to a viewing key
+ * @param announcements - List of announcements to scan
+ * @param spendingPrivateKey - Port's spending private key
+ * @param viewingPrivateKey - Port's viewing private key
+ * @returns List of payments belonging to this Port
+ */
+export function scanAnnouncements(
+  announcements: Announcement[],
+  spendingPrivateKey: Uint8Array,
+  viewingPrivateKey: Uint8Array
+): ScannedPayment[] {
+  const payments: ScannedPayment[] = []
+
+  for (const announcement of announcements) {
+    // Quick filter: check view tag first
+    if (announcement.metadata.length > 0) {
+      const expectedViewTag = computeViewTag(announcement.ephemeralPubKey, viewingPrivateKey)
+      if (announcement.metadata[0] !== expectedViewTag) {
+        continue // Not for us, skip
+      }
+    }
+
+    // Full check: try to derive the stealth address
+    const result = tryDeriveStealthAddress(
+      announcement.ephemeralPubKey,
+      spendingPrivateKey,
+      viewingPrivateKey
+    )
+
+    if (result.stealthAddress.toLowerCase() === announcement.stealthAddress.toLowerCase()) {
+      // This payment is for us!
+      const payment: ScannedPayment = {
+        stealthAddress: announcement.stealthAddress,
+        stealthPrivateKey: result.stealthPrivateKey,
+        amount: 0n, // Parsed from metadata or fetched from chain
+        token: null,
+        receiptHash: `0x${bytesToHex(announcement.metadata.slice(1, 33))}`,
+        txHash: announcement.txHash,
+        blockNumber: announcement.blockNumber,
+      }
+
+      // Parse token info from metadata if present
+      if (announcement.metadata.length > 65) {
+        payment.token = `0x${bytesToHex(announcement.metadata.slice(33, 53))}`
+        payment.amount = BigInt(`0x${bytesToHex(announcement.metadata.slice(53, 85))}`)
+      }
+
+      payments.push(payment)
+    }
+  }
+
+  return payments
+}
+
+function computeViewTag(ephemeralPubKey: Uint8Array, viewingPrivateKey: Uint8Array): number {
+  const sharedPoint = secp256k1.getSharedSecret(viewingPrivateKey, ephemeralPubKey)
+  const sharedSecret = keccak_256(sharedPoint.slice(1))
+  return sharedSecret[0]
+}
+
+function tryDeriveStealthAddress(
+  ephemeralPubKey: Uint8Array,
+  spendingPrivateKey: Uint8Array,
+  viewingPrivateKey: Uint8Array
+): { stealthAddress: `0x${string}`; stealthPrivateKey: Uint8Array } {
+  // Compute shared secret
+  const sharedPoint = secp256k1.getSharedSecret(viewingPrivateKey, ephemeralPubKey)
+  const sharedSecret = keccak_256(sharedPoint.slice(1))
+
+  // Derive stealth private key: spending + hash(shared)
+  const spendingScalar = secp256k1.utils.normPrivateKeyToScalar(spendingPrivateKey)
+  const sharedScalar = secp256k1.utils.normPrivateKeyToScalar(sharedSecret)
+  const stealthScalar = (spendingScalar + sharedScalar) % secp256k1.CURVE.n
+
+  // Get stealth public key and derive address
+  const stealthPubKey = secp256k1.getPublicKey(stealthScalar, false)
+  const addressHash = keccak_256(stealthPubKey.slice(1))
+  const stealthAddress = `0x${bytesToHex(addressHash.slice(-20))}` as `0x${string}`
+
+  // Convert scalar back to bytes
+  const stealthPrivateKey = new Uint8Array(
+    stealthScalar.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))
+  )
+
+  return { stealthAddress, stealthPrivateKey }
+}
+```
+
+---
+
+## Real-time Flow (Ponder + Transmit)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         REAL-TIME PAYMENT DETECTION                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. Payment on-chain                                                     │
+│     └── GaleonRegistry.payNative/payToken called                         │
+│     └── Announcer.Announcement event emitted                             │
+│     └── GaleonRegistry.ReceiptAnchored event emitted                     │
+│                                                                          │
+│  2. Ponder indexes events (~2-5s)                                        │
+│     └── Triggers webhook to AdonisJS                                     │
+│                                                                          │
+│  3. AdonisJS receives webhook                                            │
+│     ├── Updates receipt status in PostgreSQL                             │
+│     ├── Queues background job (FX rate, notifications)                   │
+│     └── Broadcasts via Transmit SSE                                      │
+│                                                                          │
+│  4. Frontend receives SSE                                                │
+│     └── Dashboard updates instantly                                      │
+│                                                                          │
+│  TOTAL LATENCY: ~3-7 seconds (vs 10s polling)                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Authentication Design (SIWE + Access Tokens)
+
+### Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         AUTHENTICATION FLOW                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  SIGN-IN WITH ETHEREUM (SIWE) + ACCESS TOKENS                           │
+│                                                                          │
+│  1. Frontend: Request nonce                                              │
+│     POST /auth/nonce { walletAddress }                                   │
+│     Response: { nonce, message }                                         │
+│     → Nonce stored in Redis: siwe:nonce:{nonce} = walletAddress          │
+│     → TTL: 5 minutes                                                     │
+│                                                                          │
+│  2. Frontend: Sign message with wallet                                   │
+│     const signature = await signMessage({ message })                     │
+│                                                                          │
+│  3. Frontend: Verify signature                                           │
+│     POST /auth/verify { walletAddress, message, signature }              │
+│     → Verify signature matches message                                   │
+│     → Check nonce exists in Redis (replay protection)                    │
+│     → Delete nonce from Redis (one-time use)                             │
+│     → Verify domain matches (galeon.xyz)                                 │
+│     Response: { token, user }                                            │
+│                                                                          │
+│  4. Frontend: Store token, use for all requests                          │
+│     Authorization: Bearer gln_xxxxx                                      │
+│                                                                          │
+│  5. Token expires after 30 days                                          │
+│     Refresh by re-signing (step 1-3)                                     │
+│                                                                          │
+│  NONCE REPLAY PROTECTION:                                                │
+│  • Nonce generated: crypto.randomUUID()                                  │
+│  • Stored in Redis with 5 min TTL                                        │
+│  • Deleted immediately after successful verification                     │
+│  • Reusing nonce → "Invalid or expired nonce" error                      │
+│                                                                          │
+│  SIWE MESSAGE VALIDATION:                                                │
+│  • Domain: must match "galeon.xyz" (or localhost in dev)                 │
+│  • URI: must match API origin                                            │
+│  • Issued At: must be within last 5 minutes                              │
+│  • Expiration Time: must be in future (if present)                       │
+│  • Chain ID: must match expected chain                                   │
+│                                                                          │
+│  FIRST LOGIN: Also derives master stealth signature for Port keys        │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Security Model
+
+**Problem:** Where do private keys live? How do we balance security and UX?
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         KEY HIERARCHY                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  WALLET SIGNATURE (never stored)                                         │
+│       │                                                                  │
+│       ├──► Master Seed = keccak256(signature)                            │
+│       │         │                                                        │
+│       │         ├──► Port 0 Keys (viewing + spending)                    │
+│       │         ├──► Port 1 Keys (viewing + spending)                    │
+│       │         └──► Port N Keys (viewing + spending)                    │
+│                                                                          │
+│  STORAGE MODEL:                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  VIEWING KEYS    → Encrypted in DB (AES-256-GCM)                │    │
+│  │                    Allows background scanning without wallet     │    │
+│  │                                                                  │    │
+│  │  SPENDING KEYS   → NEVER stored, derived on-demand              │    │
+│  │                    User signs to derive when collecting          │    │
+│  │                                                                  │    │
+│  │  MASTER SEED     → NEVER stored                                 │    │
+│  │                    Derived from wallet signature each session    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ENCRYPTION KEY DERIVATION:                                              │
+│  encryptionKey = HKDF(walletSignature, salt="galeon-viewing-v1")         │
+│                                                                          │
+│  SESSION FLOW:                                                           │
+│  1. User connects wallet                                                 │
+│  2. User signs SIWE message (login)                                      │
+│  3. User signs key derivation message (unlocks viewing keys)             │
+│  4. Session active: scanning works, dashboard updates                    │
+│  5. To collect: user signs spending derivation message                   │
+│                                                                          │
+│  SECURITY GUARANTEES:                                                    │
+│  • Server compromise → encrypted blobs, useless without wallet           │
+│  • Scanning → works after session unlock (one signature)                 │
+│  • Collection → requires fresh wallet signature                          │
+│  • Each Port → cryptographically isolated keys                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Derivation Messages:**
+
+```typescript
+// Message for deriving viewing key encryption
+const VIEWING_KEY_MESSAGE = `Galeon Key Derivation
+
+This signature unlocks your viewing keys for this session.
+It does NOT authorize any transactions.
+
+Domain: galeon.xyz
+Action: Unlock viewing keys
+Nonce: ${sessionNonce}`
+
+// Message for deriving spending keys (collection)
+const SPENDING_KEY_MESSAGE = `Galeon Collection Authorization
+
+This signature authorizes collecting funds from your Ports.
+
+Domain: galeon.xyz
+Action: Derive spending keys
+Ports: ${selectedPortIds.join(', ')}
+Nonce: ${collectionNonce}`
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Rationale |
+|-------|------------|-----------|
+| **Blockchain** | Mantle L2 (+ Arbitrum for Sippy) | Low fees, EVM compatible |
+| **Cryptography** | @noble/curves, @noble/hashes | Audited, browser-compatible |
+| **Stealth Protocol** | EIP-5564 + ERC-6538 | Standard stealth addresses |
+| **Smart Contracts** | Solidity + Hardhat | Standard tooling |
+| **Frontend** | Next.js 15 + TypeScript | App router, React 19 |
+| **Styling** | Tailwind CSS v4 | Rapid UI development |
+| **Wallet** | wagmi v2 + viem | Modern, type-safe |
+| **Backend** | AdonisJS 6 | Full-featured, TypeScript-first |
+| **Auth** | SIWE + Access Tokens | Standard web3 auth pattern |
+| **Real-time** | Ponder + Transmit SSE | Index + push |
+| **Background Jobs** | adonisjs-jobs (BullMQ) | Reliable queue processing |
+| **ORM** | Lucid (AdonisJS native) | Active Record, migrations |
+| **Database** | PostgreSQL | Railway hosted |
+| **Cache/Queues** | Redis | Railway hosted |
+| **Indexer** | Ponder | Real-time blockchain indexing |
+| **Monorepo** | Turborepo + pnpm | Efficient builds, shared code |
+| **Hosting** | Railway (API, Indexer, DB, Redis) + Vercel (web) | Quick deployment |
+
+---
+
+## Code Quality Standards
+
+### Principles
+
+| Principle | Guideline |
+|-----------|-----------|
+| **DRY** | Extract shared logic into `packages/stealth`. No duplicate crypto code. |
+| **File Size** | Target <300 LOC per file. Max 1K LOC only for complex contract logic. |
+| **Function Size** | Max 50 LOC per function. If longer, split into smaller functions. |
+| **Single Responsibility** | One file = one purpose. One function = one job. |
+| **No Dead Code** | Delete unused imports, functions, and commented code. |
+| **Type Safety** | Strict TypeScript. No `any`. Explicit return types on public APIs. |
+
+### File Structure Guidelines
+
+```
+✓ GOOD: Small, focused files
+  - keys.ts (80 LOC) - key derivation only
+  - address.ts (60 LOC) - stealth address generation only
+  - scan.ts (100 LOC) - announcement scanning only
+
+✗ BAD: Monolithic files
+  - stealth.ts (500 LOC) - everything mixed together
+```
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Files | kebab-case | `stealth-service.ts` |
+| Classes/Types | PascalCase | `StealthKeys`, `Port` |
+| Functions | camelCase | `derivePortKeys()` |
+| Constants | SCREAMING_SNAKE | `SCHEME_ID`, `CANONICAL_ADDRESSES` |
+| Database tables | snake_case | `ports`, `receipts` |
+| API routes | kebab-case | `/auth/nonce`, `/ports/create` |
+
+### Testing Requirements
+
+- **Stealth library**: Property-based tests (fast-check) + EIP-5564 test vectors
+- **Contracts**: Unit tests for all public functions, integration tests for flows
+- **API**: Request/response validation tests
+- **Frontend**: Manual testing (hackathon scope)
+
+### Code Review Checklist
+
+Before merging:
+- [ ] No TypeScript errors (`pnpm typecheck`)
+- [ ] Lint passes (`pnpm lint`)
+- [ ] Tests pass (`pnpm test`)
+- [ ] No hardcoded secrets or API keys
+- [ ] File < 300 LOC (or justified exception)
+
+---
+
+## Deployment Summary
+
+| Service | Platform | URL | Command |
+|---------|----------|-----|---------|
+| **Next.js** (web) | Vercel | galeon.vercel.app | `vercel --prod` |
+| **AdonisJS** (api) | Railway | api.galeon.xyz | `railway up` |
+| **Ponder** (indexer) | Railway | indexer.galeon.xyz | `railway up` |
+| **PostgreSQL** | Railway | (internal) | Auto-provisioned |
+| **Redis** | Railway | (internal) | Auto-provisioned |
+| **Contracts** | Mantle Sepolia | Mantlescan | `pnpm deploy` |
+
+---
+
+## Deployment Scripts
+
+### Deploy All Contracts
+
+```typescript
+// packages/contracts/scripts/deploy.ts
+import { ethers } from 'hardhat'
+import { getChainConfig } from '../config/chains'
+
+async function main() {
+  const chainId = await ethers.provider.getNetwork().then(n => Number(n.chainId))
+  const config = getChainConfig(chainId)
+
+  console.log(`\nDeploying Galeon contracts to ${config.name} (${chainId})...\n`)
+
+  // 1. Deploy ERC5564Announcer
+  console.log('Deploying ERC5564Announcer...')
+  const Announcer = await ethers.getContractFactory('ERC5564Announcer')
+  const announcer = await Announcer.deploy()
+  await announcer.waitForDeployment()
+  const announcerAddr = await announcer.getAddress()
+  console.log(`  ERC5564Announcer: ${announcerAddr}`)
+
+  // 2. Deploy ERC6538Registry
+  console.log('Deploying ERC6538Registry...')
+  const Registry = await ethers.getContractFactory('ERC6538Registry')
+  const registry = await Registry.deploy()
+  await registry.waitForDeployment()
+  const registryAddr = await registry.getAddress()
+  console.log(`  ERC6538Registry: ${registryAddr}`)
+
+  // 3. Deploy GaleonRegistry (depends on Announcer + Registry)
+  console.log('Deploying GaleonRegistry...')
+  const GaleonRegistry = await ethers.getContractFactory('GaleonRegistry')
+  const galeon = await GaleonRegistry.deploy(announcerAddr, registryAddr)
+  await galeon.waitForDeployment()
+  const galeonAddr = await galeon.getAddress()
+  console.log(`  GaleonRegistry: ${galeonAddr}`)
+
+  // Output config update
+  console.log(`\n✅ Deployment complete! Update config/chains.ts:\n`)
+  console.log(`  ${chainId}: {`)
+  console.log(`    ...`)
+  console.log(`    contracts: {`)
+  console.log(`      announcer: '${announcerAddr}',`)
+  console.log(`      registry: '${registryAddr}',`)
+  console.log(`      galeon: '${galeonAddr}',`)
+  console.log(`    },`)
+  console.log(`  },`)
+}
+
+main().catch(console.error)
+```
+
+---
+
+## Development Phases
+
+### Phase 1: Foundation
+
+**Goal:** Backend + stealth library + contracts deployed
+
+| Task | Description |
+|------|-------------|
+| Turborepo setup | Monorepo with apps/web, apps/api, apps/indexer, packages/contracts, packages/stealth |
+| Railway infra | PostgreSQL + Redis provisioned |
+| AdonisJS API | User/Port models, migrations, SIWE auth |
+| Stealth library | Key derivation, Port keys, stealth address generation, scanning |
+| Contracts | Deploy ERC5564Announcer + ERC6538Registry + GaleonRegistry to Mantle Sepolia |
+| Ponder indexer | Schema, event handlers, webhook to API |
+| Real-time | Transmit SSE, test full notification flow |
+
+**Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
+
+### Phase 2: Frontend + Full Flow
+
+**Goal:** Complete user journey from setup to collection
+
+| Task | Description |
+|------|-------------|
+| Next.js setup | wagmi config, API client, Transmit client |
+| `/setup` | Onboarding flow (create first Port) |
+| `/dashboard/ports` | Port management UI |
+| `/pay/[portId]` | Payment flow for payers |
+| `/collect` | Collection interface (Collect All) |
+| `/dashboard` | Vendor dashboard with real-time updates |
+| Receipt verification | `/verify` page for public proof |
+
+**Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Instant Detection → Collect
+
+### Phase 3: Polish + Submission
+
+**Goal:** Production-ready for hackathon demo
+
+| Task | Description |
+|------|-------------|
+| Error handling | User-friendly error messages, loading states |
+| Smoke tests | End-to-end tests on Mantle Sepolia |
+| Evidence bundle | Screenshots, video demo, architecture diagrams |
+| README | Setup instructions, feature overview |
+| Track descriptions | Hackathon submission write-up |
+| Final testing | Full flow verification |
+| Submit | Hackathon submission |
+
+**Milestone:** Submission complete with working demo
+
+---
+
+## Receipt Schema
+
+Receipts are the verifiable proof of payment. The receipt hash is anchored on-chain.
+
+### Receipt Structure
+
+```typescript
+interface Receipt {
+  // Identifiers
+  id: string                    // UUID
+  receiptHash: `0x${string}`    // keccak256 of receipt data (anchored on-chain)
+
+  // Payment info
+  portId: bytes32               // Which Port received payment
+  amount: string                // Payment amount (wei as string)
+  currency: 'MNT' | 'ETH'       // Native currency
+
+  // Parties
+  vendorAddress: `0x${string}`  // Vendor's main wallet
+  payerAddress: `0x${string}`   // Payer's wallet
+  stealthAddress: `0x${string}` // Stealth address that received funds
+
+  // Metadata
+  memo: string                  // Optional payment memo
+  timestamp: number             // Unix timestamp
+
+  // On-chain reference
+  txHash: `0x${string}`         // Transaction hash
+  blockNumber: number           // Block number
+  chainId: number               // Chain ID
+}
+```
+
+### Receipt Hash Computation
+
+```typescript
+function computeReceiptHash(receipt: Omit<Receipt, 'id' | 'receiptHash' | 'txHash' | 'blockNumber'>): `0x${string}` {
+  const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
+    ['bytes32', 'uint256', 'string', 'address', 'address', 'string', 'uint256', 'uint256'],
+    [
+      receipt.portId,
+      receipt.amount,
+      receipt.currency,
+      receipt.vendorAddress,
+      receipt.payerAddress,
+      receipt.memo,
+      receipt.timestamp,
+      receipt.chainId,
+    ]
+  )
+  return keccak256(encoded)
+}
+```
+
+### Verification Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      RECEIPT VERIFICATION                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. User visits /verify?receipt=<receiptId>                              │
+│                                                                          │
+│  2. Frontend fetches receipt from API                                    │
+│                                                                          │
+│  3. Frontend computes expected receiptHash from receipt data             │
+│                                                                          │
+│  4. Frontend queries on-chain ReceiptAnchored event                      │
+│     - Matches receiptHash                                                │
+│     - Confirms amount, payer, timestamp                                  │
+│                                                                          │
+│  5. Display verification result:                                         │
+│     ✓ Payment verified on Mantle                                        │
+│     ✓ Amount: 1.5 MNT                                                   │
+│     ✓ Timestamp: Dec 26, 2025 14:30 UTC                                 │
+│     ✓ Transaction: 0xabc...def (link to Mantlescan)                     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Reliability & Abuse Prevention
+
+### Webhook Reliability
+
+Ponder webhooks can fail. We add a reconciliation job to catch missed events.
+
+```typescript
+// apps/api/app/jobs/reconcile_payments.ts
+// Runs every 5 minutes via BullMQ scheduler
+
+export default class ReconcilePayments {
+  async handle() {
+    // 1. Get last processed block from DB
+    const lastBlock = await Setting.getValue('lastProcessedBlock')
+
+    // 2. Query Ponder GraphQL for events since lastBlock
+    const events = await ponderClient.query({
+      announcements: {
+        where: { blockNumber_gt: lastBlock },
+        orderBy: 'blockNumber',
+      }
+    })
+
+    // 3. For each event, check if we have a receipt
+    for (const event of events) {
+      const exists = await Receipt.findBy('txHash', event.txHash)
+      if (!exists) {
+        // Missed webhook - process now
+        await this.processPayment(event)
+      }
+    }
+
+    // 4. Update last processed block
+    await Setting.setValue('lastProcessedBlock', events.at(-1)?.blockNumber)
+  }
+}
+```
+
+### Batch Collection >10 Addresses
+
+When a user has more than 10 pending stealth addresses, we split into multiple transactions:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    BATCH OVERFLOW HANDLING                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  SCENARIO: User has 25 pending stealth addresses                         │
+│                                                                          │
+│  UX FLOW:                                                                │
+│  1. User clicks "Collect All - 25 payments (2.5 MNT)"                    │
+│  2. Modal: "This requires 3 transactions. Continue?"                     │
+│  3. User confirms                                                        │
+│  4. Progress UI:                                                         │
+│     ┌────────────────────────────────────────────────────┐              │
+│     │  Collecting funds...                               │              │
+│     │                                                    │              │
+│     │  [████████████░░░░░░░░░░░░░░░░░░░░░] 2/3            │              │
+│     │                                                    │              │
+│     │  ✓ Batch 1: 10 addresses (1.0 MNT)                 │              │
+│     │  ✓ Batch 2: 10 addresses (1.0 MNT)                 │              │
+│     │  ◐ Batch 3: 5 addresses (0.5 MNT)                  │              │
+│     │                                                    │              │
+│     │  [Cancel Remaining]                                │              │
+│     └────────────────────────────────────────────────────┘              │
+│  5. On completion: "Successfully collected 2.5 MNT!"                     │
+│                                                                          │
+│  STATE TRACKING:                                                         │
+│  • pendingCollections table tracks in-flight batches                     │
+│  • Each stealth address marked as "claiming" in Redis lock               │
+│    Key: claim:lock:{stealthAddress} = collectionId, TTL: 10 min          │
+│  • Lock checked before collection → prevents double-collect              │
+│  • Lock released on success OR on TTL expiry (auto-cleanup)              │
+│  • Frontend polls status until all complete                              │
+│  • If batch fails, remaining batches are cancelled, locks released       │
+│  • Reconciliation job cleans up stale pending records + expired locks    │
+│                                                                          │
+│  EDGE CASES:                                                             │
+│  • User closes browser: pending batches complete, UI syncs on return     │
+│  • Network error mid-batch: partial success, remaining retry-able        │
+│  • "Collect All" disabled while any collection is pending                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Relayer Rate Limits
+
+Prevent abuse of the gas-sponsored collection.
+
+```typescript
+// Collection rate limits
+const RATE_LIMITS = {
+  collectionsPerDay: 5,        // Max collections per user per day
+  collectionsPerHour: 2,       // Max collections per user per hour
+  maxStealthAddresses: 10,     // Max addresses per collection batch
+  maxBatchesPerCollection: 5,  // Max 50 addresses per "Collect All"
+}
+
+// apps/api/app/middleware/rate_limit_middleware.ts
+export default class RateLimitMiddleware {
+  async handle({ auth, response }: HttpContext, next: () => Promise<void>) {
+    const user = auth.user!
+    const key = `collections:${user.id}:${dayKey()}`
+
+    const count = await redis.incr(key)
+    if (count === 1) await redis.expire(key, 86400) // 24h TTL
+
+    if (count > RATE_LIMITS.collectionsPerDay) {
+      return response.tooManyRequests({
+        error: 'Daily collection limit reached',
+        resetAt: nextMidnight(),
       })
-    );
-  });
+    }
 
-  it('different ephemeral keys produce different stealth addresses', () => {
-    fc.assert(
-      fc.property(
-        fc.uint8Array({ minLength: 32, maxLength: 32 }),
-        fc.uint8Array({ minLength: 32, maxLength: 32 }),
-        (seed1, seed2) => {
-          if (seed1.toString() === seed2.toString()) return true; // Skip if same
-          const keys = generateKeypair(Buffer.from('vendor-seed'));
-          const addr1 = computeStealthAddress(keys.spendKey.publicKey, keys.viewKey.publicKey, seed1);
-          const addr2 = computeStealthAddress(keys.spendKey.publicKey, keys.viewKey.publicKey, seed2);
-          return addr1.stealthAddress !== addr2.stealthAddress;
-        }
-      )
-    );
-  });
-});
-
-// lib/stealth/__tests__/vectors.test.ts
-// Cross-check against Umbra/EIP-5564 test vectors
-describe('EIP-5564 Compatibility', () => {
-  it('matches Umbra reference implementation', () => {
-    // Test vector from https://github.com/ScopeLift/umbra-protocol
-    const UMBRA_VECTOR = {
-      spendingPubKey: '0x...',
-      viewingPubKey: '0x...',
-      ephemeralPrivKey: '0x...',
-      expectedStealthAddress: '0x...',
-    };
-    const result = computeStealthAddress(
-      UMBRA_VECTOR.spendingPubKey,
-      UMBRA_VECTOR.viewingPubKey,
-      UMBRA_VECTOR.ephemeralPrivKey
-    );
-    expect(result.stealthAddress).toBe(UMBRA_VECTOR.expectedStealthAddress);
-  });
-});
+    await next()
+  }
+}
 ```
 
-**Run tests:**
-```bash
-pnpm test              # All tests
-pnpm test:stealth      # Stealth math only (property + vector tests)
-```
-
-### Ops Playbook (Emergency Procedures)
-
-| Issue | Detection | Response |
-|-------|-----------|----------|
-| **Mantle RPC down** | API calls fail | Switch to fallback RPC in env vars |
-| **Ponder lagging** | Dashboard shows stale data | Show banner "Syncing...", display cached sample receipts |
-| **CoinGecko fails** | FX API returns error | Trigger manual COP entry UI |
-| **Contract reverts** | Tx fails | Check gas, verify stealth address computation |
+### Relayer Funding
 
 ```typescript
-// Quick env switch for RPC failover
-// .env.local
-NEXT_PUBLIC_RPC_URL=https://rpc.mantle.xyz  // Switch to backup if primary fails
-NEXT_PUBLIC_CHAIN_ID=5003                    // Mantle testnet
-// NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/...  // Emergency Sepolia
-// NEXT_PUBLIC_CHAIN_ID=11155111
+// Relayer wallet setup for hackathon
+const RELAYER_CONFIG = {
+  // Fund with enough for ~100 demo collections
+  initialFunding: '1', // 1 MNT
+
+  // Estimated gas per collection batch
+  gasPerCollection: 200_000n,
+
+  // Alert threshold
+  lowBalanceThreshold: '0.1', // 0.1 MNT
+}
 ```
 
 ---
 
-## Post-Hackathon Roadmap
+## Key Decisions Summary
 
-### Phase 1: Hackathon MVP (Now)
-- Core stealth payments + receipts
-- Mantle testnet
-
-### Phase 2: Production (Q1 2026)
-- Security audit
-- Mainnet deployment
-- USDC + more tokens
-
-### Phase 3: Features (Q2 2026)
-- Invoice generation
-- Auto-scanning background service
-- Receipt PDF export
-- Accounting integrations (QuickBooks, Xero)
-
-### Phase 4: Scale (Q3 2026)
-- Multi-chain (Base, Arbitrum)
-- Batch payments (payroll!)
-- Mobile app
-- LatAm fiat on/off ramps
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Privacy model | One stealth meta-address per Port | Cryptographic isolation |
+| Terminology | Port, Collect | Nautical theme (Galeon) |
+| Port types | Permanent, Recurring, One-time, Burner | Flexibility for all use cases |
+| User modes | Vendor (receive) + User (send) | Different analytics needs |
+| Contract deployment | Own EIP-5564/6538 copies + GaleonRegistry | Canonical not on Mantle, simple deployment |
+| Chain support | Mantle Sepolia (hackathon) + Arbitrum (Sippy) | Future extensibility |
+| Collection gas | Relayer pays (5/day limit) | Simple UX, abuse prevention |
+| Key security | Viewing encrypted in DB, spending never stored | Server compromise = safe |
+| Webhook reliability | Reconciliation job every 5 min | Catch missed events |
+| SIWE nonces | Redis with 5 min TTL, deleted on use | Replay protection |
+| Batch overflow | Multi-tx with progress UI, max 50 addresses | Handle large collections |
 
 ---
 
-## Resources & References
-
-### EIP-5564 (Stealth Addresses)
-- Spec: https://eips.ethereum.org/EIPS/eip-5564
-- Reference: https://github.com/nerolation/stealth-address-sdk
-- Umbra implementation: https://github.com/ScopeLift/umbra-protocol
-
-### Cryptography Libraries
-- @noble/secp256k1: https://github.com/paulmillr/noble-secp256k1
-- @noble/hashes: https://github.com/paulmillr/noble-hashes
-- viem (has some stealth utils): https://viem.sh
-
-### Mantle
-- Docs: https://docs.mantle.xyz
-- Testnet faucet: https://faucet.testnet.mantle.xyz
-- Testnet explorer: https://explorer.testnet.mantle.xyz
-- Mainnet explorer: https://explorer.mantle.xyz
-- USDC on Mantle: Check official bridge
-
----
-
-## Submission Checklist
-
-### Before Submission (Jan 15)
-- [ ] Working system on Mantle testnet
-- [ ] GitHub repo (public)
-- [ ] Evidence bundle (proof package)
-- [ ] README with setup instructions
-- [ ] All 8 tracks selected in form
-
-### Evidence Bundle (Proof Package)
-
-The centerpiece of submission—concrete proof the system works:
-
-```
-evidence/
-├── README.md                    # Quick start, what each file proves
-├── contract.md                  # Contract address + Mantlescan verified link
-├── sample-receipts/
-│   ├── receipt-001.json         # Full receipt with signatures
-│   ├── receipt-002.json
-│   └── receipt-003.json
-├── transactions.md              # Mantlescan links to stealth payments
-├── graphql-queries.md           # Example Ponder queries + results
-└── test-credentials.md          # Test wallet with faucet MNT, how to test
-```
-
-**Evidence contents:**
-
-| Item | What It Proves |
-|------|----------------|
-| **Contract address** | Source-verified on Mantlescan |
-| **Sample receipt IDs** | `GR-2025-000001`, `GR-2025-000002`, etc. |
-| **Receipt hashes** | Can verify on-chain via `verifyReceipt()` |
-| **Mantlescan tx links** | Show payments to stealth addresses |
-| **Cost breakdown** | Gas used + fee per tx (proves Mantle economics) |
-| **GraphQL query** | Ponder indexing works, returns payment data |
-| **Test wallet** | Funded with testnet MNT, judges can try it |
-
-**Cost Documentation (Mantle Economics):**
-```markdown
-## Payment Cost Breakdown
-
-| Operation | Tx Hash | Gas Used | Fee (MNT) | Fee (USD) |
-|-----------|---------|----------|-----------|-----------|
-| payNative() | 0xabc... | ~85,000 | 0.00017 | ~$0.008 |
-| (total roundtrip) | - | ~85,000 | 0.00017 | ~$0.008 |
-
-vs Ethereum Mainnet: ~$5-15 per payment
-vs Mantle: ~$0.01-0.02 per payment
-
-**50-500x cheaper** → makes receipt anchoring economically viable
-```
-
-### Submission Materials
-- [ ] Project name: **Galeon**
-- [ ] Tagline: "Your payments. Your treasure. Hidden in plain sight."
-- [ ] Track selections (8 tracks)
-- [ ] Project description (per-track angles ready)
-- [ ] Demo link (deployed frontend)
-- [ ] GitHub link
-- [ ] Evidence bundle link (in repo or separate zip)
-
-### Per-Track Descriptions
-
-**Grand Prize:**
-> Galeon solves the "privacy vs. compliance" dilemma for B2B crypto payments. Vendors receive funds to unlinkable stealth addresses (EIP-5564)—**privacy without mixers**—while every payment generates an **auditable receipt anchored on-chain**. A complete payment roundtrip costs ~$0.02 on Mantle vs $5+ on Ethereum, making private commerce economically viable.
-
-**RWA / RealFi:**
-> Galeon bridges crypto to real-world business requirements. Every payment generates a cryptographically signed receipt with **on-chain timestamp anchoring**—tax-ready, auditor-friendly, legally defensible. COP conversion for DIAN compliance. **Auditable receipts on-chain** without sacrificing vendor privacy.
-
-**ZK & Privacy:**
-> Galeon uses stealth addresses (EIP-5564) for **privacy without mixers or pools**. Each payment goes to a unique one-time address that only the recipient can detect. No mixing, no sanctions risk, no regulatory concerns—just cryptographic unlinkability. Receipts prove payments happened without revealing the recipient's identity.
-
-**Infrastructure & Tooling:**
-> Galeon provides reusable payment infrastructure: stealth address library, receipt generation/verification, and a smart contract any project can integrate. **Auditable receipts on-chain** as a primitive. Mantle's ~$0.02 per payment roundtrip makes this economically viable for high-frequency use.
-
-**Best Mantle Integration:**
-> Galeon is **built native to Mantle**. Each stealth payment requires: (1) token transfer, (2) ephemeral key publish, (3) receipt anchor—three operations that cost ~$0.02 total on Mantle vs $5+ on Ethereum. This fee structure makes private B2B payments viable for real businesses. Supports native MNT + USDC.
-
----
-
-## Contact
-
-- **Builder:** Mateo
-- **Location:** Barranquilla, Colombia 🇨🇴
-- **Background:** Sippy (WhatsApp payments), Prisma DIDs (Cardano)
-- **GitHub:** [TBD]
-- **Twitter:** [TBD]
-
----
-
-*Last updated: December 20, 2025 (final polish)*
+*Last updated: December 26, 2025*
