@@ -140,10 +140,15 @@ Galeon supports two modes with tailored analytics. The same wallet can operate i
 │                                                                          │
 │  1. COLLECT ALL (Primary CTA)                                            │
 │     ┌──────────────────────────────────────────────────────────────┐    │
-│     │  [Collect All - 2.5 MNT available]                           │    │
+│     │  [Collect All - 2.5 MNT + 1,200 USDC available]              │    │
+│     │                                                               │    │
+│     │  Breakdown:                                                   │    │
+│     │    • 2.5 MNT (3 payments)                                     │    │
+│     │    • 1,000 USDC (2 payments)                                  │    │
+│     │    • 200 USDT (1 payment)                                     │    │
 │     │                                                               │    │
 │     │  Scans ALL Ports, finds ALL unclaimed payments,               │    │
-│     │  batches them into a single transaction.                      │    │
+│     │  batches them by token type.                                  │    │
 │     │                                                               │    │
 │     │  Best for: Regular collection, simple UX                      │    │
 │     └──────────────────────────────────────────────────────────────┘    │
@@ -322,6 +327,30 @@ export function getChainConfig(chainId: number): ChainConfig {
 export function getContracts(chainId: number) {
   const config = getChainConfig(chainId)
   return config.contracts
+}
+
+// Supported stablecoins per chain
+export interface TokenConfig {
+  address: `0x${string}`
+  symbol: string
+  decimals: number
+}
+
+export const supportedTokens: Record<number, TokenConfig[]> = {
+  // Mantle Mainnet
+  5000: [
+    { address: '0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE', symbol: 'USDT', decimals: 6 },
+    { address: '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9', symbol: 'USDC', decimals: 6 },
+    { address: '0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34', symbol: 'USDe', decimals: 18 },
+  ],
+  // Mantle Sepolia (testnet) - use faucet tokens
+  5003: [
+    // TODO: Deploy mock tokens or use testnet faucet addresses
+  ],
+}
+
+export function getTokenByAddress(chainId: number, address: `0x${string}`): TokenConfig | undefined {
+  return supportedTokens[chainId]?.find(t => t.address.toLowerCase() === address.toLowerCase())
 }
 ```
 
@@ -613,14 +642,117 @@ contract GaleonRegistry is ReentrancyGuard {
         );
     }
 
-    // ============ Batch Collection (Future) ============
+}
+```
 
-    // TODO: Implement batch withdraw for relayer
-    // function batchWithdrawNative(
-    //     address[] calldata stealthAddresses,
-    //     bytes[] calldata signatures,
-    //     address recipient
-    // ) external;
+#### BatchCollector.sol (Relayer-operated)
+
+```solidity
+// packages/contracts/contracts/BatchCollector.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/// @title BatchCollector
+/// @notice Relayer contract for batch collecting from stealth addresses
+/// @dev Relayer submits pre-signed transactions; this contract just receives funds
+contract BatchCollector is Ownable {
+    /// @notice Emitted when funds are collected
+    event Collected(
+        address indexed recipient,
+        address indexed token,  // address(0) for native
+        uint256 amount,
+        uint256 stealthCount
+    );
+
+    constructor() Ownable(msg.sender) {}
+
+    /// @notice Receive native currency from stealth addresses
+    receive() external payable {}
+
+    /// @notice Forward collected native funds to recipient
+    /// @param recipient The user's main wallet
+    /// @param stealthCount Number of stealth addresses collected (for event)
+    function forwardNative(address recipient, uint256 stealthCount) external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance");
+
+        (bool success, ) = recipient.call{value: balance}("");
+        require(success, "Transfer failed");
+
+        emit Collected(recipient, address(0), balance, stealthCount);
+    }
+
+    /// @notice Forward collected ERC-20 tokens to recipient
+    /// @param token The token contract
+    /// @param recipient The user's main wallet
+    /// @param stealthCount Number of stealth addresses collected (for event)
+    function forwardToken(address token, address recipient, uint256 stealthCount) external onlyOwner {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(balance > 0, "No balance");
+
+        IERC20(token).transfer(recipient, balance);
+
+        emit Collected(recipient, token, balance, stealthCount);
+    }
+}
+```
+
+**Collection Flow (Native + ERC-20):**
+
+```typescript
+// apps/api/app/services/collection_service.ts
+
+interface CollectablePayment {
+  stealthAddress: `0x${string}`
+  stealthPrivateKey: Uint8Array
+  amount: bigint
+  token: `0x${string}` | null  // null = native MNT
+}
+
+async function executeCollection(
+  payments: CollectablePayment[],
+  recipientWallet: `0x${string}`,
+  chainId: number
+) {
+  // Group by token for cleaner batching
+  const byToken = groupBy(payments, p => p.token ?? 'native')
+
+  const results: CollectionResult[] = []
+
+  for (const [tokenKey, tokenPayments] of Object.entries(byToken)) {
+    // Process in batches of 10
+    for (const batch of chunk(tokenPayments, 10)) {
+      // Sign and submit TX from each stealth address
+      for (const payment of batch) {
+        const stealthWallet = new Wallet(payment.stealthPrivateKey, provider)
+
+        if (payment.token === null) {
+          // Native: send to BatchCollector (or directly to recipient)
+          const tx = await stealthWallet.sendTransaction({
+            to: recipientWallet,
+            value: payment.amount - gasBuffer,
+          })
+          await tx.wait()
+        } else {
+          // ERC-20: call token.transfer()
+          const token = new Contract(payment.token, ERC20_ABI, stealthWallet)
+          const tx = await token.transfer(recipientWallet, payment.amount)
+          await tx.wait()
+        }
+      }
+
+      results.push({
+        token: tokenKey === 'native' ? null : tokenKey,
+        count: batch.length,
+        amount: batch.reduce((sum, p) => sum + p.amount, 0n),
+      })
+    }
+  }
+
+  return results
 }
 ```
 
@@ -1659,7 +1791,7 @@ export default class RateLimitMiddleware {
 }
 ```
 
-### Relayer Funding
+### Relayer Funding & Monitoring
 
 ```typescript
 // Relayer wallet setup for hackathon
@@ -1672,8 +1804,43 @@ const RELAYER_CONFIG = {
 
   // Alert threshold
   lowBalanceThreshold: '0.1', // 0.1 MNT
+
+  // Alerting (Discord webhook for hackathon)
+  alertWebhook: process.env.DISCORD_ALERT_WEBHOOK,
+}
+
+// apps/api/app/jobs/monitor_relayer.ts
+// Runs every 10 minutes via BullMQ scheduler
+export default class MonitorRelayer {
+  async handle() {
+    const balance = await provider.getBalance(RELAYER_ADDRESS)
+    const threshold = parseEther(RELAYER_CONFIG.lowBalanceThreshold)
+
+    if (balance < threshold) {
+      await fetch(RELAYER_CONFIG.alertWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `⚠️ **Relayer Low Balance Alert**\nBalance: ${formatEther(balance)} MNT\nThreshold: ${RELAYER_CONFIG.lowBalanceThreshold} MNT\nAddress: ${RELAYER_ADDRESS}`,
+        }),
+      })
+    }
+  }
 }
 ```
+
+---
+
+## Known Limitations (Non-blocking)
+
+These are acknowledged trade-offs acceptable for hackathon scope:
+
+| Concern | Risk | Mitigation |
+|---------|------|------------|
+| **Viewing keys encrypted in DB** | Server breach + wallet signature compromise = viewing key leak (wallet signature never stored, so attacker needs both) | Acceptable for hackathon. Production: consider HSM or client-side only storage |
+| **Relayer as single point of failure** | If relayer wallet is drained or out of gas, collections stop | Fund conservatively (1 MNT), Discord alerts when below 0.1 MNT threshold |
+| **Ponder webhook single endpoint** | If AdonisJS is down, events queue in Ponder | ReconcilePayments job runs every 5 min to catch missed events |
+| **Gas sponsorship abuse** | Users could spam collections to drain relayer | Rate limits: 5/day, 2/hour, max 50 addresses per Collect All |
 
 ---
 
@@ -1692,7 +1859,8 @@ const RELAYER_CONFIG = {
 | Webhook reliability | Reconciliation job every 5 min | Catch missed events |
 | SIWE nonces | Redis with 5 min TTL, deleted on use | Replay protection |
 | Batch overflow | Multi-tx with progress UI, max 50 addresses | Handle large collections |
+| Token support | Native MNT + USDT, USDC, USDe | Main Mantle liquidity tokens |
 
 ---
 
-*Last updated: December 26, 2025*
+*Last updated: December 27, 2025*
