@@ -1888,4 +1888,87 @@ These are acknowledged trade-offs acceptable for hackathon scope:
 
 ---
 
+## Future Enhancements (Post-Hackathon)
+
+### Direct Wallet Payments
+
+Currently, payments must go through the `/pay` page because stealth addresses require:
+
+1. **Ephemeral key generation** - A random keypair for each payment
+2. **Stealth address derivation** - Computed from recipient's meta-address + ephemeral key
+3. **Announcement emission** - On-chain event so recipient can discover the payment
+
+Sending directly from a wallet **doesn't work** because no Announcement would be emitted, making the payment "invisible" to the recipient.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    DIRECT PAYMENT OPTIONS (FUTURE)                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. WALLET INTEGRATION (Browser Extension)                               │
+│     ┌────────────────────────────────────────────────────────────────┐  │
+│     │  A wallet plugin/extension that:                                │  │
+│     │  • Detects stealth meta-addresses (st:mnt:0x...)                │  │
+│     │  • Generates ephemeral keypair automatically                    │  │
+│     │  • Calls GaleonRegistry.payNative() with correct params         │  │
+│     │  • Emits Announcement event properly                            │  │
+│     │                                                                 │  │
+│     │  UX: User pastes st:mnt:... address, wallet handles the rest    │  │
+│     └────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  2. CLI TOOL (Power Users)                                               │
+│     ┌────────────────────────────────────────────────────────────────┐  │
+│     │  galeon-cli pay --to st:mnt:0x... --amount 1.0 --memo "Invoice" │  │
+│     │                                                                 │  │
+│     │  Features:                                                      │  │
+│     │  • Read meta-address from Port ID or raw st: format             │  │
+│     │  • Generate stealth address locally                             │  │
+│     │  • Submit transaction via user's wallet/private key             │  │
+│     │  • Support for batch payments via CSV                           │  │
+│     └────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  3. QR CODE WITH CONTRACT CALL DATA                                      │
+│     ┌────────────────────────────────────────────────────────────────┐  │
+│     │  Dynamic QR code containing:                                    │  │
+│     │  • Pre-computed stealth address (generated on scan)             │  │
+│     │  • Ephemeral public key                                         │  │
+│     │  • View tag                                                     │  │
+│     │  • Contract call data for payNative()                           │  │
+│     │                                                                 │  │
+│     │  UX: Scan QR → Wallet opens with pre-filled transaction         │  │
+│     │  Note: Each scan generates new stealth address for privacy      │  │
+│     └────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  4. EIP-681 PAYMENT LINKS                                                │
+│     ┌────────────────────────────────────────────────────────────────┐  │
+│     │  ethereum:0x<GaleonRegistry>@5000/payNative?                    │  │
+│     │    address=0x<stealth>&ephemeralPubKey=0x...&viewTag=0x...     │  │
+│     │                                                                 │  │
+│     │  Compatible with wallets that support EIP-681 payment URIs      │  │
+│     │  Could be embedded in invoices, emails, etc.                    │  │
+│     └────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  WHY NOT FOR HACKATHON:                                                  │
+│  • Wallet extensions require significant development + review process   │
+│  • CLI tool adds complexity without demo value                           │
+│  • /pay page provides same functionality with better UX for demos        │
+│  • Focus on core flow: Setup → Port → Payment → Collection               │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Other Future Enhancements
+
+| Enhancement             | Description                                              | Complexity |
+| ----------------------- | -------------------------------------------------------- | ---------- |
+| **ENS/MNS Integration** | Resolve `galeon.mnt` to Port stealth meta-address        | Medium     |
+| **Recurring Payments**  | Schedule automatic payments to a Port                    | High       |
+| **Payment Requests**    | Vendor sends payment request link with pre-filled amount | Low        |
+| **Multi-sig Ports**     | Require multiple signatures to collect                   | High       |
+| **Port Delegation**     | Share viewing key without spending key (accountants)     | Medium     |
+| **Fiat On-ramp**        | Pay to Port directly with credit card via partner        | High       |
+| **Mobile App**          | Native iOS/Android with biometric key protection         | High       |
+
+---
+
 _Last updated: December 27, 2025_
