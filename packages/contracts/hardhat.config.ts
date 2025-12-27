@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import type { HardhatUserConfig } from 'hardhat/config'
 import '@nomicfoundation/hardhat-toolbox'
 
@@ -24,10 +25,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      mantleSepolia: process.env.MANTLESCAN_API_KEY || '',
-      mantle: process.env.MANTLESCAN_API_KEY || '',
-    },
+    apiKey: process.env.MANTLESCAN_API_KEY || '',
     customChains: [
       {
         network: 'mantleSepolia',
@@ -46,6 +44,9 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+  },
+  sourcify: {
+    enabled: false,
   },
 }
 

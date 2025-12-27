@@ -41,6 +41,7 @@ pnpm-debug.log*
 # Claude Code (local)
 CLAUDE.local.md
 .mcp.json
+.claude/settings.local.json
 
 # Hardhat
 cache/

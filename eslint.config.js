@@ -34,4 +34,12 @@ export default [
       'packages/eslint-config/**/*.js',
     ],
   })),
+
+  // Allow chai expect() expressions in test files
+  {
+    files: ['**/test/**/*.ts', '**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
 ]

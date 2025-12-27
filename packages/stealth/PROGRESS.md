@@ -59,7 +59,7 @@
 ## Documentation
 
 - [x] JSDoc on all exports
-- [ ] Usage examples in README
+- [x] README.md with full API reference and examples
 
 ## API
 

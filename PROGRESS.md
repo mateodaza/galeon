@@ -9,15 +9,15 @@
 
 **Goal:** Backend + stealth library + contracts deployed
 
-| Task            | Status      | Owner | Notes                       |
-| --------------- | ----------- | ----- | --------------------------- |
-| Turborepo setup | Done        | -     | Monorepo structure created  |
-| Railway infra   | Not Started | -     | PostgreSQL + Redis          |
-| AdonisJS API    | Not Started | -     | User/Port models, SIWE auth |
-| Stealth library | Not Started | -     | Key derivation, scanning    |
-| Contracts       | Not Started | -     | Deploy to Mantle Sepolia    |
-| Ponder indexer  | Not Started | -     | Event handlers + webhook    |
-| Real-time       | Not Started | -     | Transmit SSE                |
+| Task            | Status      | Owner | Notes                                                     |
+| --------------- | ----------- | ----- | --------------------------------------------------------- |
+| Turborepo setup | Done        | -     | Monorepo structure created                                |
+| Railway infra   | Not Started | -     | PostgreSQL + Redis                                        |
+| AdonisJS API    | Not Started | -     | User/Port models, SIWE auth                               |
+| Stealth library | Done        | -     | 30 tests, audited, documented (README.md)                 |
+| Contracts       | Done        | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
+| Ponder indexer  | Not Started | -     | Event handlers + webhook                                  |
+| Real-time       | Not Started | -     | Transmit SSE                                              |
 
 **Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
 
