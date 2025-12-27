@@ -2,13 +2,27 @@
  * Stealth address types for EIP-5564 implementation.
  */
 
+/**
+ * Stealth meta-address chain prefix.
+ *
+ * - "eth" = Standard EIP-5564 (Ethereum mainnet, Arbitrum, etc.)
+ * - "mnt" = Mantle-branded (same crypto, just different prefix for UX)
+ */
+export type StealthChainPrefix = 'eth' | 'mnt'
+
+/**
+ * Stealth meta-address format.
+ * Supports both standard EIP-5564 prefix (st:eth:) and Mantle-branded (st:mnt:).
+ */
+export type StealthMetaAddress = `st:${StealthChainPrefix}:0x${string}`
+
 /** Stealth key pair containing spending and viewing keys */
 export interface StealthKeys {
   spendingPrivateKey: Uint8Array
   spendingPublicKey: Uint8Array
   viewingPrivateKey: Uint8Array
   viewingPublicKey: Uint8Array
-  stealthMetaAddress: `st:eth:0x${string}`
+  stealthMetaAddress: StealthMetaAddress
 }
 
 /** Result of generating a stealth address for payment */

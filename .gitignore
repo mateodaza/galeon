@@ -11,7 +11,9 @@ out/
 # Turbo
 .turbo/
 
-# Environment files (local)
+# Environment files (NEVER commit secrets)
+.env
+.env.local
 .env*.local
 .env.development.local
 .env.test.local
