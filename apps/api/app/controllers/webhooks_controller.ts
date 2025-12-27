@@ -28,7 +28,7 @@ export default class WebhooksController {
       try {
         await this.processAnnouncement({
           txHash: activity.hash,
-          blockNumber: parseInt(activity.log.blockNumber, 16),
+          blockNumber: Number.parseInt(activity.log.blockNumber, 16),
           logData: activity.log.data,
           topics: topics,
         })
@@ -81,7 +81,7 @@ export default class WebhooksController {
       currency: data.tokenAddress ? 'ERC20' : 'MNT',
       tokenAddress: data.tokenAddress?.toLowerCase() || null,
       status: 'pending',
-      blockNumber: data.blockNumber,
+      blockNumber: data.blockNumber.toString(),
       txHash: data.txHash,
     })
 
@@ -116,16 +116,19 @@ export default class WebhooksController {
 
     // Parse ephemeral public key (first 32 bytes offset, then length, then data)
     // ABI encoding: offset (32) + offset (32) + ephemPubKey length (32) + ephemPubKey data
-    const ephemPubKeyOffset = parseInt(data.slice(0, 64), 16) * 2
-    const ephemPubKeyLength = parseInt(data.slice(ephemPubKeyOffset, ephemPubKeyOffset + 64), 16)
+    const ephemPubKeyOffset = Number.parseInt(data.slice(0, 64), 16) * 2
+    const ephemPubKeyLength = Number.parseInt(
+      data.slice(ephemPubKeyOffset, ephemPubKeyOffset + 64),
+      16
+    )
     const ephemeralPubKey =
       '0x' + data.slice(ephemPubKeyOffset + 64, ephemPubKeyOffset + 64 + ephemPubKeyLength * 2)
 
     // Parse metadata to get view tag (first byte of metadata)
-    const metadataOffset = parseInt(data.slice(64, 128), 16) * 2
-    const metadataLength = parseInt(data.slice(metadataOffset, metadataOffset + 64), 16)
+    const metadataOffset = Number.parseInt(data.slice(64, 128), 16) * 2
+    const metadataLength = Number.parseInt(data.slice(metadataOffset, metadataOffset + 64), 16)
     const metadata = data.slice(metadataOffset + 64, metadataOffset + 64 + metadataLength * 2)
-    const viewTag = metadata.length >= 2 ? parseInt(metadata.slice(0, 2), 16) : 0
+    const viewTag = metadata.length >= 2 ? Number.parseInt(metadata.slice(0, 2), 16) : 0
 
     // Check if receipt already exists
     const existing = await Receipt.findBy('txHash', params.txHash)
@@ -144,7 +147,7 @@ export default class WebhooksController {
       currency: 'MNT',
       tokenAddress: null,
       status: 'pending',
-      blockNumber: params.blockNumber,
+      blockNumber: params.blockNumber.toString(),
       txHash: params.txHash,
     })
 

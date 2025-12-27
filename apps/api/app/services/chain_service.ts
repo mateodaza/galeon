@@ -40,8 +40,8 @@ const CHAINS: Record<number, Omit<ChainConfig, 'rpcUrl'>> = {
 const ALLOWED_CHAIN_IDS = env
   .get('ALLOWED_CHAIN_IDS', '5003,5000')
   .split(',')
-  .map((id) => parseInt(id.trim(), 10))
-  .filter((id) => !isNaN(id))
+  .map((id) => Number.parseInt(id.trim(), 10))
+  .filter((id) => !Number.isNaN(id))
 
 // Default chain ID from environment
 const DEFAULT_CHAIN_ID = env.get('CHAIN_ID', 5003)

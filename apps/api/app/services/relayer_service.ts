@@ -38,18 +38,6 @@ export default class RelayerService {
   }
 
   /**
-   * Get wallet client for transactions
-   */
-  private static getWalletClient() {
-    const chain = this.getViemChain()
-    return createWalletClient({
-      account: this.getAccount(),
-      chain,
-      transport: http(ChainService.getDefaultChain().rpcUrl),
-    })
-  }
-
-  /**
    * Get public client for reads
    */
   private static getPublicClient() {

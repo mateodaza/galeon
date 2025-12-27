@@ -11,7 +11,7 @@ const stealthMetaAddressRegex = /^st:(eth|mnt):0x[a-fA-F0-9]{132}$/
  */
 export const createPortValidator = vine.compile(
   vine.object({
-    label: vine.string().minLength(1).maxLength(100).optional(),
+    name: vine.string().minLength(1).maxLength(100).optional(),
     stealthMetaAddress: vine.string().regex(stealthMetaAddressRegex),
   })
 )
@@ -21,8 +21,8 @@ export const createPortValidator = vine.compile(
  */
 export const updatePortValidator = vine.compile(
   vine.object({
-    label: vine.string().minLength(1).maxLength(100).optional(),
-    isArchived: vine.boolean().optional(),
+    name: vine.string().minLength(1).maxLength(100).optional(),
+    archived: vine.boolean().optional(),
   })
 )
 

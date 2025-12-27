@@ -19,5 +19,5 @@ export default redisConfig
 
 declare module '@adonisjs/redis/types' {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  export interface RedisConnections extends InferConnections<typeof redisConfig> {}
+  interface RedisConnections extends InferConnections<typeof redisConfig> {}
 }

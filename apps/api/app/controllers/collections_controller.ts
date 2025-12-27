@@ -30,7 +30,7 @@ export default class CollectionsController {
       data: collections.all().map((collection) => ({
         id: collection.id,
         status: collection.status,
-        recipientAddress: collection.recipientAddress,
+        recipientWallet: collection.recipientWallet,
         totalAmount: collection.totalAmount,
         tokenAmounts: collection.tokenAmounts,
         totalReceipts: collection.totalReceipts,
@@ -81,7 +81,7 @@ export default class CollectionsController {
     const collection = await Collection.create({
       userId: user.id,
       status: 'pending',
-      recipientAddress: recipientAddress.toLowerCase(),
+      recipientWallet: recipientAddress.toLowerCase(),
       totalReceipts: receipts.length,
       processedReceipts: 0,
       totalAmount: '0',
@@ -91,7 +91,7 @@ export default class CollectionsController {
     return response.created({
       id: collection.id,
       status: collection.status,
-      recipientAddress: collection.recipientAddress,
+      recipientWallet: collection.recipientWallet,
       totalReceipts: collection.totalReceipts,
       claimableReceipts: receipts.map((r) => ({
         id: r.id,
@@ -126,7 +126,7 @@ export default class CollectionsController {
     return response.ok({
       id: collection.id,
       status: collection.status,
-      recipientAddress: collection.recipientAddress,
+      recipientWallet: collection.recipientWallet,
       totalAmount: collection.totalAmount,
       tokenAmounts: collection.tokenAmounts,
       totalReceipts: collection.totalReceipts,

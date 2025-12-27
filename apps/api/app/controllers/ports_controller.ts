@@ -23,7 +23,7 @@ export default class PortsController {
     const query = Port.query().where('userId', user.id).orderBy('createdAt', 'desc')
 
     if (!includeArchived) {
-      query.where('isArchived', false)
+      query.where('archived', false)
     }
 
     const ports = await query.paginate(page, limit)
@@ -32,11 +32,11 @@ export default class PortsController {
       data: ports.all().map((port) => ({
         id: port.id,
         portId: port.portId,
-        label: port.label,
+        name: port.name,
         stealthMetaAddress: port.stealthMetaAddress,
         totalReceived: port.totalReceived,
         totalCollected: port.totalCollected,
-        isArchived: port.isArchived,
+        archived: port.archived,
         createdAt: port.createdAt,
       })),
       meta: {
@@ -70,18 +70,18 @@ export default class PortsController {
 
     const port = await Port.create({
       userId: user.id,
-      label: data.label,
+      name: data.name,
       stealthMetaAddress: data.stealthMetaAddress,
     })
 
     return response.created({
       id: port.id,
       portId: port.portId,
-      label: port.label,
+      name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
-      isArchived: port.isArchived,
+      archived: port.archived,
       createdAt: port.createdAt,
     })
   }
@@ -105,11 +105,11 @@ export default class PortsController {
     return response.ok({
       id: port.id,
       portId: port.portId,
-      label: port.label,
+      name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
-      isArchived: port.isArchived,
+      archived: port.archived,
       createdAt: port.createdAt,
       updatedAt: port.updatedAt,
     })
@@ -132,11 +132,11 @@ export default class PortsController {
       })
     }
 
-    if (data.label !== undefined) {
-      port.label = data.label
+    if (data.name !== undefined) {
+      port.name = data.name
     }
-    if (data.isArchived !== undefined) {
-      port.isArchived = data.isArchived
+    if (data.archived !== undefined) {
+      port.archived = data.archived
     }
 
     await port.save()
@@ -144,11 +144,11 @@ export default class PortsController {
     return response.ok({
       id: port.id,
       portId: port.portId,
-      label: port.label,
+      name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
-      isArchived: port.isArchived,
+      archived: port.archived,
       createdAt: port.createdAt,
       updatedAt: port.updatedAt,
     })
@@ -171,7 +171,7 @@ export default class PortsController {
     }
 
     // Soft delete by archiving
-    port.isArchived = true
+    port.archived = true
     await port.save()
 
     return response.ok({

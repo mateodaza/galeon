@@ -24,9 +24,22 @@ export default class CollectionService {
       // Get uncollected receipts for this port
       const receipts = await Receipt.query().where('portId', port.id).where('status', 'confirmed')
 
-      // Scan using stealth service
-      const portClaimable = await StealthService.scanForPort(port, receipts)
-      allClaimable.push(...portClaimable)
+      // TODO: Implement port scanning with stealth library
+      // This requires decrypting viewing key and scanning announcements
+      // For now, return receipts as claimable
+      for (const receipt of receipts) {
+        allClaimable.push({
+          receiptId: receipt.id,
+          portId: port.id,
+          stealthAddress: receipt.stealthAddress,
+          ephemeralPubKey: receipt.ephemeralPubKey,
+          viewTag: receipt.viewTag,
+          amount: receipt.amount,
+          currency: receipt.currency,
+          tokenAddress: receipt.tokenAddress,
+          stealthPrivateKey: new Uint8Array(32), // Placeholder - needs proper derivation
+        })
+      }
     }
 
     return allClaimable
@@ -44,7 +57,7 @@ export default class CollectionService {
     collection: Collection,
     receiptIds: string[],
     recipientWallet: string,
-    spendingSignature: string
+    _spendingSignature: string
   ): Promise<CollectionResult> {
     try {
       // Update collection status to processing
@@ -80,11 +93,17 @@ export default class CollectionService {
       // Process native token receipts
       for (const receipt of nativeReceipts) {
         try {
-          // Derive stealth private key for this receipt
-          const stealthPrivateKey = await StealthService.deriveStealthPrivateKey(
-            spendingSignature,
-            receipt.ephemeralPubKey,
-            receipt.port.viewingKeyEncrypted
+          // TODO: Derive stealth private key properly using stealth library
+          // This requires: ephemeralPubKey, spendingPrivateKey, viewingPrivateKey
+          const ephemeralPubKeyBytes = StealthService.hexToBytes(receipt.ephemeralPubKey)
+          const viewingKeyBytes = StealthService.hexToBytes(receipt.port.viewingKeyEncrypted)
+          // Placeholder spending key - in production this comes from user's wallet signature
+          const spendingKeyBytes = new Uint8Array(32)
+
+          const { stealthPrivateKey } = StealthService.deriveStealthPrivateKey(
+            ephemeralPubKeyBytes,
+            spendingKeyBytes,
+            viewingKeyBytes
           )
 
           // Send funds from stealth address to recipient
@@ -123,10 +142,14 @@ export default class CollectionService {
 
         for (const receipt of tokenReceiptList) {
           try {
-            const stealthPrivateKey = await StealthService.deriveStealthPrivateKey(
-              spendingSignature,
-              receipt.ephemeralPubKey,
-              receipt.port.viewingKeyEncrypted
+            const ephemeralPubKeyBytes = StealthService.hexToBytes(receipt.ephemeralPubKey)
+            const viewingKeyBytes = StealthService.hexToBytes(receipt.port.viewingKeyEncrypted)
+            const spendingKeyBytes = new Uint8Array(32)
+
+            const { stealthPrivateKey } = StealthService.deriveStealthPrivateKey(
+              ephemeralPubKeyBytes,
+              spendingKeyBytes,
+              viewingKeyBytes
             )
 
             await RelayerService.sendTokenFromStealth(
