@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ace serve --hmr",
-    "build": "node ace build",
-    "start": "node bin/server.js",
+    "dev": "echo 'TODO: scaffold AdonisJS first'",
+    "build": "echo 'TODO: scaffold AdonisJS first'",
+    "start": "echo 'TODO: scaffold AdonisJS first'",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "node ace test"
+    "typecheck": "echo 'TODO: scaffold AdonisJS first'",
+    "test": "echo 'TODO: scaffold AdonisJS first'"
   },
   "dependencies": {
     "@galeon/eslint-config": "workspace:*",

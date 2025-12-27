@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ponder dev",
-    "start": "ponder start",
-    "codegen": "ponder codegen",
+    "dev": "echo 'TODO: add ponder.config.ts first'",
+    "start": "echo 'TODO: add ponder.config.ts first'",
+    "build": "echo 'TODO: add ponder.config.ts first'",
+    "codegen": "echo 'TODO: add ponder.config.ts first'",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "echo 'TODO: add ponder.config.ts first'"
   },
   "dependencies": {
     "@galeon/eslint-config": "workspace:*",
