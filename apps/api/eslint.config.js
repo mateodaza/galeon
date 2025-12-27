@@ -1,4 +1,2 @@
-import nodeConfig from '@galeon/eslint-config/node'
-
-/** @type {import('eslint').Linter.Config[]} */
-export default [...nodeConfig]
+import { configApp } from '@adonisjs/eslint-config'
+export default configApp()
