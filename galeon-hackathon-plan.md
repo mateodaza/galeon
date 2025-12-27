@@ -54,16 +54,16 @@ A **Port** is Galeon's core privacy primitive - a payment endpoint with its own 
 ```typescript
 // Port stored in database
 interface Port {
-  id: string                    // UUID
-  ownerId: number               // FK to User
-  portId: bytes32               // On-chain identifier (keccak256 of name + random)
-  name: string                  // User-defined label
+  id: string // UUID
+  ownerId: number // FK to User
+  portId: bytes32 // On-chain identifier (keccak256 of name + random)
+  name: string // User-defined label
   type: 'permanent' | 'recurring' | 'one-time' | 'burner'
 
   // Stealth keys (encrypted at rest)
-  spendingPrivateKey: string    // Encrypted with user's master key
-  viewingPrivateKey: string     // Encrypted with user's master key
-  stealthMetaAddress: string    // Public: spending pubkey + viewing pubkey
+  spendingPrivateKey: string // Encrypted with user's master key
+  viewingPrivateKey: string // Encrypted with user's master key
+  stealthMetaAddress: string // Public: spending pubkey + viewing pubkey
 
   // Metadata
   active: boolean
@@ -72,7 +72,7 @@ interface Port {
   archivedAt: DateTime | null
 
   // Stats (denormalized for performance)
-  totalReceived: string         // Total MNT/ETH received
+  totalReceived: string // Total MNT/ETH received
   paymentCount: number
 }
 
@@ -192,12 +192,14 @@ Galeon supports two modes with tailored analytics. The same wallet can operate i
 We deploy **our own copies** of ERC-5564 and ERC-6538 contracts plus our custom **GaleonRegistry**.
 
 **Why not canonical addresses?**
+
 - Canonical contracts are NOT deployed on Mantle (verified: address is empty EOA)
 - CREATE2 deployment to canonical addresses requires exact init code + salt (complex)
 - No other EIP-5564 wallets exist on Mantle, so interop is not a concern
 - We can request ScopeLift to deploy canonical contracts later if needed
 
 **This approach:**
+
 1. **Standards compliance** - Uses official EIP implementations (same code)
 2. **Simple deployment** - Standard `deploy()`, no CREATE2 complexity
 3. **Self-contained** - Our system works fully without external dependencies
@@ -283,8 +285,8 @@ export const chains: Record<number, ChainConfig> = {
     nativeCurrency: { name: 'Mantle', symbol: 'MNT', decimals: 18 },
     contracts: {
       announcer: '0x...', // TODO: Update after deployment
-      registry: '0x...',  // TODO: Update after deployment
-      galeon: '0x...',    // TODO: Update after deployment
+      registry: '0x...', // TODO: Update after deployment
+      galeon: '0x...', // TODO: Update after deployment
     },
   },
 
@@ -297,8 +299,8 @@ export const chains: Record<number, ChainConfig> = {
     nativeCurrency: { name: 'Mantle', symbol: 'MNT', decimals: 18 },
     contracts: {
       announcer: '0x...', // TODO: Update after deployment
-      registry: '0x...',  // TODO: Update after deployment
-      galeon: '0x...',    // TODO: Update after deployment
+      registry: '0x...', // TODO: Update after deployment
+      galeon: '0x...', // TODO: Update after deployment
     },
   },
 
@@ -311,8 +313,8 @@ export const chains: Record<number, ChainConfig> = {
     nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
     contracts: {
       announcer: '0x...', // TODO: Update after deployment
-      registry: '0x...',  // TODO: Update after deployment
-      galeon: '0x...',    // TODO: Update after deployment
+      registry: '0x...', // TODO: Update after deployment
+      galeon: '0x...', // TODO: Update after deployment
     },
   },
 }
@@ -349,8 +351,11 @@ export const supportedTokens: Record<number, TokenConfig[]> = {
   ],
 }
 
-export function getTokenByAddress(chainId: number, address: `0x${string}`): TokenConfig | undefined {
-  return supportedTokens[chainId]?.find(t => t.address.toLowerCase() === address.toLowerCase())
+export function getTokenByAddress(
+  chainId: number,
+  address: `0x${string}`
+): TokenConfig | undefined {
+  return supportedTokens[chainId]?.find((t) => t.address.toLowerCase() === address.toLowerCase())
 }
 ```
 
@@ -709,7 +714,7 @@ interface CollectablePayment {
   stealthAddress: `0x${string}`
   stealthPrivateKey: Uint8Array
   amount: bigint
-  token: `0x${string}` | null  // null = native MNT
+  token: `0x${string}` | null // null = native MNT
 }
 
 async function executeCollection(
@@ -718,7 +723,7 @@ async function executeCollection(
   chainId: number
 ) {
   // Group by token for cleaner batching
-  const byToken = groupBy(payments, p => p.token ?? 'native')
+  const byToken = groupBy(payments, (p) => p.token ?? 'native')
 
   const results: CollectionResult[] = []
 
@@ -1027,12 +1032,25 @@ export function deriveStealthKeys(signature: `0x${string}`): StealthKeys {
   const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
 
   // Build stealth meta-address (st:eth:0x<spending><viewing>)
-  const stealthMetaAddress = `st:eth:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as const
+  const stealthMetaAddress =
+    `st:eth:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as const
 
   return {
-    spendingPrivateKey: new Uint8Array(spendingPrivateKey.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))),
+    spendingPrivateKey: new Uint8Array(
+      spendingPrivateKey
+        .toString(16)
+        .padStart(64, '0')
+        .match(/.{2}/g)!
+        .map((b) => parseInt(b, 16))
+    ),
     spendingPublicKey,
-    viewingPrivateKey: new Uint8Array(viewingPrivateKey.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))),
+    viewingPrivateKey: new Uint8Array(
+      viewingPrivateKey
+        .toString(16)
+        .padStart(64, '0')
+        .match(/.{2}/g)!
+        .map((b) => parseInt(b, 16))
+    ),
     viewingPublicKey,
     stealthMetaAddress,
   }
@@ -1226,7 +1244,11 @@ function tryDeriveStealthAddress(
 
   // Convert scalar back to bytes
   const stealthPrivateKey = new Uint8Array(
-    stealthScalar.toString(16).padStart(64, '0').match(/.{2}/g)!.map(b => parseInt(b, 16))
+    stealthScalar
+      .toString(16)
+      .padStart(64, '0')
+      .match(/.{2}/g)!
+      .map((b) => parseInt(b, 16))
   )
 
   return { stealthAddress, stealthPrivateKey }
@@ -1393,25 +1415,25 @@ Nonce: ${collectionNonce}`
 
 ## Tech Stack
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| **Blockchain** | Mantle L2 (+ Arbitrum for Sippy) | Low fees, EVM compatible |
-| **Cryptography** | @noble/curves, @noble/hashes | Audited, browser-compatible |
-| **Stealth Protocol** | EIP-5564 + ERC-6538 | Standard stealth addresses |
-| **Smart Contracts** | Solidity + Hardhat | Standard tooling |
-| **Frontend** | Next.js 15 + TypeScript | App router, React 19 |
-| **Styling** | Tailwind CSS v4 | Rapid UI development |
-| **Wallet** | wagmi v2 + viem | Modern, type-safe |
-| **Backend** | AdonisJS 6 | Full-featured, TypeScript-first |
-| **Auth** | SIWE + Access Tokens | Standard web3 auth pattern |
-| **Real-time** | Ponder + Transmit SSE | Index + push |
-| **Background Jobs** | adonisjs-jobs (BullMQ) | Reliable queue processing |
-| **ORM** | Lucid (AdonisJS native) | Active Record, migrations |
-| **Database** | PostgreSQL | Railway hosted |
-| **Cache/Queues** | Redis | Railway hosted |
-| **Indexer** | Ponder | Real-time blockchain indexing |
-| **Monorepo** | Turborepo + pnpm | Efficient builds, shared code |
-| **Hosting** | Railway (API, Indexer, DB, Redis) + Vercel (web) | Quick deployment |
+| Layer                | Technology                                       | Rationale                       |
+| -------------------- | ------------------------------------------------ | ------------------------------- |
+| **Blockchain**       | Mantle L2 (+ Arbitrum for Sippy)                 | Low fees, EVM compatible        |
+| **Cryptography**     | @noble/curves, @noble/hashes                     | Audited, browser-compatible     |
+| **Stealth Protocol** | EIP-5564 + ERC-6538                              | Standard stealth addresses      |
+| **Smart Contracts**  | Solidity + Hardhat                               | Standard tooling                |
+| **Frontend**         | Next.js 15 + TypeScript                          | App router, React 19            |
+| **Styling**          | Tailwind CSS v4                                  | Rapid UI development            |
+| **Wallet**           | wagmi v2 + viem                                  | Modern, type-safe               |
+| **Backend**          | AdonisJS 6                                       | Full-featured, TypeScript-first |
+| **Auth**             | SIWE + Access Tokens                             | Standard web3 auth pattern      |
+| **Real-time**        | Ponder + Transmit SSE                            | Index + push                    |
+| **Background Jobs**  | adonisjs-jobs (BullMQ)                           | Reliable queue processing       |
+| **ORM**              | Lucid (AdonisJS native)                          | Active Record, migrations       |
+| **Database**         | PostgreSQL                                       | Railway hosted                  |
+| **Cache/Queues**     | Redis                                            | Railway hosted                  |
+| **Indexer**          | Ponder                                           | Real-time blockchain indexing   |
+| **Monorepo**         | Turborepo + pnpm                                 | Efficient builds, shared code   |
+| **Hosting**          | Railway (API, Indexer, DB, Redis) + Vercel (web) | Quick deployment                |
 
 ---
 
@@ -1419,14 +1441,14 @@ Nonce: ${collectionNonce}`
 
 ### Principles
 
-| Principle | Guideline |
-|-----------|-----------|
-| **DRY** | Extract shared logic into `packages/stealth`. No duplicate crypto code. |
-| **File Size** | Target <300 LOC per file. Max 1K LOC only for complex contract logic. |
-| **Function Size** | Max 50 LOC per function. If longer, split into smaller functions. |
-| **Single Responsibility** | One file = one purpose. One function = one job. |
-| **No Dead Code** | Delete unused imports, functions, and commented code. |
-| **Type Safety** | Strict TypeScript. No `any`. Explicit return types on public APIs. |
+| Principle                 | Guideline                                                               |
+| ------------------------- | ----------------------------------------------------------------------- |
+| **DRY**                   | Extract shared logic into `packages/stealth`. No duplicate crypto code. |
+| **File Size**             | Target <300 LOC per file. Max 1K LOC only for complex contract logic.   |
+| **Function Size**         | Max 50 LOC per function. If longer, split into smaller functions.       |
+| **Single Responsibility** | One file = one purpose. One function = one job.                         |
+| **No Dead Code**          | Delete unused imports, functions, and commented code.                   |
+| **Type Safety**           | Strict TypeScript. No `any`. Explicit return types on public APIs.      |
 
 ### File Structure Guidelines
 
@@ -1442,14 +1464,14 @@ Nonce: ${collectionNonce}`
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Files | kebab-case | `stealth-service.ts` |
-| Classes/Types | PascalCase | `StealthKeys`, `Port` |
-| Functions | camelCase | `derivePortKeys()` |
-| Constants | SCREAMING_SNAKE | `SCHEME_ID`, `CANONICAL_ADDRESSES` |
-| Database tables | snake_case | `ports`, `receipts` |
-| API routes | kebab-case | `/auth/nonce`, `/ports/create` |
+| Type            | Convention      | Example                            |
+| --------------- | --------------- | ---------------------------------- |
+| Files           | kebab-case      | `stealth-service.ts`               |
+| Classes/Types   | PascalCase      | `StealthKeys`, `Port`              |
+| Functions       | camelCase       | `derivePortKeys()`                 |
+| Constants       | SCREAMING_SNAKE | `SCHEME_ID`, `CANONICAL_ADDRESSES` |
+| Database tables | snake_case      | `ports`, `receipts`                |
+| API routes      | kebab-case      | `/auth/nonce`, `/ports/create`     |
 
 ### Testing Requirements
 
@@ -1461,6 +1483,7 @@ Nonce: ${collectionNonce}`
 ### Code Review Checklist
 
 Before merging:
+
 - [ ] No TypeScript errors (`pnpm typecheck`)
 - [ ] Lint passes (`pnpm lint`)
 - [ ] Tests pass (`pnpm test`)
@@ -1471,14 +1494,14 @@ Before merging:
 
 ## Deployment Summary
 
-| Service | Platform | URL | Command |
-|---------|----------|-----|---------|
-| **Next.js** (web) | Vercel | galeon.vercel.app | `vercel --prod` |
-| **AdonisJS** (api) | Railway | api.galeon.xyz | `railway up` |
-| **Ponder** (indexer) | Railway | indexer.galeon.xyz | `railway up` |
-| **PostgreSQL** | Railway | (internal) | Auto-provisioned |
-| **Redis** | Railway | (internal) | Auto-provisioned |
-| **Contracts** | Mantle Sepolia | Mantlescan | `pnpm deploy` |
+| Service              | Platform       | URL                | Command          |
+| -------------------- | -------------- | ------------------ | ---------------- |
+| **Next.js** (web)    | Vercel         | galeon.vercel.app  | `vercel --prod`  |
+| **AdonisJS** (api)   | Railway        | api.galeon.xyz     | `railway up`     |
+| **Ponder** (indexer) | Railway        | indexer.galeon.xyz | `railway up`     |
+| **PostgreSQL**       | Railway        | (internal)         | Auto-provisioned |
+| **Redis**            | Railway        | (internal)         | Auto-provisioned |
+| **Contracts**        | Mantle Sepolia | Mantlescan         | `pnpm deploy`    |
 
 ---
 
@@ -1492,7 +1515,7 @@ import { ethers } from 'hardhat'
 import { getChainConfig } from '../config/chains'
 
 async function main() {
-  const chainId = await ethers.provider.getNetwork().then(n => Number(n.chainId))
+  const chainId = await ethers.provider.getNetwork().then((n) => Number(n.chainId))
   const config = getChainConfig(chainId)
 
   console.log(`\nDeploying Galeon contracts to ${config.name} (${chainId})...\n`)
@@ -1544,15 +1567,15 @@ main().catch(console.error)
 
 **Goal:** Backend + stealth library + contracts deployed
 
-| Task | Description |
-|------|-------------|
+| Task            | Description                                                                          |
+| --------------- | ------------------------------------------------------------------------------------ |
 | Turborepo setup | Monorepo with apps/web, apps/api, apps/indexer, packages/contracts, packages/stealth |
-| Railway infra | PostgreSQL + Redis provisioned |
-| AdonisJS API | User/Port models, migrations, SIWE auth |
-| Stealth library | Key derivation, Port keys, stealth address generation, scanning |
-| Contracts | Deploy ERC5564Announcer + ERC6538Registry + GaleonRegistry to Mantle Sepolia |
-| Ponder indexer | Schema, event handlers, webhook to API |
-| Real-time | Transmit SSE, test full notification flow |
+| Railway infra   | PostgreSQL + Redis provisioned                                                       |
+| AdonisJS API    | User/Port models, migrations, SIWE auth                                              |
+| Stealth library | Key derivation, Port keys, stealth address generation, scanning                      |
+| Contracts       | Deploy ERC5564Announcer + ERC6538Registry + GaleonRegistry to Mantle Sepolia         |
+| Ponder indexer  | Schema, event handlers, webhook to API                                               |
+| Real-time       | Transmit SSE, test full notification flow                                            |
 
 **Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
 
@@ -1560,15 +1583,15 @@ main().catch(console.error)
 
 **Goal:** Complete user journey from setup to collection
 
-| Task | Description |
-|------|-------------|
-| Next.js setup | wagmi config, API client, Transmit client |
-| `/setup` | Onboarding flow (create first Port) |
-| `/dashboard/ports` | Port management UI |
-| `/pay/[portId]` | Payment flow for payers |
-| `/collect` | Collection interface (Collect All) |
-| `/dashboard` | Vendor dashboard with real-time updates |
-| Receipt verification | `/verify` page for public proof |
+| Task                 | Description                               |
+| -------------------- | ----------------------------------------- |
+| Next.js setup        | wagmi config, API client, Transmit client |
+| `/setup`             | Onboarding flow (create first Port)       |
+| `/dashboard/ports`   | Port management UI                        |
+| `/pay/[portId]`      | Payment flow for payers                   |
+| `/collect`           | Collection interface (Collect All)        |
+| `/dashboard`         | Vendor dashboard with real-time updates   |
+| Receipt verification | `/verify` page for public proof           |
 
 **Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Instant Detection → Collect
 
@@ -1576,15 +1599,15 @@ main().catch(console.error)
 
 **Goal:** Production-ready for hackathon demo
 
-| Task | Description |
-|------|-------------|
-| Error handling | User-friendly error messages, loading states |
-| Smoke tests | End-to-end tests on Mantle Sepolia |
-| Evidence bundle | Screenshots, video demo, architecture diagrams |
-| README | Setup instructions, feature overview |
-| Track descriptions | Hackathon submission write-up |
-| Final testing | Full flow verification |
-| Submit | Hackathon submission |
+| Task               | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| Error handling     | User-friendly error messages, loading states   |
+| Smoke tests        | End-to-end tests on Mantle Sepolia             |
+| Evidence bundle    | Screenshots, video demo, architecture diagrams |
+| README             | Setup instructions, feature overview           |
+| Track descriptions | Hackathon submission write-up                  |
+| Final testing      | Full flow verification                         |
+| Submit             | Hackathon submission                           |
 
 **Milestone:** Submission complete with working demo
 
@@ -1599,34 +1622,36 @@ Receipts are the verifiable proof of payment. The receipt hash is anchored on-ch
 ```typescript
 interface Receipt {
   // Identifiers
-  id: string                    // UUID
-  receiptHash: `0x${string}`    // keccak256 of receipt data (anchored on-chain)
+  id: string // UUID
+  receiptHash: `0x${string}` // keccak256 of receipt data (anchored on-chain)
 
   // Payment info
-  portId: bytes32               // Which Port received payment
-  amount: string                // Payment amount (wei as string)
-  currency: 'MNT' | 'ETH'       // Native currency
+  portId: bytes32 // Which Port received payment
+  amount: string // Payment amount (wei as string)
+  currency: 'MNT' | 'ETH' // Native currency
 
   // Parties
-  vendorAddress: `0x${string}`  // Vendor's main wallet
-  payerAddress: `0x${string}`   // Payer's wallet
+  vendorAddress: `0x${string}` // Vendor's main wallet
+  payerAddress: `0x${string}` // Payer's wallet
   stealthAddress: `0x${string}` // Stealth address that received funds
 
   // Metadata
-  memo: string                  // Optional payment memo
-  timestamp: number             // Unix timestamp
+  memo: string // Optional payment memo
+  timestamp: number // Unix timestamp
 
   // On-chain reference
-  txHash: `0x${string}`         // Transaction hash
-  blockNumber: number           // Block number
-  chainId: number               // Chain ID
+  txHash: `0x${string}` // Transaction hash
+  blockNumber: number // Block number
+  chainId: number // Chain ID
 }
 ```
 
 ### Receipt Hash Computation
 
 ```typescript
-function computeReceiptHash(receipt: Omit<Receipt, 'id' | 'receiptHash' | 'txHash' | 'blockNumber'>): `0x${string}` {
+function computeReceiptHash(
+  receipt: Omit<Receipt, 'id' | 'receiptHash' | 'txHash' | 'blockNumber'>
+): `0x${string}` {
   const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
     ['bytes32', 'uint256', 'string', 'address', 'address', 'string', 'uint256', 'uint256'],
     [
@@ -1692,7 +1717,7 @@ export default class ReconcilePayments {
       announcements: {
         where: { blockNumber_gt: lastBlock },
         orderBy: 'blockNumber',
-      }
+      },
     })
 
     // 3. For each event, check if we have a receipt
@@ -1764,10 +1789,10 @@ Prevent abuse of the gas-sponsored collection.
 ```typescript
 // Collection rate limits
 const RATE_LIMITS = {
-  collectionsPerDay: 5,        // Max collections per user per day
-  collectionsPerHour: 2,       // Max collections per user per hour
-  maxStealthAddresses: 10,     // Max addresses per collection batch
-  maxBatchesPerCollection: 5,  // Max 50 addresses per "Collect All"
+  collectionsPerDay: 5, // Max collections per user per day
+  collectionsPerHour: 2, // Max collections per user per hour
+  maxStealthAddresses: 10, // Max addresses per collection batch
+  maxBatchesPerCollection: 5, // Max 50 addresses per "Collect All"
 }
 
 // apps/api/app/middleware/rate_limit_middleware.ts
@@ -1835,32 +1860,32 @@ export default class MonitorRelayer {
 
 These are acknowledged trade-offs acceptable for hackathon scope:
 
-| Concern | Risk | Mitigation |
-|---------|------|------------|
-| **Viewing keys encrypted in DB** | Server breach + wallet signature compromise = viewing key leak (wallet signature never stored, so attacker needs both) | Acceptable for hackathon. Production: consider HSM or client-side only storage |
-| **Relayer as single point of failure** | If relayer wallet is drained or out of gas, collections stop | Fund conservatively (1 MNT), Discord alerts when below 0.1 MNT threshold |
-| **Ponder webhook single endpoint** | If AdonisJS is down, events queue in Ponder | ReconcilePayments job runs every 5 min to catch missed events |
-| **Gas sponsorship abuse** | Users could spam collections to drain relayer | Rate limits: 5/day, 2/hour, max 50 addresses per Collect All |
+| Concern                                | Risk                                                                                                                   | Mitigation                                                                     |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Viewing keys encrypted in DB**       | Server breach + wallet signature compromise = viewing key leak (wallet signature never stored, so attacker needs both) | Acceptable for hackathon. Production: consider HSM or client-side only storage |
+| **Relayer as single point of failure** | If relayer wallet is drained or out of gas, collections stop                                                           | Fund conservatively (1 MNT), Discord alerts when below 0.1 MNT threshold       |
+| **Ponder webhook single endpoint**     | If AdonisJS is down, events queue in Ponder                                                                            | ReconcilePayments job runs every 5 min to catch missed events                  |
+| **Gas sponsorship abuse**              | Users could spam collections to drain relayer                                                                          | Rate limits: 5/day, 2/hour, max 50 addresses per Collect All                   |
 
 ---
 
 ## Key Decisions Summary
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Privacy model | One stealth meta-address per Port | Cryptographic isolation |
-| Terminology | Port, Collect | Nautical theme (Galeon) |
-| Port types | Permanent, Recurring, One-time, Burner | Flexibility for all use cases |
-| User modes | Vendor (receive) + User (send) | Different analytics needs |
-| Contract deployment | Own EIP-5564/6538 copies + GaleonRegistry | Canonical not on Mantle, simple deployment |
-| Chain support | Mantle Sepolia (hackathon) + Arbitrum (Sippy) | Future extensibility |
-| Collection gas | Relayer pays (5/day limit) | Simple UX, abuse prevention |
-| Key security | Viewing encrypted in DB, spending never stored | Server compromise = safe |
-| Webhook reliability | Reconciliation job every 5 min | Catch missed events |
-| SIWE nonces | Redis with 5 min TTL, deleted on use | Replay protection |
-| Batch overflow | Multi-tx with progress UI, max 50 addresses | Handle large collections |
-| Token support | Native MNT + USDT, USDC, USDe | Main Mantle liquidity tokens |
+| Decision            | Choice                                         | Rationale                                  |
+| ------------------- | ---------------------------------------------- | ------------------------------------------ |
+| Privacy model       | One stealth meta-address per Port              | Cryptographic isolation                    |
+| Terminology         | Port, Collect                                  | Nautical theme (Galeon)                    |
+| Port types          | Permanent, Recurring, One-time, Burner         | Flexibility for all use cases              |
+| User modes          | Vendor (receive) + User (send)                 | Different analytics needs                  |
+| Contract deployment | Own EIP-5564/6538 copies + GaleonRegistry      | Canonical not on Mantle, simple deployment |
+| Chain support       | Mantle Sepolia (hackathon) + Arbitrum (Sippy)  | Future extensibility                       |
+| Collection gas      | Relayer pays (5/day limit)                     | Simple UX, abuse prevention                |
+| Key security        | Viewing encrypted in DB, spending never stored | Server compromise = safe                   |
+| Webhook reliability | Reconciliation job every 5 min                 | Catch missed events                        |
+| SIWE nonces         | Redis with 5 min TTL, deleted on use           | Replay protection                          |
+| Batch overflow      | Multi-tx with progress UI, max 50 addresses    | Handle large collections                   |
+| Token support       | Native MNT + USDT, USDC, USDe                  | Main Mantle liquidity tokens               |
 
 ---
 
-*Last updated: December 27, 2025*
+_Last updated: December 27, 2025_

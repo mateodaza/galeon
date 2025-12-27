@@ -1,2 +1,51 @@
-.mcp.json
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Turbo
+.turbo/
+
+# Environment files (local)
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 .cursor/*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Claude Code (local)
+CLAUDE.local.md
+.mcp.json
+
+# Hardhat
+cache/
+artifacts/
+typechain-types/
+
+# Misc
+*.tsbuildinfo
+.vercel
+.railway

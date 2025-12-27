@@ -1,0 +1,32 @@
+{
+  "name": "@galeon/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ace serve --hmr",
+    "build": "node ace build",
+    "start": "node bin/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node ace test"
+  },
+  "dependencies": {
+    "@galeon/eslint-config": "workspace:*",
+    "@adonisjs/core": "^6.19.1",
+    "@adonisjs/lucid": "^21.6.0",
+    "@adonisjs/transmit": "^0.5.0",
+    "@galeon/stealth": "workspace:*",
+    "adonisjs-jobs": "^0.1.2",
+    "ioredis": "^5.4.2",
+    "pg": "^8.14.0",
+    "siwe": "^2.3.2",
+    "viem": "^2.43.3"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^7.8.2",
+    "@adonisjs/tsconfig": "^1.4.1",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
