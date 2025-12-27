@@ -1,15 +1,34 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
+import { cookieToInitialState } from 'wagmi'
+import { config } from '@/lib/wagmi'
+import { Providers } from '@/components/providers'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Galeon',
   description: 'Your payments. Your treasure. Hidden in plain sight.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#10b981',
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers()
+  const cookies = headersList.get('cookie')
+  const initialState = cookieToInitialState(config, cookies)
+
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-zinc-950 text-zinc-50 antialiased">
+        <Providers initialState={initialState}>{children}</Providers>
+      </body>
     </html>
   )
 }

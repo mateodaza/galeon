@@ -27,15 +27,17 @@
 
 **Goal:** Complete user journey from setup to collection
 
-| Task             | Status      | Owner | Notes                |
-| ---------------- | ----------- | ----- | -------------------- |
-| Next.js setup    | Not Started | -     | wagmi, API client    |
-| /setup           | Not Started | -     | Onboarding flow      |
-| /dashboard/ports | Not Started | -     | Port management      |
-| /pay/[portId]    | Not Started | -     | Payment flow         |
-| /collect         | Not Started | -     | Collection interface |
-| /dashboard       | Not Started | -     | Vendor dashboard     |
-| /verify          | Not Started | -     | Receipt verification |
+| Task             | Status | Owner | Notes                                    |
+| ---------------- | ------ | ----- | ---------------------------------------- |
+| Next.js setup    | Done   | -     | wagmi v3, Reown AppKit, Tailwind v4      |
+| /setup           | Done   | -     | Onboarding flow with key derivation      |
+| /dashboard/ports | Done   | -     | Port management with per-port keys       |
+| /pay/[portId]    | Done   | -     | Payment flow with stealth addresses      |
+| /collect         | Done   | -     | Collection interface (manual sweeping)   |
+| /dashboard       | Done   | -     | Vendor dashboard with stats              |
+| /verify          | Done   | -     | Receipt verification (coming soon badge) |
+| Network guard    | Done   | -     | Wrong-chain warning banner               |
+| Audit fixes      | Done   | -     | Per-port keys, env handling, UX          |
 
 **Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Detect → Collect
 
@@ -45,13 +47,16 @@
 
 **Goal:** Production-ready for hackathon demo
 
-| Task            | Status      | Owner | Notes                  |
-| --------------- | ----------- | ----- | ---------------------- |
-| Error handling  | Not Started | -     | User-friendly messages |
-| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia  |
-| Evidence bundle | Not Started | -     | Screenshots, video     |
-| README          | Not Started | -     | Setup instructions     |
-| Submission      | Not Started | -     | Hackathon write-up     |
+| Task            | Status      | Owner | Notes                                    |
+| --------------- | ----------- | ----- | ---------------------------------------- |
+| Error handling  | Done        | -     | Network guard, graceful env handling     |
+| README          | Done        | -     | Root + frontend docs with contract addrs |
+| GaleonTender    | Not Started | -     | Batch collection via tender contract     |
+| Ponder indexer  | Not Started | -     | Replace event scanning with indexed data |
+| Backend API     | Not Started | -     | SIWE auth, port indexing, receipts       |
+| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                    |
+| Evidence bundle | Not Started | -     | Screenshots, video                       |
+| Submission      | Not Started | -     | Hackathon write-up                       |
 
 **Deadline:** January 15, 2026
 
