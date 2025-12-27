@@ -15,6 +15,8 @@ export default class extends BaseSchema {
         .onDelete('SET NULL')
       table.string('receipt_hash', 66).notNullable().unique() // bytes32 hex
       table.string('stealth_address', 42).notNullable()
+      table.text('ephemeral_pub_key').notNullable() // hex-encoded, needed to derive stealth private key for collection
+      table.smallint('view_tag').notNullable() // 0-255, fast scan optimization
       table.string('payer_address', 42).notNullable()
       table.decimal('amount', 78, 0).notNullable() // wei
       table.string('currency', 10).notNullable() // MNT, ETH, USDC, etc.

@@ -13,7 +13,7 @@
 | --------------- | ----------- | ----- | --------------------------------------------------------- |
 | Turborepo setup | Done        | -     | Monorepo structure created                                |
 | Railway infra   | Not Started | -     | PostgreSQL + Redis                                        |
-| AdonisJS API    | Not Started | -     | User/Port models, SIWE auth                               |
+| AdonisJS API    | In Progress | -     | Models, SIWE auth, JWT refresh - 85 tests                 |
 | Stealth library | Done        | -     | 30 tests, audited, documented (README.md)                 |
 | Contracts       | Done        | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
 | Ponder indexer  | Not Started | -     | Event handlers + webhook                                  |

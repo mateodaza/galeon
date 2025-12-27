@@ -29,7 +29,8 @@
     "#database/*": "./database/*.js",
     "#start/*": "./start/*.js",
     "#tests/*": "./tests/*.js",
-    "#config/*": "./config/*.js"
+    "#config/*": "./config/*.js",
+    "#jobs/*": "./app/jobs/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",
@@ -61,6 +62,7 @@
     "@maximemrf/adonisjs-jwt": "^0.6.1",
     "@vinejs/vine": "^3.0.1",
     "adonisjs-jobs": "^0.1.2",
+    "ethers": "^6.16.0",
     "ioredis": "^5.4.2",
     "luxon": "^3.7.2",
     "pg": "^8.14.0",

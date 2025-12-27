@@ -43,4 +43,9 @@ router.use([
  */
 export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
+  silentAuth: () => import('#middleware/silent_auth_middleware'),
+  // TODO: Add these when ready
+  // rateLimit: () => import('#middleware/rate_limit_middleware'),
+  // webhookAuth: () => import('#middleware/webhook_auth_middleware'),
+  // cors: () => import('@adonisjs/cors/cors_middleware'),
 })

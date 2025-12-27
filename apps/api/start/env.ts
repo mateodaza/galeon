@@ -68,4 +68,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   PONDER_WEBHOOK_SECRET: Env.schema.string.optional(),
+  REDIS_QUEUE: Env.schema.string.optional(),
 })
