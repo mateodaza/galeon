@@ -162,6 +162,10 @@ SESSION_SECRET=xxx
 - Frontend interacts directly with contracts (backend API planned for indexing/SIWE)
 - Secrets excluded from version control
 
+### Scheduled Payments (Opt-in Custody)
+
+Fog scheduled payments require **temporary custody** of fog wallet spending keys by the backend. This is an opt-in feature with explicit consent: when scheduling a payment, the frontend encrypts the fog wallet's private key with the backend's ECIES public key and stores it server-side. The backend executes the payment at the scheduled time and immediately deletes the key material. Users who prefer full self-custody can use instant fog payments instead.
+
 ## Contributing
 
 1. Follow conventional commits (`feat:`, `fix:`, `chore:`, etc.)

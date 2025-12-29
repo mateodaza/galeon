@@ -12,9 +12,10 @@ Two new features for Galeon:
 1. **Fog Mode** - Pay from pre-funded stealth wallets for sender privacy
 2. **Shipwreck** - Generate compliance reports with cryptographic proof
 
-**Hackathon Scope (Reduced):**
+**Hackathon Scope:**
 
-- Client-only fog (no backend delegation for MVP)
+- Client-side fog for instant payments
+- **Backend delegation for scheduled payments**
 - JSON export only (no PDF generation)
 - Mainnet only (5003 testnet not functional for fog)
 
@@ -22,7 +23,7 @@ Both leverage existing infrastructure:
 
 - Frontend: React hooks, stealth library, wagmi
 - Contracts: No changes needed (existing GaleonRegistry works)
-- Backend: Future enhancement for scheduled payments
+- Backend: Fog sessions + delegation for scheduled payments
 
 ---
 
@@ -132,13 +133,53 @@ Each fog wallet needs sufficient MNT for gas:
 
 ### Trust Assumptions
 
-| Component            | Trust Level | Notes                                |
-| -------------------- | ----------- | ------------------------------------ |
-| Browser localStorage | Low         | Encrypted, no keys stored            |
-| Session key (memory) | Medium      | Cleared on lock/tab close            |
-| Master signature     | High        | Required to derive any keys          |
-| RPC provider         | Medium      | Can see addresses, not link to user  |
-| Backend (future)     | Explicit    | Only for scheduled payments, not MVP |
+| Component            | Trust Level       | Notes                                      |
+| -------------------- | ----------------- | ------------------------------------------ |
+| Browser localStorage | Low               | Encrypted, no keys stored                  |
+| Session key (memory) | Medium            | Cleared on lock/tab close                  |
+| Master signature     | High              | Required to derive any keys                |
+| RPC provider         | Medium            | Can see addresses, not link to user        |
+| Backend fog session  | Temporary custody | Encrypted keys held for scheduled payments |
+
+### Backend Custody for Scheduled Payments
+
+> **⚠️ Opt-in Trade-off:** Scheduled payments require temporary key custody by the backend.
+
+When users create a scheduled payment:
+
+1. Fog keys are encrypted to backend's public key (ECIES + AES-256-GCM)
+2. Backend holds encrypted keys until session expires (max 30 days)
+3. Backend executes payment at scheduled time using decrypted keys
+4. User can cancel anytime before execution
+
+**Safeguards:**
+
+- Time-bound sessions (default 7 days, max 30 days)
+- Per-delegation amount limits (configurable)
+- User signature required on each delegation
+- Audit logging of all operations
+- Instant revocation via "End Session" or "Cancel Delegation"
+
+**UI Consent Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Schedule Payment                                               │
+│                                                                 │
+│  ⚠️ Backend Custody Notice                                      │
+│                                                                 │
+│  To schedule this payment, your fog wallet keys will be         │
+│  shared with Galeon's backend for 7 days.                       │
+│                                                                 │
+│  • Backend will execute the payment at the scheduled time       │
+│  • You can cancel anytime before execution                      │
+│  • Keys are encrypted and deleted after session expires         │
+│                                                                 │
+│  [ Cancel ]                    [ I Understand, Continue ]       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+For instant payments (client-only), keys never leave the browser.
 
 ---
 
@@ -186,29 +227,45 @@ Day 7: Alice pays Coffee Shop from Fog B (no link to Day 1)
 │  │                                      │                      │
 │  └──────────────────────────────────────┘                      │
 │                                                                 │
-│  Note: Scheduled payments (backend delegation) is a future     │
-│  enhancement. MVP supports instant payments only.              │
+│  For scheduled payments, fog keys are encrypted to backend     │
+│  and a ProcessFogPayment job executes at the scheduled time.   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Database Schema (Future Enhancement)
-
-> **Note:** Backend delegation is not part of MVP. This schema is for future scheduled payments feature.
-
-<details>
-<summary>Click to expand future schema</summary>
+### Database Schema (Scheduled Payments)
 
 ```sql
--- Future migration: fog_delegations table
+-- Migration: fog_sessions table
+-- Stores encrypted fog keys for users who delegate to backend
+CREATE TABLE fog_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Fog keys encrypted with backend's public key
+  fog_keys_encrypted TEXT NOT NULL,  -- Encrypted with FOG_ENCRYPTION_PUBLIC_KEY
+  fog_keys_nonce TEXT NOT NULL,
+
+  -- Session state
+  active BOOLEAN DEFAULT TRUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_fog_sessions_user_id ON fog_sessions(user_id);
+CREATE INDEX idx_fog_sessions_active_expires ON fog_sessions(active, expires_at);
+
+-- Migration: fog_delegations table
+-- Individual scheduled payment authorizations
 CREATE TABLE fog_delegations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id INTEGER NOT NULL REFERENCES users(id),
+  fog_session_id UUID NOT NULL REFERENCES fog_sessions(id) ON DELETE CASCADE,
 
   -- Fog wallet info
   fog_address VARCHAR(42) NOT NULL,
   fog_index INTEGER NOT NULL,
-  encrypted_fog_key TEXT NOT NULL,  -- Encrypted with backend pubkey
 
   -- Payment details (from signed authorization)
   recipient VARCHAR(42) NOT NULL,
@@ -234,32 +291,39 @@ CREATE TABLE fog_delegations (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX idx_fog_delegations_user_id ON fog_delegations(user_id);
+CREATE INDEX idx_fog_delegations_session_id ON fog_delegations(fog_session_id);
+CREATE INDEX idx_fog_delegations_status ON fog_delegations(status);
+CREATE INDEX idx_fog_delegations_send_at ON fog_delegations(send_at) WHERE status = 'pending';
 ```
 
-</details>
+**Relationship:**
 
-### API Endpoints (Future Enhancement)
+- `fog_sessions` stores the user's encrypted fog keys (one active session per user)
+- `fog_delegations` stores individual payment authorizations that reference a session
+- When a session expires, all associated delegations are cancelled
 
-> **Note:** MVP is client-only. No backend API for fog delegation.
-
-<details>
-<summary>Click to expand future API</summary>
+### API Endpoints (Scheduled Payments)
 
 ```typescript
-// Future routes in apps/api/start/routes.ts
+// Routes in apps/api/start/routes.ts
 router
   .group(() => {
+    // Fog session management
     router.get('/fog/public-key', [FogController, 'getPublicKey'])
+    router.post('/fog/session', [FogController, 'createSession'])
+    router.delete('/fog/session', [FogController, 'endSession'])
+
+    // Scheduled payment delegations
     router.post('/fog/delegate', [FogController, 'createDelegation'])
     router.get('/fog/delegations', [FogController, 'listDelegations'])
     router.delete('/fog/delegations/:id', [FogController, 'cancelDelegation'])
     router.get('/fog/delegations/:id', [FogController, 'getDelegation'])
   })
   .prefix('/api/v1')
-  .middleware('auth')
+  .use(middleware.auth())
 ```
-
-</details>
 
 ### Frontend Implementation
 
@@ -296,7 +360,8 @@ interface FogWallet {
   balance: bigint // Current balance (fetched)
   fundedAt: number // Timestamp when funded
   fundingTxHash: `0x${string}` // Funding transaction
-  status: 'ready' | 'spent' // MVP: no 'delegated' state
+  status: 'ready' | 'spent' | 'delegated' // delegated = scheduled payment pending
+  activeDelegationId?: string // If delegated, the delegation ID
 }
 
 interface UseFogReserveReturn {
@@ -316,13 +381,26 @@ interface UseFogReserveReturn {
   fundFogWallet: (fogIndex: number, amount: bigint) => Promise<`0x${string}`>
   refreshBalances: () => Promise<void>
 
-  // Payment (instant only in MVP)
+  // Instant payment
   payFromFog: (
     fogIndex: number,
     recipientMetaAddress: string, // st:mnt:... format
     amount: bigint,
     memo: string
   ) => Promise<`0x${string}`> // Returns tx hash
+
+  // Scheduled payment (via backend delegation)
+  schedulePayment: (params: {
+    fogIndex: number
+    recipientMetaAddress: string
+    amount: bigint
+    memo: string
+    sendAt: Date // When to execute
+    expiresAt: Date // Deadline for execution
+  }) => Promise<string> // Returns delegation ID
+
+  listScheduledPayments: () => Promise<FogDelegation[]>
+  cancelScheduledPayment: (delegationId: string) => Promise<void>
 
   // Recovery
   recoverFogWallets: () => Promise<FogWallet[]> // Scan chain for lost wallets
@@ -548,9 +626,7 @@ interface UseShipwreckReturn {
 
 ---
 
-## Implementation Timeline (MVP Scope)
-
-> Reduced scope: Client-only fog, JSON export only, mainnet only
+## Implementation Timeline
 
 ### Week 1: Fog Mode Core (Dec 29 - Jan 4)
 
@@ -564,17 +640,17 @@ interface UseShipwreckReturn {
 | **Jan 3**  | UI components              | `FogReservePanel`, `FogWalletCard`, `FogFundModal` |
 | **Jan 4**  | E2E testing + recovery     | create → fund → pay → recover                      |
 
-### Week 2: Shipwreck + Polish (Jan 5 - Jan 11)
+### Week 2: Scheduled Payments + Shipwreck (Jan 5 - Jan 11)
 
-| Day        | Task                       | Files                              |
-| ---------- | -------------------------- | ---------------------------------- |
-| **Jan 5**  | Shipwreck report structure | `use-shipwreck.ts` (generate)      |
-| **Jan 6**  | Derivation proofs          | On-chain verification logic        |
-| **Jan 7**  | Report signing             | Attestation signature flow         |
-| **Jan 8**  | JSON export + download     | `ReportExport.tsx`                 |
-| **Jan 9**  | Shipwreck UI               | `ShipwreckWizard`, `ReportPreview` |
-| **Jan 10** | Verification UI            | Independent report verification    |
-| **Jan 11** | Integration testing        | Full fog → shipwreck flow          |
+| Day        | Task                        | Files                                                  |
+| ---------- | --------------------------- | ------------------------------------------------------ |
+| **Jan 5**  | Backend fog session + API   | `FogController`, `fog_sessions` migration              |
+| **Jan 6**  | Fog delegation + job        | `fog_delegations` migration, `ProcessFogPayment` job   |
+| **Jan 7**  | Frontend scheduled payments | `schedulePayment`, `listScheduledPayments` in hook     |
+| **Jan 8**  | Shipwreck report structure  | `use-shipwreck.ts` (generate)                          |
+| **Jan 9**  | Derivation proofs + signing | On-chain verification, attestation                     |
+| **Jan 10** | Shipwreck UI + JSON export  | `ShipwreckWizard`, `ReportPreview`, `ReportExport.tsx` |
+| **Jan 11** | Integration testing         | Full fog → schedule → shipwreck flow                   |
 
 ### Week 3: Polish + Submission (Jan 12 - Jan 15)
 
@@ -587,12 +663,7 @@ interface UseShipwreckReturn {
 
 ---
 
-## Backend Implementation Details (Future Enhancement)
-
-> **Note:** Backend delegation is NOT part of MVP. These are reference implementations for future scheduled payments feature.
-
-<details>
-<summary>Click to expand backend code</summary>
+## Backend Implementation Details (Scheduled Payments)
 
 ### FogController
 
@@ -918,13 +989,11 @@ openssl ec -in fog_private.pem -pubout -out fog_public.pem
 openssl ec -in fog_private.pem -text -noout
 ```
 
-</details>
-
 ---
 
-## Testing Checklist (MVP)
+## Testing Checklist
 
-### Fog Mode
+### Fog Mode (Client-Side)
 
 - [ ] `deriveFogKeys` produces different keys than `derivePortKeys` for same index
 - [ ] Create fog wallet (client-side derivation)
@@ -935,6 +1004,19 @@ openssl ec -in fog_private.pem -text -noout
 - [ ] Recovery scan finds fog wallets with balance
 - [ ] Session lock clears key from memory
 - [ ] Mainnet (5000) only - no testnet
+
+### Scheduled Payments (Backend)
+
+- [ ] Create fog session (upload encrypted keys to backend)
+- [ ] Create delegation with time bounds
+- [ ] Funding validation before execution (fog wallet has balance)
+- [ ] Backend executes payment at sendAt time
+- [ ] Delegation expires if not executed by expiresAt
+- [ ] Cancel pending delegation
+- [ ] User signature verification before execution
+- [ ] SSE notification on payment execution
+- [ ] Audit logging of all delegation operations
+- [ ] Session expiry cascades to pending delegations
 
 ### Shipwreck
 
@@ -947,15 +1029,16 @@ openssl ec -in fog_private.pem -text -noout
 
 ---
 
-## Success Metrics for Hackathon (MVP)
+## Success Metrics for Hackathon
 
-| Feature      | Demo-Ready Criteria                                      |
-| ------------ | -------------------------------------------------------- |
-| Fog Reserve  | User can fund 3 fog wallets, pay from one                |
-| Fog Recovery | User can recover fog wallets after clearing localStorage |
-| Shipwreck    | Generate and verify a compliance report (JSON)           |
-| UX           | Clear flow, no confusing errors                          |
-| Security     | Encryption works, no keys stored, signatures verify      |
+| Feature            | Demo-Ready Criteria                                      |
+| ------------------ | -------------------------------------------------------- |
+| Fog Reserve        | User can fund 3 fog wallets, pay from one                |
+| Scheduled Payments | User can schedule a payment for future execution         |
+| Fog Recovery       | User can recover fog wallets after clearing localStorage |
+| Shipwreck          | Generate and verify a compliance report (JSON)           |
+| UX                 | Clear flow, no confusing errors                          |
+| Security           | Encryption works, no keys stored, signatures verify      |
 
 ---
 
@@ -974,8 +1057,7 @@ openssl ec -in fog_private.pem -text -noout
 
 ### Near-term (P1)
 
-1. **Backend delegation** - Scheduled payments via time-bound signed authorization
-2. **PDF export for Shipwreck** - Professional compliance reports
+1. **PDF export for Shipwreck** - Professional compliance reports
 
 ### Medium-term (P2)
 
