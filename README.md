@@ -10,6 +10,8 @@ Galeon enables private payments using stealth addresses. Payers send funds to on
 
 - **Private Payments**: Recipients receive funds at stealth addresses that can't be linked to their identity
 - **Port System**: Users create "Ports" - named payment endpoints with unique stealth keys
+- **Fog Mode**: Sender privacy via pre-funded stealth wallets (breaks temporal correlation)
+- **Shipwreck**: Compliance reports with cryptographic proofs for auditors
 - **On-Chain Receipts**: Payment metadata is anchored on-chain for verifiable receipts
 - **Mantle L2**: Low fees and fast finality on Mantle network
 
@@ -73,10 +75,12 @@ pnpm test         # Run tests
 
 Core stealth address library implementing EIP-5564 and EIP-6538:
 
-- Key derivation from wallet signatures
-- Stealth address generation
-- Payment scanning and collection
-- Per-port key isolation
+- Key derivation from wallet signatures (`deriveStealthKeys`, `derivePortKeys`)
+- Fog wallet key derivation with domain separation (`deriveFogKeys`)
+- Stealth address generation (`generateStealthAddress`)
+- Payment preparation for EOA and stealth recipients (`prepareEOAPayment`, `prepareStealthPayment`)
+- Payment scanning and collection with view tag filtering
+- Per-port and per-fog-wallet key isolation
 
 ### [@galeon/contracts](./packages/contracts)
 
@@ -116,6 +120,12 @@ Solidity smart contracts deployed on Mantle:
 2. Derive private keys for each stealth address
 3. Collect funds to your main wallet
 
+### 4. Fog Mode (Sender Privacy)
+
+1. Fund pre-funded stealth wallets ("fog reserve")
+2. Pay from fog wallets to break temporal correlation
+3. Generate Shipwreck compliance reports if needed
+
 ## Environment Variables
 
 ### Frontend (`apps/web/.env.local`)
@@ -147,6 +157,8 @@ SESSION_SECRET=xxx
 
 - Spending keys are never stored - derived on-demand from wallet signatures
 - Per-port key isolation prevents cross-port linkability
+- Fog wallets use separate HKDF domain from Ports (cryptographic isolation)
+- Fog wallet data encrypted in localStorage with AES-GCM
 - Frontend interacts directly with contracts (backend API planned for indexing/SIWE)
 - Secrets excluded from version control
 
