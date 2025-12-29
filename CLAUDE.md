@@ -1,6 +1,6 @@
 # Galeon
 
-Private B2B payments using EIP-5564 stealth addresses. Mantle Hackathon 2025.
+Private payments using EIP-5564 stealth addresses. Mantle Hackathon 2025.
 
 ## Critical Files
 

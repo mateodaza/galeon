@@ -1,6 +1,6 @@
 # @galeon/web
 
-Next.js frontend for Galeon - private B2B payments on Mantle.
+Next.js frontend for Galeon - private payments on Mantle.
 
 ## Features
 

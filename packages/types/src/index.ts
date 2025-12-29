@@ -1,7 +1,7 @@
 /**
  * @galeon/types
  *
- * Shared domain types for Galeon - private B2B payments using
+ * Shared domain types for Galeon - private payments using
  * EIP-5564 stealth addresses.
  *
  * @example

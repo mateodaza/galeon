@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest'
 import {
   deriveStealthKeys,
   derivePortKeys,
+  deriveFogKeys,
   parseStealthMetaAddress,
   formatStealthMetaAddress,
   generateStealthAddress,
@@ -18,6 +19,10 @@ import {
   createStealthClient,
   getChainConfig,
   SCHEME_ID,
+  prepareEOAPayment,
+  prepareStealthPayment,
+  NULL_EPHEMERAL_PUBKEY,
+  NULL_VIEW_TAG,
   type Announcement,
 } from './index'
 import { hexToBytes } from './utils'
@@ -57,6 +62,26 @@ describe('Key Derivation', () => {
     expect(port0.stealthMetaAddress).not.toBe(port1.stealthMetaAddress)
     expect(port0.spendingPrivateKey).not.toEqual(port1.spendingPrivateKey)
     expect(port0.viewingPrivateKey).not.toEqual(port1.viewingPrivateKey)
+  })
+
+  it('should derive independent fog keys', () => {
+    const fog0 = deriveFogKeys(TEST_SIGNATURE, 0)
+    const fog1 = deriveFogKeys(TEST_SIGNATURE, 1)
+
+    expect(fog0.stealthMetaAddress).not.toBe(fog1.stealthMetaAddress)
+    expect(fog0.spendingPrivateKey).not.toEqual(fog1.spendingPrivateKey)
+    expect(fog0.viewingPrivateKey).not.toEqual(fog1.viewingPrivateKey)
+  })
+
+  it('should derive different keys for fog vs port with same index', () => {
+    // This is the critical test for domain separation
+    const port0 = derivePortKeys(TEST_SIGNATURE, 0)
+    const fog0 = deriveFogKeys(TEST_SIGNATURE, 0)
+
+    // Same index, different domains → different keys
+    expect(fog0.stealthMetaAddress).not.toBe(port0.stealthMetaAddress)
+    expect(fog0.spendingPrivateKey).not.toEqual(port0.spendingPrivateKey)
+    expect(fog0.viewingPrivateKey).not.toEqual(port0.viewingPrivateKey)
   })
 
   it('should parse stealth meta-address', () => {
@@ -280,5 +305,52 @@ describe('Stealth Client', () => {
     const keys = client.deriveKeys(TEST_SIGNATURE)
 
     expect(keys.stealthMetaAddress).toMatch(/^st:(eth|mnt):0x/)
+  })
+
+  it('should derive fog keys via client with domain separation', () => {
+    const client = createStealthClient(5000)
+    const portKeys = client.derivePortKeys(TEST_SIGNATURE, 0)
+    const fogKeys = client.deriveFogKeys(TEST_SIGNATURE, 0)
+
+    // Same index, different domains → different keys
+    expect(fogKeys.stealthMetaAddress).not.toBe(portKeys.stealthMetaAddress)
+  })
+})
+
+describe('EOA Payment Support', () => {
+  it('should prepare EOA payment with null ephemeral key', () => {
+    const address = '0x1234567890123456789012345678901234567890' as `0x${string}`
+    const params = prepareEOAPayment(address)
+
+    expect(params.recipient).toBe(address.toLowerCase())
+    expect(params.ephemeralPublicKey).toEqual(NULL_EPHEMERAL_PUBKEY)
+    expect(params.ephemeralPublicKey.length).toBe(33)
+    expect(params.viewTag).toBe(NULL_VIEW_TAG)
+    expect(params.viewTag).toBe(0)
+    expect(params.isStealthRecipient).toBe(false)
+  })
+
+  it('should reject invalid address format', () => {
+    expect(() => prepareEOAPayment('invalid' as `0x${string}`)).toThrow('Invalid Ethereum address')
+    expect(() => prepareEOAPayment('0x123' as `0x${string}`)).toThrow('Invalid Ethereum address')
+  })
+
+  it('should prepare stealth payment with valid ephemeral key', () => {
+    const keys = deriveStealthKeys(TEST_SIGNATURE)
+    const params = prepareStealthPayment(keys.stealthMetaAddress)
+
+    expect(params.recipient).toMatch(/^0x[0-9a-f]{40}$/)
+    expect(params.ephemeralPublicKey.length).toBe(33)
+    expect(params.ephemeralPublicKey).not.toEqual(NULL_EPHEMERAL_PUBKEY)
+    expect(params.viewTag).toBeGreaterThanOrEqual(0)
+    expect(params.viewTag).toBeLessThanOrEqual(255)
+    expect(params.isStealthRecipient).toBe(true)
+  })
+
+  it('should have consistent null constants', () => {
+    expect(NULL_EPHEMERAL_PUBKEY).toBeInstanceOf(Uint8Array)
+    expect(NULL_EPHEMERAL_PUBKEY.length).toBe(33)
+    expect(NULL_EPHEMERAL_PUBKEY.every((b) => b === 0)).toBe(true)
+    expect(NULL_VIEW_TAG).toBe(0)
   })
 })

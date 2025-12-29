@@ -61,6 +61,7 @@ const client = createStealthClient(5000, { chainPrefix: 'eth' }) // Use st:eth: 
 | `schemeId`                                     | `number`         | EIP-5564 scheme (always 1) |
 | `deriveKeys(sig)`                              | `function`       | Derive stealth keys        |
 | `derivePortKeys(sig, index)`                   | `function`       | Derive Port-specific keys  |
+| `deriveFogKeys(sig, index)`                    | `function`       | Derive Fog wallet keys     |
 | `generateAddress(metaAddr)`                    | `function`       | Generate stealth address   |
 | `scan(announcements, spendingKey, viewingKey)` | `function`       | Scan for payments          |
 
@@ -94,6 +95,27 @@ const port0Keys = derivePortKeys(masterSig, 0)
 const port1Keys = derivePortKeys(masterSig, 1)
 // port0Keys and port1Keys are independent
 ```
+
+#### `deriveFogKeys(masterSignature, fogIndex, chainPrefix?)`
+
+Derive keys for Fog wallets (sender privacy). Uses a **separate domain** from Ports to ensure cryptographic isolation.
+
+```typescript
+import { deriveFogKeys, derivePortKeys } from '@galeon/stealth'
+
+const fog0Keys = deriveFogKeys(masterSig, 0)
+const port0Keys = derivePortKeys(masterSig, 0)
+
+// IMPORTANT: fog0Keys !== port0Keys (different domains)
+// This prevents any linkability between Ports and Fog wallets
+```
+
+**When to use:**
+
+- `derivePortKeys` - For receiving payments (recipient privacy)
+- `deriveFogKeys` - For Fog Mode sender privacy (pre-funded stealth wallets)
+
+**Note:** Fog Mode is mainnet-only (Mantle 5000). Testnet (5003) is not supported for Fog.
 
 #### `parseStealthMetaAddress(metaAddress)`
 
@@ -169,6 +191,50 @@ const { stealthAddress, stealthPrivateKey } = deriveStealthPrivateKey(
 )
 // Use stealthPrivateKey to sign transactions from stealthAddress
 ```
+
+#### `prepareEOAPayment(recipientAddress)`
+
+Prepare payment parameters for a regular EOA recipient. Use this when paying to a regular wallet (not a stealth meta-address). The sender still gets privacy benefits when using Fog Mode.
+
+```typescript
+import { prepareEOAPayment } from '@galeon/stealth'
+
+// Fog Mode: pay to regular wallet with sender privacy
+const params = prepareEOAPayment('0x1234...abcd')
+
+// Use with GaleonRegistry.payNative
+await contract.payNative(
+  params.recipient, // The EOA address
+  params.ephemeralPublicKey, // 33 zero bytes
+  params.viewTag, // 0
+  receiptHash,
+  { value: amount }
+)
+```
+
+#### `prepareStealthPayment(stealthMetaAddress)`
+
+Prepare payment parameters for a stealth meta-address recipient. Wrapper around `generateStealthAddress` with a consistent return format.
+
+```typescript
+import { prepareStealthPayment } from '@galeon/stealth'
+
+const params = prepareStealthPayment('st:mnt:0x...')
+
+// Use with GaleonRegistry.payNative
+await contract.payNative(
+  params.recipient, // One-time stealth address
+  params.ephemeralPublicKey, // For recipient to scan
+  params.viewTag, // For efficient filtering
+  receiptHash,
+  { value: amount }
+)
+```
+
+**When to use:**
+
+- `prepareEOAPayment` - Recipient is a regular wallet (sender privacy only via Fog Mode)
+- `prepareStealthPayment` - Recipient has stealth keys (full sender + recipient privacy)
 
 ---
 
@@ -347,6 +413,15 @@ Port-specific keys use the port index as additional salt:
 port_spending = HKDF(signature, port_salt, "galeon-port-derivation-v1-spending")
 port_viewing  = HKDF(signature, port_salt, "galeon-port-derivation-v1-viewing")
 ```
+
+Fog wallet keys use a **separate domain** for cryptographic isolation:
+
+```
+fog_spending = HKDF(signature, fog_salt, "galeon-fog-keys-v1-spending")
+fog_viewing  = HKDF(signature, fog_salt, "galeon-fog-keys-v1-viewing")
+```
+
+This ensures `deriveFogKeys(sig, 0)` produces different keys than `derivePortKeys(sig, 0)`.
 
 ### Stealth Address Generation
 

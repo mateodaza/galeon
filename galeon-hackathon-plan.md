@@ -271,6 +271,7 @@ export interface ChainConfig {
     announcer: `0x${string}`
     registry: `0x${string}`
     galeon: `0x${string}`
+    tender: `0x${string}`
   }
 }
 
@@ -287,6 +288,7 @@ export const chains: Record<number, ChainConfig> = {
       announcer: '0x...', // TODO: Update after deployment
       registry: '0x...', // TODO: Update after deployment
       galeon: '0x...', // TODO: Update after deployment
+      tender: '0x...', // TODO: Update after deployment
     },
   },
 
@@ -298,9 +300,10 @@ export const chains: Record<number, ChainConfig> = {
     explorer: 'https://mantlescan.xyz',
     nativeCurrency: { name: 'Mantle', symbol: 'MNT', decimals: 18 },
     contracts: {
-      announcer: '0x...', // TODO: Update after deployment
-      registry: '0x...', // TODO: Update after deployment
-      galeon: '0x...', // TODO: Update after deployment
+      announcer: '0x8C04238c49e22EB687ad706bEe645698ccF41153',
+      registry: '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22',
+      galeon: '0x85F23B63E2a40ba74cD418063c43cE19bcbB969C',
+      tender: '0x29D52d01947d91e241e9c7A4312F7463199e488c',
     },
   },
 
@@ -315,6 +318,7 @@ export const chains: Record<number, ChainConfig> = {
       announcer: '0x...', // TODO: Update after deployment
       registry: '0x...', // TODO: Update after deployment
       galeon: '0x...', // TODO: Update after deployment
+      tender: '0x...', // TODO: Update after deployment
     },
   },
 }
@@ -1010,7 +1014,7 @@ export interface StealthKeys {
   spendingPublicKey: Uint8Array
   viewingPrivateKey: Uint8Array
   viewingPublicKey: Uint8Array
-  stealthMetaAddress: `st:eth:0x${string}`
+  stealthMetaAddress: `st:mnt:0x${string}`
 }
 
 /**
@@ -1031,9 +1035,9 @@ export function deriveStealthKeys(signature: `0x${string}`): StealthKeys {
   const viewingPrivateKey = secp256k1.utils.normPrivateKeyToScalar(viewingEntropy)
   const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
 
-  // Build stealth meta-address (st:eth:0x<spending><viewing>)
+  // Build stealth meta-address (st:mnt:0x<spending><viewing>)
   const stealthMetaAddress =
-    `st:eth:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as const
+    `st:mnt:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as const
 
   return {
     spendingPrivateKey: new Uint8Array(
@@ -1096,10 +1100,10 @@ export interface StealthAddressResult {
  * @returns Stealth address, ephemeral key, and view tag
  */
 export function generateStealthAddress(
-  stealthMetaAddress: `st:eth:0x${string}`
+  stealthMetaAddress: `st:mnt:0x${string}`
 ): StealthAddressResult {
-  // Parse meta-address: st:eth:0x<spending:33><viewing:33>
-  const hexPart = stealthMetaAddress.slice(7) // Remove "st:eth:"
+  // Parse meta-address: st:mnt:0x<spending:33><viewing:33>
+  const hexPart = stealthMetaAddress.slice(7) // Remove "st:mnt:"
   const bytes = hexToBytes(hexPart.slice(2)) // Remove "0x"
 
   const spendingPubKey = bytes.slice(0, 33)
@@ -1573,11 +1577,11 @@ main().catch(console.error)
 | Railway infra   | PostgreSQL + Redis provisioned                                                       |
 | AdonisJS API    | User/Port models, migrations, SIWE auth                                              |
 | Stealth library | Key derivation, Port keys, stealth address generation, scanning                      |
-| Contracts       | Deploy ERC5564Announcer + ERC6538Registry + GaleonRegistry to Mantle Sepolia         |
+| Contracts       | Deploy ERC5564Announcer + ERC6538Registry + GaleonRegistry to Mantle Mainnet ✅      |
 | Ponder indexer  | Schema, event handlers, webhook to API                                               |
 | Real-time       | Transmit SSE, test full notification flow                                            |
 
-**Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
+**Milestone:** Payment on Mantle Mainnet → Ponder indexes → API receives webhook → SSE broadcasts
 
 ### Phase 2: Frontend + Full Flow
 
@@ -1595,14 +1599,40 @@ main().catch(console.error)
 
 **Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Instant Detection → Collect
 
-### Phase 3: Polish + Submission
+### Phase 3: Fog Mode + Shipwreck
+
+**Goal:** Sender privacy with compliance accountability
+
+| Task               | Description                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Fog Key Derivation | `deriveFogKeys()` with separate HKDF domain from Ports ✅                    |
+| EOA Payment        | `prepareEOAPayment()` for regular wallet recipients (sender privacy only) ✅ |
+| Stealth Payment    | `prepareStealthPayment()` for full sender + recipient privacy ✅             |
+| Fog Reserve        | Pre-funded stealth wallets for sender privacy                                |
+| Fog Session        | Wallet-signature encryption for localStorage persistence                     |
+| Fog Payment        | Pay from fog wallet (instant, no temporal correlation)                       |
+| Shipwreck Reports  | Compliance reports with cryptographic proofs                                 |
+| Shipwreck Export   | JSON export for auditors (MVP scope)                                         |
+
+**Deferred to post-hackathon:** Fog Delegation (backend-scheduled payments), PDF export
+
+**Milestone:** Full privacy flow: Fund Reserve → Pay from Fog → Generate Compliance Report (JSON)
+
+**Detailed Specs:**
+
+- [Fog Mode Spec](docs/PRIVATE-SEND-SPEC.md)
+- [Implementation Plan](docs/FOG-SHIPWRECK-PLAN.md)
+
+---
+
+### Phase 4: Polish + Submission
 
 **Goal:** Production-ready for hackathon demo
 
 | Task               | Description                                    |
 | ------------------ | ---------------------------------------------- |
 | Error handling     | User-friendly error messages, loading states   |
-| Smoke tests        | End-to-end tests on Mantle Sepolia             |
+| Smoke tests        | End-to-end tests on Mantle Mainnet             |
 | Evidence bundle    | Screenshots, video demo, architecture diagrams |
 | README             | Setup instructions, feature overview           |
 | Track descriptions | Hackathon submission write-up                  |
@@ -1961,6 +1991,7 @@ Sending directly from a wallet **doesn't work** because no Announcement would be
 
 | Enhancement             | Description                                              | Complexity |
 | ----------------------- | -------------------------------------------------------- | ---------- |
+| **ERC-20 Token UI**     | UI for USDT/USDC payments (contract already supports)    | Low        |
 | **ENS/MNS Integration** | Resolve `galeon.mnt` to Port stealth meta-address        | Medium     |
 | **Recurring Payments**  | Schedule automatic payments to a Port                    | High       |
 | **Payment Requests**    | Vendor sends payment request link with pre-filled amount | Low        |
@@ -1971,4 +2002,4 @@ Sending directly from a wallet **doesn't work** because no Announcement would be
 
 ---
 
-_Last updated: December 27, 2025_
+_Last updated: December 29, 2025_

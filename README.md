@@ -1,15 +1,15 @@
 # Galeon
 
-Private B2B payments using EIP-5564 stealth addresses on Mantle.
+Private payments using EIP-5564 stealth addresses on Mantle.
 
 ## Overview
 
-Galeon enables businesses to receive payments privately using stealth addresses. Payers send funds to one-time addresses derived from the recipient's public keys, ensuring payment privacy while maintaining on-chain verifiability.
+Galeon enables private payments using stealth addresses. Payers send funds to one-time addresses derived from the recipient's public keys, ensuring payment privacy while maintaining on-chain verifiability.
 
 ### Key Features
 
 - **Private Payments**: Recipients receive funds at stealth addresses that can't be linked to their identity
-- **Port System**: Businesses create "Ports" - named payment endpoints with unique stealth keys
+- **Port System**: Users create "Ports" - named payment endpoints with unique stealth keys
 - **On-Chain Receipts**: Payment metadata is anchored on-chain for verifiable receipts
 - **Mantle L2**: Low fees and fast finality on Mantle network
 

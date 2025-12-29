@@ -30,7 +30,7 @@ const queryClient = new QueryClient()
  */
 const metadata = {
   name: 'Galeon',
-  description: 'Private B2B payments using stealth addresses',
+  description: 'Private payments using stealth addresses',
   url: 'https://galeon.xyz',
   icons: ['/icon.png'],
 }

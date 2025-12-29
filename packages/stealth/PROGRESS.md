@@ -1,7 +1,7 @@
 # Stealth Library (packages/stealth) Progress
 
 > Shared EIP-5564 stealth address cryptography
-> Last updated: 2025-12-27
+> Last updated: 2025-12-29
 
 ## Setup
 
@@ -44,6 +44,22 @@
 - [x] parseStealthMetaAddress returns chainPrefix
 - [x] formatStealthMetaAddress accepts optional chainPrefix
 
+## Fog Mode Support (Phase 3)
+
+- [x] deriveFogKeys(masterSig, fogIndex, chainPrefix?) - Fog wallet key derivation
+- [x] Separate HKDF domain (galeon-fog-keys-v1) from Ports for cryptographic isolation
+- [x] Client integration: client.deriveFogKeys()
+- [x] Tests for domain separation (fog keys !== port keys at same index)
+
+## EOA Payment Support (Phase 3)
+
+- [x] prepareEOAPayment(address) - For paying regular EOA wallets
+- [x] prepareStealthPayment(metaAddress) - For paying stealth recipients
+- [x] NULL_EPHEMERAL_PUBKEY constant (33 zero bytes)
+- [x] NULL_VIEW_TAG constant (0)
+- [x] isStealthRecipient flag in return type for UI differentiation
+- [x] Tests for EOA and stealth payment preparation
+
 ## Tests
 
 - [x] Property-based tests (fast-check) - 12 tests
@@ -52,9 +68,10 @@
 - [x] Address generation tests (3 tests)
 - [x] Scanning tests (4 tests)
 - [x] Configuration tests (3 tests)
-- [x] Client tests (2 tests)
+- [x] Client tests (3 tests, including fog keys)
+- [x] EOA payment tests (4 tests)
 
-**Total: 30 tests passing**
+**Total: 37 tests passing** (25 unit + 12 property-based)
 
 ## Documentation
 
@@ -67,6 +84,7 @@
 
 - `deriveStealthKeys(signature, chainPrefix?)` - Derive stealth keys from wallet signature (default: 'mnt')
 - `derivePortKeys(masterSig, portIndex, chainPrefix?)` - Derive unique keys per Port
+- `deriveFogKeys(masterSig, fogIndex, chainPrefix?)` - Derive unique keys per Fog wallet (separate domain)
 - `parseStealthMetaAddress(addr)` - Parse meta-address to public keys + chainPrefix
 - `formatStealthMetaAddress(spend, view, chainPrefix?)` - Format public keys to meta-address
 
@@ -76,6 +94,8 @@
 - `generateStealthAddressDeterministic(metaAddress, ephemeralKey)` - Deterministic generation
 - `computeViewTag(ephemeralPub, viewingPriv)` - Compute view tag
 - `deriveStealthPrivateKey(ephemeralPub, spendingPriv, viewingPriv)` - Derive stealth private key
+- `prepareEOAPayment(address)` - Prepare payment params for regular wallet recipient
+- `prepareStealthPayment(metaAddress)` - Prepare payment params for stealth recipient
 
 ### Scanning Functions
 
@@ -86,6 +106,17 @@
 ### Client
 
 - `createStealthClient(chainId)` - Create chain-specific client with all methods
+  - `client.deriveKeys(sig)` - Derive stealth keys
+  - `client.derivePortKeys(sig, index)` - Derive Port keys
+  - `client.deriveFogKeys(sig, index)` - Derive Fog wallet keys
+  - `client.generateAddress(metaAddr)` - Generate stealth address
+  - `client.scan(announcements, spend, view)` - Scan for payments
+
+### Constants
+
+- `NULL_EPHEMERAL_PUBKEY` - 33 zero bytes for EOA payments
+- `NULL_VIEW_TAG` - 0 for EOA payments
+- `SCHEME_ID` - 1 (secp256k1 with view tags)
 
 ## Notes
 

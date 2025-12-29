@@ -1,6 +1,6 @@
 # @galeon/contracts
 
-Solidity smart contracts for private B2B payments using EIP-5564 stealth addresses on Mantle.
+Solidity smart contracts for private payments using EIP-5564 stealth addresses on Mantle.
 
 ## Overview
 

@@ -229,3 +229,98 @@ export function deriveStealthPrivateKey(
 
   return { stealthAddress, stealthPrivateKey }
 }
+
+/**
+ * Null ephemeral public key for EOA payments (33 zero bytes).
+ * Used when recipient is a regular wallet without stealth keys.
+ */
+export const NULL_EPHEMERAL_PUBKEY = new Uint8Array(33)
+
+/**
+ * Null view tag for EOA payments.
+ * Used when recipient is a regular wallet without stealth keys.
+ */
+export const NULL_VIEW_TAG = 0
+
+/**
+ * Prepare payment parameters for a regular EOA recipient.
+ *
+ * Use this when paying to a regular wallet address (not a stealth meta-address).
+ * The sender still gets privacy benefits when using Fog Mode, but the recipient
+ * receives funds at their public address.
+ *
+ * @param recipientAddress - Regular Ethereum address (0x...)
+ * @returns Payment parameters for contract call
+ *
+ * @example
+ * ```ts
+ * // Fog Mode: pay to regular wallet with sender privacy
+ * const params = prepareEOAPayment('0x1234...abcd')
+ *
+ * // Use with GaleonRegistry.payNative
+ * await contract.payNative(
+ *   params.recipient,
+ *   params.ephemeralPublicKey,
+ *   params.viewTag,
+ *   receiptHash,
+ *   { value: amount }
+ * )
+ * ```
+ */
+export function prepareEOAPayment(recipientAddress: `0x${string}`): {
+  recipient: `0x${string}`
+  ephemeralPublicKey: Uint8Array
+  viewTag: number
+  isStealthRecipient: false
+} {
+  // Validate address format
+  if (!recipientAddress.match(/^0x[0-9a-fA-F]{40}$/)) {
+    throw new Error('Invalid Ethereum address format')
+  }
+
+  return {
+    recipient: recipientAddress.toLowerCase() as `0x${string}`,
+    ephemeralPublicKey: NULL_EPHEMERAL_PUBKEY,
+    viewTag: NULL_VIEW_TAG,
+    isStealthRecipient: false,
+  }
+}
+
+/**
+ * Prepare payment parameters for a stealth meta-address recipient.
+ *
+ * Use this when paying to a stealth meta-address. The recipient will be able
+ * to scan for and claim this payment using their viewing/spending keys.
+ *
+ * @param stealthMetaAddress - Recipient's stealth meta-address (st:mnt:0x... or st:eth:0x...)
+ * @returns Payment parameters for contract call
+ *
+ * @example
+ * ```ts
+ * const params = prepareStealthPayment('st:mnt:0x...')
+ *
+ * // Use with GaleonRegistry.payNative
+ * await contract.payNative(
+ *   params.recipient,
+ *   params.ephemeralPublicKey,
+ *   params.viewTag,
+ *   receiptHash,
+ *   { value: amount }
+ * )
+ * ```
+ */
+export function prepareStealthPayment(stealthMetaAddress: StealthMetaAddress): {
+  recipient: `0x${string}`
+  ephemeralPublicKey: Uint8Array
+  viewTag: number
+  isStealthRecipient: true
+} {
+  const result = generateStealthAddress(stealthMetaAddress)
+
+  return {
+    recipient: result.stealthAddress,
+    ephemeralPublicKey: result.ephemeralPublicKey,
+    viewTag: result.viewTag,
+    isStealthRecipient: true,
+  }
+}

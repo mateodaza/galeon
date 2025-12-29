@@ -16,7 +16,7 @@ export default function Home() {
       {/* Hero section */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
         <h1 className="max-w-3xl text-5xl font-bold leading-tight text-zinc-100 sm:text-6xl">
-          Private B2B Payments.
+          Private Payments.
           <br />
           <span className="text-emerald-400">Verifiable Proof.</span>
         </h1>
@@ -24,7 +24,7 @@ export default function Home() {
         <p className="mt-6 max-w-xl text-lg text-zinc-400">
           Your payments. Your treasure. Hidden in plain sight.
           <br />
-          Stealth addresses on Mantle for confidential business transactions.
+          Stealth addresses on Mantle for confidential transactions.
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
