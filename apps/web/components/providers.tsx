@@ -8,12 +8,14 @@
  * - Wagmi (React hooks for Ethereum)
  * - TanStack Query (async state management)
  * - Stealth keys context
+ * - Motion (animations)
  */
 
 import { type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiProvider, type State } from 'wagmi'
+import { LazyMotion, domAnimation } from 'motion/react'
 import { wagmiAdapter, projectId, isWalletConfigured } from '@/lib/wagmi'
 import { mantle, mantleSepolia } from '@/lib/chains'
 import { StealthProvider } from '@/contexts/stealth-context'
@@ -54,7 +56,7 @@ if (isWalletConfigured) {
     },
     themeMode: 'dark',
     themeVariables: {
-      '--w3m-accent': '#10b981', // Emerald-500 for Galeon branding
+      '--w3m-accent': '#0891b2', // Cyan-600 for Galeon deep sea branding
       '--w3m-border-radius-master': '8px',
     },
   })
@@ -75,10 +77,12 @@ export function Providers({ children, initialState }: ProvidersProps) {
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
-        <StealthProvider>
-          <NetworkGuard />
-          {children}
-        </StealthProvider>
+        <LazyMotion features={domAnimation} strict>
+          <StealthProvider>
+            <NetworkGuard />
+            {children}
+          </StealthProvider>
+        </LazyMotion>
       </QueryClientProvider>
     </WagmiProvider>
   )

@@ -10,7 +10,13 @@
 import { use, useState } from 'react'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { useAccount } from 'wagmi'
-import { WalletButton, ConnectButton } from '@/components/wallet-button'
+import { Loader2, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { ConnectButton } from '@/components/wallet-button'
+import { AppShell } from '@/components/layout'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { getTxExplorerUrl } from '@/lib/chains'
 import { usePortMetaAddress, usePayNative } from '@/hooks/use-payment'
 
 interface PayPageProps {
@@ -61,149 +67,169 @@ export default function PayPage({ params }: PayPageProps) {
   // Show loading while fetching port
   if (isLoadingPort) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-6">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-        <p className="mt-4 text-zinc-400">Loading port...</p>
-      </main>
+      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <Loader2 className="text-primary h-8 w-8 animate-spin" />
+          <p className="text-muted-foreground mt-4">Loading port...</p>
+        </div>
+      </AppShell>
     )
   }
 
   // Port not found
   if (!portExists) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-6">
-        <div className="text-5xl">🚫</div>
-        <h1 className="mt-4 text-2xl font-bold text-zinc-100">Port Not Found</h1>
-        <p className="mt-2 text-zinc-400">This payment link may be invalid or expired.</p>
-      </main>
+      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <XCircle className="text-muted-foreground h-16 w-16" />
+          <h1 className="text-foreground mt-4 text-2xl font-bold">Port Not Found</h1>
+          <p className="text-muted-foreground mt-2">This payment link may be invalid or expired.</p>
+        </div>
+      </AppShell>
     )
   }
 
   if (isSuccess && txHash) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600/20 text-3xl">
-            ✓
-          </div>
-          <h1 className="mt-4 text-2xl font-bold text-zinc-100">Payment Sent!</h1>
-          <p className="mt-2 text-zinc-400">Your payment has been submitted to the network.</p>
+      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <div className="w-full max-w-md text-center">
+            <div className="bg-primary/20 mx-auto flex h-16 w-16 items-center justify-center rounded-full">
+              <CheckCircle2 className="text-primary h-8 w-8" />
+            </div>
+            <h1 className="text-foreground mt-4 text-2xl font-bold">Payment Sent!</h1>
+            <p className="text-muted-foreground mt-2">
+              Your payment has been submitted to the network.
+            </p>
 
-          <div className="mt-6 rounded-lg bg-zinc-800/50 p-4">
-            <p className="text-sm text-zinc-400">Transaction Hash</p>
-            <p className="mt-1 break-all font-mono text-sm text-zinc-100">{txHash}</p>
-          </div>
+            <Card className="mt-6">
+              <CardContent className="pt-4">
+                <p className="text-muted-foreground text-sm">Transaction Hash</p>
+                <p className="text-foreground mt-1 break-all font-mono text-sm">{txHash}</p>
+              </CardContent>
+            </Card>
 
-          <a
-            href={`https://mantlescan.xyz/tx/${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-block text-emerald-400 hover:text-emerald-300"
-          >
-            View on Mantlescan →
-          </a>
+            <a
+              href={getTxExplorerUrl(txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 mt-4 inline-flex items-center gap-1"
+            >
+              View on Explorer
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
         </div>
-      </main>
+      </AppShell>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🚢</span>
-          <span className="text-xl font-bold text-zinc-100">Galeon</span>
-        </div>
-        <WalletButton />
-      </header>
-
-      {/* Main content */}
+    <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
       <div className="flex flex-1 flex-col items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-zinc-100">Pay to {portName}</h1>
-              <p className="mt-1 text-sm text-zinc-400">Port ID: {portId.slice(0, 8)}...</p>
-            </div>
-
-            {!isConnected ? (
-              <div className="mt-8 text-center">
-                <p className="mb-4 text-zinc-400">Connect your wallet to make a payment</p>
-                <ConnectButton />
-              </div>
-            ) : (
-              <div className="mt-8 space-y-4">
-                {/* Amount input */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300">Amount (MNT)</label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-3 text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-
-                {/* Memo input */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300">Memo (optional)</label>
-                  <input
-                    type="text"
-                    value={memo}
-                    onChange={(e) => setMemo(e.target.value)}
-                    placeholder="What's this payment for?"
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-
-                {/* Network info */}
-                <div className="flex items-center justify-between rounded-lg bg-zinc-800/50 p-3 text-sm">
-                  <span className="text-zinc-400">Network</span>
-                  <span className="flex items-center gap-2 text-zinc-100">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    {chain?.name ?? 'Unknown'}
-                  </span>
-                </div>
-
-                {/* Error display */}
-                {(paymentError || txError) && (
-                  <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-400">
-                    {paymentError || txError?.message || 'Payment failed'}
-                  </div>
-                )}
-
-                {/* Confirming state */}
-                {isConfirming && (
-                  <div className="rounded-lg bg-emerald-900/20 p-3 text-sm text-emerald-400">
-                    Waiting for confirmation...
-                  </div>
-                )}
-
-                {/* Pay button */}
-                <button
-                  onClick={handlePay}
-                  disabled={!amount || isProcessing}
-                  className="w-full rounded-xl bg-emerald-600 py-4 text-lg font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
-                >
-                  {isPending
-                    ? 'Confirm in wallet...'
-                    : isConfirming
-                      ? 'Confirming...'
-                      : `Pay ${amount || '0'} MNT`}
-                </button>
-
-                <p className="text-center text-xs text-zinc-500">
-                  Payment is sent to a stealth address for privacy
+          <Card>
+            <CardContent className="p-8">
+              <div className="text-center">
+                <h1 className="text-foreground text-2xl font-bold">Pay to {portName}</h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Port ID: {portId.slice(0, 8)}...
                 </p>
               </div>
-            )}
-          </div>
+
+              {!isConnected ? (
+                <div className="mt-8 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    Connect your wallet to make a payment
+                  </p>
+                  <ConnectButton />
+                </div>
+              ) : (
+                <div className="mt-8 space-y-4">
+                  {/* Amount input */}
+                  <div>
+                    <label className="text-foreground block text-sm font-medium">
+                      Amount (MNT)
+                    </label>
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className="mt-1 text-lg"
+                    />
+                  </div>
+
+                  {/* Memo input */}
+                  <div>
+                    <label className="text-foreground block text-sm font-medium">
+                      Memo (optional)
+                    </label>
+                    <Input
+                      type="text"
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      placeholder="What's this payment for?"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {/* Network info */}
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-3 text-sm">
+                    <span className="text-muted-foreground">Network</span>
+                    <span className="text-foreground flex items-center gap-2">
+                      <span className="bg-primary h-2 w-2 rounded-full" />
+                      {chain?.name ?? 'Unknown'}
+                    </span>
+                  </div>
+
+                  {/* Error display */}
+                  {(paymentError || txError) && (
+                    <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+                      {paymentError || txError?.message || 'Payment failed'}
+                    </div>
+                  )}
+
+                  {/* Confirming state */}
+                  {isConfirming && (
+                    <div className="bg-primary/10 text-primary rounded-lg p-3 text-sm">
+                      Waiting for confirmation...
+                    </div>
+                  )}
+
+                  {/* Pay button */}
+                  <Button
+                    onClick={handlePay}
+                    disabled={!amount || isProcessing}
+                    size="lg"
+                    className="w-full"
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Confirm in wallet...
+                      </>
+                    ) : isConfirming ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Confirming...
+                      </>
+                    ) : (
+                      `Pay ${amount || '0'} MNT`
+                    )}
+                  </Button>
+
+                  <p className="text-muted-foreground text-center text-xs">
+                    Payment is sent to a stealth address for privacy
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </main>
+    </AppShell>
   )
 }

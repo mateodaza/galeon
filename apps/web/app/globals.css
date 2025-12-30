@@ -1,12 +1,56 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
-/* Tailwind v4 theme customization */
+@custom-variant dark (&:is(.dark *));
+
+/* =============================================================================
+   GALEON DESIGN SYSTEM
+   Mercury-inspired elegance with deep sea cyan. Light mode first.
+   ============================================================================= */
+
 @theme {
-  /* Colors */
-  --color-emerald-400: #34d399;
-  --color-emerald-500: #10b981;
-  --color-emerald-600: #059669;
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
+  /* Galeon Custom Tokens */
+  --color-surface: #f4f4f8;
+  --color-surface-elevated: #ffffff;
+  --color-text-secondary: #6b6b7b;
+  --color-border-subtle: #f0f0f5;
+
+  /* Deep Sea Cyan Accent (San José Caribbean Depths) */
+  --color-accent-hover: #0e7490;
+  --color-accent-muted: #cffafe;
+  --color-accent-subtle: #ecfeff;
+
+  /* Semantic Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* Glass */
+  --glass-background: rgba(244, 244, 248, 0.7);
+  --glass-blur: 12px;
+  --glass-border: rgba(255, 255, 255, 0.3);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.05);
+
+  /* Animation */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+
+  /* Legacy zinc colors for migration (to be removed) */
   --color-zinc-50: #fafafa;
   --color-zinc-100: #f4f4f5;
   --color-zinc-200: #e4e4e7;
@@ -19,20 +63,271 @@
   --color-zinc-900: #18181b;
   --color-zinc-950: #09090b;
 
-  /* Font family */
-  --font-sans:
-    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  /* Legacy cyan colors for migration (to be removed) */
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
+  --color-cyan-700: #0e7490;
+
+  /* Wood & Brass Tones (shipwreck warmth) */
+  --color-wood-50: #faf8f5;
+  --color-wood-100: #f5f0e8;
+  --color-wood-200: #e8dcc8;
+  --color-wood-300: #d4c4a8;
+  --color-wood-400: #b8a07a;
+  --color-wood-500: #9c8258;
+  --color-wood-600: #826b45;
+  --color-wood-700: #6b5638;
+  --color-brass-400: #d4a855;
+  --color-brass-500: #b8942e;
+
+  /* Underwater Glass tokens */
+  --glass-underwater: rgba(8, 145, 178, 0.08);
+  --glass-underwater-border: rgba(8, 145, 178, 0.15);
+  --glass-wood-accent: rgba(156, 130, 88, 0.12);
+  --shadow-caustic: 0 4px 24px rgba(6, 182, 212, 0.1);
+  --shadow-caustic-hover: 0 8px 32px rgba(6, 182, 212, 0.15);
 }
 
-/* Base styles */
+/* shadcn/ui radius tokens */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* =============================================================================
+   LIGHT MODE (Default) - Galeon's deep sea cyan theme
+   ============================================================================= */
+:root {
+  --radius: 0.75rem;
+
+  /* Background & Foreground */
+  --background: #fbfcfd;
+  --foreground: #1a1a23;
+
+  /* Card */
+  --card: #ffffff;
+  --card-foreground: #1a1a23;
+
+  /* Popover */
+  --popover: #ffffff;
+  --popover-foreground: #1a1a23;
+
+  /* Primary - Deep Sea Cyan */
+  --primary: #0891b2;
+  --primary-foreground: #ffffff;
+
+  /* Secondary */
+  --secondary: #f4f4f8;
+  --secondary-foreground: #1a1a23;
+
+  /* Muted */
+  --muted: #f4f4f8;
+  --muted-foreground: #6b6b7b;
+
+  /* Accent - Cyan subtle */
+  --accent: #ecfeff;
+  --accent-foreground: #0e7490;
+
+  /* Destructive */
+  --destructive: #ef4444;
+
+  /* Border & Input */
+  --border: #e4e4ec;
+  --input: #e4e4ec;
+  --ring: #0891b2;
+
+  /* Chart colors - Cyan palette */
+  --chart-1: #0891b2;
+  --chart-2: #0e7490;
+  --chart-3: #155e75;
+  --chart-4: #06b6d4;
+  --chart-5: #22d3ee;
+
+  /* Sidebar */
+  --sidebar: #f4f4f8;
+  --sidebar-foreground: #1a1a23;
+  --sidebar-primary: #0891b2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ecfeff;
+  --sidebar-accent-foreground: #0e7490;
+  --sidebar-border: #e4e4ec;
+  --sidebar-ring: #0891b2;
+}
+
+/* =============================================================================
+   DARK MODE (For future use - currently light-only for hackathon)
+   ============================================================================= */
+.dark {
+  --background: #141418;
+  --foreground: #ededf3;
+
+  --card: #1e1e24;
+  --card-foreground: #ededf3;
+
+  --popover: #1e1e24;
+  --popover-foreground: #ededf3;
+
+  /* Primary - Brighter cyan for dark mode */
+  --primary: #22d3ee;
+  --primary-foreground: #141418;
+
+  --secondary: #28282f;
+  --secondary-foreground: #ededf3;
+
+  --muted: #28282f;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #164e63;
+  --accent-foreground: #22d3ee;
+
+  --destructive: #ef4444;
+
+  --border: #2e2e36;
+  --input: #2e2e36;
+  --ring: #22d3ee;
+
+  --chart-1: #22d3ee;
+  --chart-2: #06b6d4;
+  --chart-3: #0891b2;
+  --chart-4: #67e8f9;
+  --chart-5: #a5f3fc;
+
+  --sidebar: #1e1e24;
+  --sidebar-foreground: #ededf3;
+  --sidebar-primary: #22d3ee;
+  --sidebar-primary-foreground: #141418;
+  --sidebar-accent: #164e63;
+  --sidebar-accent-foreground: #22d3ee;
+  --sidebar-border: #2e2e36;
+  --sidebar-ring: #22d3ee;
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
   }
 
   body {
+    @apply bg-background text-foreground;
     font-family: var(--font-sans);
+  }
+
+  /* Selection highlight with cyan */
+  ::selection {
+    background-color: #cffafe;
+    color: #1a1a23;
+  }
+
+  /* Focus visible for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* =============================================================================
+   REDUCED MOTION SUPPORT
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =============================================================================
+   COMPONENT UTILITIES
+   ============================================================================= */
+@layer components {
+  /* Glass card effect */
+  .glass-card {
+    background: var(--glass-background);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Text shadow for glass backgrounds */
+  .glass-text-safe {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Underwater glass effect with fallback
+     Per Josh W. Comeau: low opacity (10-20%) for the blur to show through */
+  .glass-underwater {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-caustic);
+  }
+
+  @supports (backdrop-filter: blur(16px)) {
+    .glass-underwater {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow:
+        var(--shadow-caustic),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
   }
 }

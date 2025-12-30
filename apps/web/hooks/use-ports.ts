@@ -64,60 +64,86 @@ export function usePorts() {
       // ============================================================
 
       // Start from deployment block (first block before all Galeon contracts)
-      // Using Alchemy RPC allows reading full block range without 50k limit
       const deploymentBlock = 89365202n
+      const CHUNK_SIZE = 40000n // Stay under 50k limit for WalletConnect RPC
+      const latestBlock = await publicClient.getBlockNumber()
 
-      // Read PortRegistered events for this address
-      const logs = await publicClient.getLogs({
-        address: contractAddress,
-        event: {
-          type: 'event',
-          name: 'PortRegistered',
-          inputs: [
-            { name: 'owner', type: 'address', indexed: true },
-            { name: 'portId', type: 'bytes32', indexed: true },
-            { name: 'name', type: 'string', indexed: false },
-            { name: 'stealthMetaAddress', type: 'bytes', indexed: false },
-          ],
-        },
+      type PortRegisteredLog = {
         args: {
-          owner: address,
-        },
-        fromBlock: deploymentBlock,
-        toBlock: 'latest',
-      })
-
-      // Also get deactivation events
-      const deactivationLogs = await publicClient.getLogs({
-        address: contractAddress,
-        event: {
-          type: 'event',
-          name: 'PortDeactivated',
-          inputs: [
-            { name: 'owner', type: 'address', indexed: true },
-            { name: 'portId', type: 'bytes32', indexed: true },
-          ],
-        },
-        args: {
-          owner: address,
-        },
-        fromBlock: deploymentBlock,
-        toBlock: 'latest',
-      })
-
-      // Build set of deactivated port IDs
-      const deactivatedPorts = new Set(
-        deactivationLogs.map((log) => log.args.portId as `0x${string}`)
-      )
-
-      // Map logs to Port objects
-      return logs.map((log) => {
-        const args = log.args as {
           owner: `0x${string}`
           portId: `0x${string}`
           name: string
           stealthMetaAddress: `0x${string}`
         }
+        blockNumber: bigint
+      }
+
+      type PortDeactivatedLog = {
+        args: {
+          owner: `0x${string}`
+          portId: `0x${string}`
+        }
+      }
+
+      const portRegisteredEvent = {
+        type: 'event' as const,
+        name: 'PortRegistered' as const,
+        inputs: [
+          { name: 'owner', type: 'address', indexed: true },
+          { name: 'portId', type: 'bytes32', indexed: true },
+          { name: 'name', type: 'string', indexed: false },
+          { name: 'stealthMetaAddress', type: 'bytes', indexed: false },
+        ],
+      } as const
+
+      const portDeactivatedEvent = {
+        type: 'event' as const,
+        name: 'PortDeactivated' as const,
+        inputs: [
+          { name: 'owner', type: 'address', indexed: true },
+          { name: 'portId', type: 'bytes32', indexed: true },
+        ],
+      } as const
+
+      // Fetch logs in chunks to avoid RPC block range limits
+      const allPortLogs: PortRegisteredLog[] = []
+      const allDeactivationLogs: PortDeactivatedLog[] = []
+
+      let fromBlock = deploymentBlock
+      while (fromBlock <= latestBlock) {
+        const toBlock = fromBlock + CHUNK_SIZE > latestBlock ? latestBlock : fromBlock + CHUNK_SIZE
+
+        const [portLogs, deactivationLogs] = await Promise.all([
+          publicClient.getLogs({
+            address: contractAddress,
+            event: portRegisteredEvent,
+            args: { owner: address },
+            fromBlock,
+            toBlock,
+          }),
+          publicClient.getLogs({
+            address: contractAddress,
+            event: portDeactivatedEvent,
+            args: { owner: address },
+            fromBlock,
+            toBlock,
+          }),
+        ])
+
+        allPortLogs.push(...(portLogs as unknown as PortRegisteredLog[]))
+        allDeactivationLogs.push(...(deactivationLogs as unknown as PortDeactivatedLog[]))
+        fromBlock = toBlock + 1n
+      }
+
+      const logs = allPortLogs
+      const deactivationLogs = allDeactivationLogs
+
+      // Build set of deactivated port IDs
+      const deactivatedPorts = new Set(deactivationLogs.map((log) => log.args.portId))
+
+      // Map logs to Port objects
+      return logs.map((log) => {
+        const args = log.args
 
         // Decode stealth meta-address bytes to string format
         const metaAddressBytes = args.stealthMetaAddress

@@ -7,196 +7,105 @@
  * Each Port has its own stealth meta-address for payment isolation.
  */
 
-import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAppKitAccount } from '@reown/appkit/react'
-import { WalletButton } from '@/components/wallet-button'
-import { usePorts, useCreatePort, type Port } from '@/hooks/use-ports'
-import { useStealthContext } from '@/contexts/stealth-context'
+import { Ship, Plus, Loader2 } from 'lucide-react'
+import { AppShell, PageHeader } from '@/components/layout'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { PortCard } from '@/components/port-card'
+import { usePorts, useCreatePort } from '@/hooks/use-ports'
 
 export default function PortsPage() {
-  const router = useRouter()
-  const { isConnected } = useAppKitAccount()
-  const { hasKeys } = useStealthContext()
   const { ports, isLoading, error, refetch } = usePorts()
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Redirect to setup if not connected or keys not derived
-  useEffect(() => {
-    if (!isConnected) {
-      router.push('/setup')
-    } else if (!hasKeys) {
-      router.push('/setup')
-    }
-  }, [isConnected, hasKeys, router])
-
-  if (!isConnected || !hasKeys) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center">
-        <p className="mb-4 text-zinc-400">Redirecting to setup...</p>
-      </main>
-    )
-  }
+  const createButton = (
+    <Button onClick={() => setShowCreateModal(true)}>
+      <Plus className="h-4 w-4" />
+      Create Port
+    </Button>
+  )
 
   return (
-    <main className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🚢</span>
-            <span className="text-xl font-bold text-zinc-100">Galeon</span>
-          </Link>
-          <nav className="flex items-center gap-1">
-            <NavLink href="/dashboard">Dashboard</NavLink>
-            <NavLink href="/dashboard/ports" active>
-              Ports
-            </NavLink>
-            <NavLink href="/collect">Collect</NavLink>
-          </nav>
+    <AppShell requireAuth requireKeys>
+      <PageHeader
+        title="Ports"
+        description="Manage your payment endpoints"
+        actions={createButton}
+      />
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="text-primary h-8 w-8 animate-spin" />
         </div>
-        <WalletButton />
-      </header>
+      )}
 
-      {/* Main content */}
-      <div className="flex-1 px-6 py-8">
-        <div className="mx-auto max-w-6xl">
-          {/* Page header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-100">Ports</h1>
-              <p className="mt-1 text-zinc-400">Manage your payment endpoints</p>
-            </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
-            >
-              + Create Port
-            </button>
-          </div>
+      {/* Error state */}
+      {error && (
+        <Card className="border-destructive bg-destructive/10">
+          <CardContent className="pt-6">
+            <p className="text-destructive">Error loading ports: {error.message}</p>
+            <Button variant="link" onClick={() => refetch()} className="text-destructive mt-2">
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Loading state */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-            </div>
-          )}
-
-          {/* Error state */}
-          {error && (
-            <div className="rounded-xl border border-red-900 bg-red-900/20 p-4">
-              <p className="text-red-400">Error loading ports: {error.message}</p>
-              <button onClick={() => refetch()} className="mt-2 text-sm text-red-300 underline">
-                Try again
-              </button>
-            </div>
-          )}
-
-          {/* Ports list */}
-          {!isLoading && !error && ports.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 py-16">
-              <div className="text-5xl">🚢</div>
-              <h2 className="mt-4 text-xl font-semibold text-zinc-100">No Ports yet</h2>
-              <p className="mt-2 text-zinc-400">
-                Create your first Port to start receiving private payments
-              </p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="mt-6 rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500"
-              >
-                Create Your First Port
-              </button>
-            </div>
-          ) : !isLoading && !error ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ports.map((port) => (
-                <PortCard key={port.portId} port={port} />
-              ))}
-            </div>
-          ) : null}
+      {/* Ports list */}
+      {!isLoading && !error && ports.length === 0 ? (
+        <Card className="py-16">
+          <CardContent className="flex flex-col items-center justify-center">
+            <Ship className="text-muted-foreground/50 h-16 w-16" />
+            <h2 className="text-foreground mt-4 text-xl font-semibold">No Ports yet</h2>
+            <p className="text-muted-foreground mt-2">
+              Create your first Port to start receiving private payments
+            </p>
+            <Button onClick={() => setShowCreateModal(true)} className="mt-6">
+              Create Your First Port
+            </Button>
+          </CardContent>
+        </Card>
+      ) : !isLoading && !error ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ports.map((port) => (
+            <PortCard key={port.portId} port={port} />
+          ))}
         </div>
-      </div>
+      ) : null}
 
       {/* Create Port Modal */}
-      {showCreateModal && (
-        <CreatePortModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            refetch()
-            setShowCreateModal(false)
-          }}
-        />
-      )}
-    </main>
+      <CreatePortModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        onSuccess={() => {
+          refetch()
+          setShowCreateModal(false)
+        }}
+      />
+    </AppShell>
   )
 }
 
-function PortCard({ port }: { port: Port }) {
-  const [copied, setCopied] = useState(false)
-  const [showMeta, setShowMeta] = useState(false)
-
-  const copyPaymentLink = () => {
-    const link = `${window.location.origin}/pay/${port.portId}`
-    navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const copyMetaAddress = () => {
-    navigator.clipboard.writeText(port.stealthMetaAddress)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-zinc-100">{port.name}</h3>
-          <p className="mt-1 font-mono text-xs text-zinc-500">
-            {port.portId.slice(0, 10)}...{port.portId.slice(-8)}
-          </p>
-        </div>
-        <div
-          className={`h-2 w-2 rounded-full ${port.isActive ? 'bg-emerald-500' : 'bg-zinc-600'}`}
-        />
-      </div>
-
-      {/* Stealth meta-address (collapsible) */}
-      <div className="mt-4">
-        <button
-          onClick={() => setShowMeta(!showMeta)}
-          className="text-xs text-zinc-400 hover:text-zinc-300"
-        >
-          {showMeta ? 'Hide' : 'Show'} stealth address
-        </button>
-        {showMeta && (
-          <div className="mt-2 rounded-lg bg-zinc-800/50 p-2">
-            <p className="break-all font-mono text-xs text-zinc-400">
-              {port.stealthMetaAddress.slice(0, 40)}...
-            </p>
-            <button
-              onClick={copyMetaAddress}
-              className="mt-1 text-xs text-emerald-400 hover:text-emerald-300"
-            >
-              {copied ? 'Copied!' : 'Copy full address'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <button
-        onClick={copyPaymentLink}
-        className="mt-4 w-full rounded-lg bg-zinc-800 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-zinc-700"
-      >
-        {copied ? 'Copied!' : 'Copy Payment Link'}
-      </button>
-    </div>
-  )
-}
-
-function CreatePortModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function CreatePortModal({
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess: () => void
+}) {
   const [name, setName] = useState('')
   const { createPort, isPending, isConfirming, isSuccess, error, reset } = useCreatePort()
 
@@ -214,86 +123,75 @@ function CreatePortModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   useEffect(() => {
     if (isSuccess) {
       onSuccess()
+      setName('')
     }
   }, [isSuccess, onSuccess])
+
+  const handleClose = () => {
+    reset()
+    setName('')
+    onOpenChange(false)
+  }
 
   const isLoading = isPending || isConfirming
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="text-xl font-bold text-zinc-100">Create New Port</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Each Port has its own stealth address for payment isolation.
-        </p>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Port</DialogTitle>
+          <DialogDescription>
+            Each Port has its own stealth address for payment isolation.
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4 py-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Port Name</label>
-            <input
+            <label className="text-foreground block text-sm font-medium">Port Name</label>
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Main Business, Q1 Invoices"
               disabled={isLoading}
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+              className="mt-1"
             />
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-400">
+            <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
               {error.message || 'Failed to create port'}
             </div>
           )}
 
           {isConfirming && (
-            <div className="rounded-lg bg-emerald-900/20 p-3 text-sm text-emerald-400">
+            <div className="bg-primary/10 text-primary rounded-lg p-3 text-sm">
               Waiting for confirmation...
             </div>
           )}
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={() => {
-              reset()
-              onClose()
-            }}
-            disabled={isLoading}
-            className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-600 disabled:opacity-50"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={!name.trim() || isLoading}
-            className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {isPending ? 'Confirm in wallet...' : isConfirming ? 'Confirming...' : 'Create Port'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function NavLink({
-  href,
-  children,
-  active = false,
-}: {
-  href: string
-  children: React.ReactNode
-  active?: boolean
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
-      }`}
-    >
-      {children}
-    </Link>
+          </Button>
+          <Button onClick={handleCreate} disabled={!name.trim() || isLoading}>
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Confirm in wallet...
+              </>
+            ) : isConfirming ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Confirming...
+              </>
+            ) : (
+              'Create Port'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

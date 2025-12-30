@@ -10,6 +10,9 @@
 import { useAppKit, useAppKitAccount, useDisconnect } from '@reown/appkit/react'
 import { useAccount, useBalance } from 'wagmi'
 import { formatUnits } from 'viem'
+import { Wallet } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * Formats an Ethereum address for display.
@@ -56,25 +59,25 @@ export function WalletButton({ className = '' }: WalletButtonProps) {
 
   if (isConnected && address) {
     return (
-      <div className={`flex items-center gap-2 ${className}`}>
+      <div className={cn('flex items-center gap-2', className)}>
         {/* Balance display */}
-        <div className="rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100">
+        <div className="bg-secondary text-foreground rounded-lg px-3 py-2 text-sm font-medium">
           {formatBalance(balance?.value, balance?.decimals)} {balance?.symbol ?? 'MNT'}
         </div>
 
         {/* Network indicator */}
         <button
           onClick={() => open({ view: 'Networks' })}
-          className="flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+          className="bg-secondary text-muted-foreground hover:bg-secondary/80 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
         >
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="bg-primary h-2 w-2 rounded-full" />
           {chain?.name ?? 'Unknown'}
         </button>
 
         {/* Address button */}
         <button
           onClick={() => open()}
-          className="flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-zinc-700"
+          className="bg-secondary text-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           <span>{formatAddress(address)}</span>
         </button>
@@ -83,12 +86,10 @@ export function WalletButton({ className = '' }: WalletButtonProps) {
   }
 
   return (
-    <button
-      onClick={() => open()}
-      className={`rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 ${className}`}
-    >
+    <Button onClick={() => open()} className={className}>
+      <Wallet className="h-4 w-4" />
       Connect Wallet
-    </button>
+    </Button>
   )
 }
 
@@ -105,11 +106,13 @@ export function ConnectButton({ className = '' }: WalletButtonProps) {
   }
 
   return (
-    <button
+    <Button
       onClick={() => open()}
-      className={`rounded-xl bg-emerald-600 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-500 hover:shadow-emerald-500/40 ${className}`}
+      size="lg"
+      className={cn('shadow-primary/25 hover:shadow-primary/40 shadow-lg', className)}
     >
+      <Wallet className="h-5 w-5" />
       Connect Wallet
-    </button>
+    </Button>
   )
 }

@@ -37,3 +37,21 @@ export const supportedChains = [mantle, mantleSepolia] as const
  * Default chain for the application.
  */
 export const defaultChain = mantle
+
+/**
+ * Get block explorer URL for a transaction.
+ */
+export function getTxExplorerUrl(txHash: string, chainId?: number): string {
+  const chain = chainId === mantleSepoliaTestnet.id ? mantleSepoliaTestnet : viemMantle
+  const baseUrl = chain.blockExplorers?.default?.url ?? 'https://mantlescan.xyz'
+  return `${baseUrl}/tx/${txHash}`
+}
+
+/**
+ * Get block explorer URL for an address.
+ */
+export function getAddressExplorerUrl(address: string, chainId?: number): string {
+  const chain = chainId === mantleSepoliaTestnet.id ? mantleSepoliaTestnet : viemMantle
+  const baseUrl = chain.blockExplorers?.default?.url ?? 'https://mantlescan.xyz'
+  return `${baseUrl}/address/${address}`
+}

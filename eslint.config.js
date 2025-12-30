@@ -42,4 +42,12 @@ export default [
       '@typescript-eslint/no-unused-expressions': 'off',
     },
   },
+
+  // Allow empty interface extensions in AdonisJS config files (module augmentation pattern)
+  {
+    files: ['apps/api/config/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-empty-object-type': 'off',
+    },
+  },
 ]
