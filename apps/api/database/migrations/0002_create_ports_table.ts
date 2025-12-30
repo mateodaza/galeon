@@ -18,6 +18,8 @@ export default class extends BaseSchema {
       table.enum('type', ['permanent', 'recurring', 'one-time', 'burner']).notNullable()
       table.text('stealth_meta_address').notNullable()
       table.text('viewing_key_encrypted').notNullable()
+      table.text('viewing_key_nonce').notNullable() // IV for AES-GCM decryption
+      table.integer('chain_id').notNullable().defaultTo(5000) // Mantle Mainnet
       table.boolean('active').notNullable().defaultTo(true)
       table.boolean('archived').notNullable().defaultTo(false)
       table.decimal('total_received', 78, 0).notNullable().defaultTo(0) // wei
