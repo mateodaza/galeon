@@ -26,7 +26,7 @@ ponder.on('ERC5564Announcer:Announcement', async ({ event, context }) => {
     blockTimestamp: event.block.timestamp,
     transactionHash: event.transaction.hash,
     logIndex: event.log.logIndex,
-    chainId: context.network.chainId,
+    chainId: context.chain.id,
   })
 })
 
@@ -45,7 +45,7 @@ ponder.on('GaleonRegistry:PortRegistered', async ({ event, context }) => {
     blockNumber: event.block.number,
     blockTimestamp: event.block.timestamp,
     transactionHash: event.transaction.hash,
-    chainId: context.network.chainId,
+    chainId: context.chain.id,
   })
 })
 
@@ -71,6 +71,6 @@ ponder.on('GaleonRegistry:ReceiptAnchored', async ({ event, context }) => {
     blockNumber: event.block.number,
     transactionHash: event.transaction.hash,
     logIndex: event.log.logIndex,
-    chainId: context.network.chainId,
+    chainId: context.chain.id,
   })
 })

@@ -1,5 +1,4 @@
 import { createConfig } from 'ponder'
-import { http } from 'viem'
 
 import { ERC5564AnnouncerAbi } from './abis/ERC5564Announcer'
 import { ERC6538RegistryAbi } from './abis/ERC6538Registry'
@@ -19,34 +18,42 @@ const GALEON_TENDER = (process.env.GALEON_TENDER_ADDRESS ||
 const START_BLOCK = Number(process.env.START_BLOCK || 89365202)
 
 export default createConfig({
-  networks: {
+  // Use PostgreSQL if DATABASE_URL is set, otherwise PGlite (embedded)
+  // Note: PGlite may crash during heavy backfill - use PostgreSQL for production
+  database: process.env.DATABASE_URL
+    ? {
+        kind: 'postgres',
+        connectionString: process.env.DATABASE_URL,
+      }
+    : undefined,
+  chains: {
     mantle: {
-      chainId: 5000,
-      transport: http(process.env.PONDER_RPC_URL_5000 || 'https://rpc.mantle.xyz'),
+      id: 5000,
+      rpc: process.env.PONDER_RPC_URL_5000 || 'https://rpc.mantle.xyz',
     },
   },
   contracts: {
     ERC5564Announcer: {
       abi: ERC5564AnnouncerAbi,
-      network: 'mantle',
+      chain: 'mantle',
       address: ERC5564_ANNOUNCER,
       startBlock: START_BLOCK,
     },
     ERC6538Registry: {
       abi: ERC6538RegistryAbi,
-      network: 'mantle',
+      chain: 'mantle',
       address: ERC6538_REGISTRY,
       startBlock: START_BLOCK,
     },
     GaleonRegistry: {
       abi: GaleonRegistryAbi,
-      network: 'mantle',
+      chain: 'mantle',
       address: GALEON_REGISTRY,
       startBlock: START_BLOCK,
     },
     GaleonTender: {
       abi: GaleonTenderAbi,
-      network: 'mantle',
+      chain: 'mantle',
       address: GALEON_TENDER,
       startBlock: START_BLOCK,
     },

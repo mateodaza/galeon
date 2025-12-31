@@ -1,7 +1,7 @@
 # Galeon - Development Progress
 
 > Global tracker synced with app/package progress files.
-> Last updated: 2025-12-27
+> Last updated: 2025-12-31
 
 ## Current Phase: 1 - Foundation
 
@@ -13,10 +13,10 @@
 | --------------- | ----------- | ----- | --------------------------------------------------------- |
 | Turborepo setup | Done        | -     | Monorepo structure created                                |
 | Railway infra   | Not Started | -     | PostgreSQL + Redis                                        |
-| AdonisJS API    | In Progress | -     | Models, SIWE auth, JWT refresh - 85 tests                 |
+| AdonisJS API    | In Progress | -     | Models, SIWE auth, JWT refresh, Fog payments - 100+ tests |
 | Stealth library | Done        | -     | 30 tests, audited, documented (README.md)                 |
 | Contracts       | Done        | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
-| Ponder indexer  | Not Started | -     | Event handlers + webhook                                  |
+| Ponder indexer  | Done        | -     | Event handlers, schema, REST API (direct DB access)       |
 | Real-time       | Not Started | -     | Transmit SSE                                              |
 
 **Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
@@ -52,8 +52,8 @@
 | Error handling  | Done        | -     | Network guard, graceful env handling     |
 | README          | Done        | -     | Root + frontend docs with contract addrs |
 | GaleonTender    | Not Started | -     | Batch collection via tender contract     |
-| Ponder indexer  | Not Started | -     | Replace event scanning with indexed data |
-| Backend API     | Not Started | -     | SIWE auth, port indexing, receipts       |
+| Ponder indexer  | Done        | -     | Replace event scanning with indexed data |
+| Backend API     | In Progress | -     | SIWE auth, fog payments, receipts        |
 | Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                    |
 | Evidence bundle | Not Started | -     | Screenshots, video                       |
 | Submission      | Not Started | -     | Hackathon write-up                       |

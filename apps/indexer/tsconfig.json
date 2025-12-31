@@ -6,8 +6,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node"]
   },
-  "include": ["ponder.config.ts", "ponder.schema.ts", "src/utils.ts", "tests/**/*"],
-  "exclude": ["node_modules", "src/index.ts", "src/api"]
+  "include": ["ponder.config.ts", "ponder.schema.ts", "src/utils.ts"],
+  "exclude": ["node_modules", "src/index.ts", "src/api", "tests"]
 }

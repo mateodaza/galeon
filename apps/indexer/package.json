@@ -17,7 +17,7 @@
     "@galeon/eslint-config": "workspace:*",
     "@galeon/stealth": "workspace:*",
     "hono": "^4.11.3",
-    "ponder": "^0.9.1",
+    "ponder": "^0.15.17",
     "viem": "^2.21.58"
   },
   "devDependencies": {
