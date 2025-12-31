@@ -71,7 +71,7 @@ export default class AuthController {
 
   /**
    * POST /auth/refresh
-   * Exchange refresh token for new access token
+   * Exchange refresh token for new access token + user data
    * Expects: Authorization: Bearer <refresh_token>
    */
   async refresh({ response, auth }: HttpContext) {
@@ -86,6 +86,11 @@ export default class AuthController {
       const newRefreshToken = user.currentToken
 
       return response.ok({
+        user: {
+          id: user.id,
+          walletAddress: user.walletAddress,
+          createdAt: user.createdAt,
+        },
         accessToken: (accessToken as { token: string }).token,
         refreshToken: newRefreshToken,
       })

@@ -3,22 +3,23 @@
 > Global tracker synced with app/package progress files.
 > Last updated: 2025-12-31
 
-## Current Phase: 1 - Foundation
+## Current Phase: 2 - Frontend + Full Flow
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅
 
 **Goal:** Backend + stealth library + contracts deployed
 
-| Task            | Status      | Owner | Notes                                                     |
-| --------------- | ----------- | ----- | --------------------------------------------------------- |
-| Turborepo setup | Done        | -     | Monorepo structure created                                |
-| Railway infra   | Not Started | -     | PostgreSQL + Redis                                        |
-| AdonisJS API    | In Progress | -     | Models, SIWE auth, JWT refresh, Fog payments - 100+ tests |
-| Stealth library | Done        | -     | 30 tests, audited, documented (README.md)                 |
-| Contracts       | Done        | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
-| Ponder indexer  | Done        | -     | Event handlers, schema, REST API (direct DB access)       |
-| Receipt Claim   | Not Started | -     | Frontend claims → API verifies via Ponder → user linked   |
-| Real-time       | Not Started | -     | Transmit SSE                                              |
+| Task            | Status  | Owner | Notes                                                     |
+| --------------- | ------- | ----- | --------------------------------------------------------- |
+| Turborepo setup | Done    | -     | Monorepo structure created                                |
+| Railway infra   | Done    | -     | PostgreSQL + Redis configured                             |
+| AdonisJS API    | Done    | -     | Models, SIWE auth, JWT refresh, Fog payments - 145 tests  |
+| Stealth library | Done    | -     | 30 tests, audited, documented (README.md)                 |
+| Contracts       | Done    | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
+| Ponder indexer  | Done    | -     | Event handlers, schema, REST API (direct DB access)       |
+| Port Intent     | Done    | -     | Frontend creates intent → chain tx → backend confirms     |
+| Receipt Claim   | Pending | -     | Frontend claims → API verifies via Ponder → user linked   |
+| Real-time       | Pending | -     | Transmit SSE                                              |
 
 **Milestone:** Payment on chain → Frontend claims → API verifies → User notified
 
@@ -28,17 +29,20 @@
 
 **Goal:** Complete user journey from setup to collection
 
-| Task             | Status | Owner | Notes                                    |
-| ---------------- | ------ | ----- | ---------------------------------------- |
-| Next.js setup    | Done   | -     | wagmi v3, Reown AppKit, Tailwind v4      |
-| /setup           | Done   | -     | Onboarding flow with key derivation      |
-| /dashboard/ports | Done   | -     | Port management with per-port keys       |
-| /pay/[portId]    | Done   | -     | Payment flow with stealth addresses      |
-| /collect         | Done   | -     | Collection interface (manual sweeping)   |
-| /dashboard       | Done   | -     | Vendor dashboard with stats              |
-| /verify          | Done   | -     | Receipt verification (coming soon badge) |
-| Network guard    | Done   | -     | Wrong-chain warning banner               |
-| Audit fixes      | Done   | -     | Per-port keys, env handling, UX          |
+| Task              | Status | Owner | Notes                                    |
+| ----------------- | ------ | ----- | ---------------------------------------- |
+| Next.js setup     | Done   | -     | wagmi v3, Reown AppKit, Tailwind v4      |
+| /setup            | Done   | -     | Onboarding flow with key derivation      |
+| /receive          | Done   | -     | Port management with backend integration |
+| /send             | Done   | -     | Payment initiation page                  |
+| /pay/[portId]     | Done   | -     | Payment flow with stealth addresses      |
+| /collect          | Done   | -     | Collection interface (manual sweeping)   |
+| /dashboard        | Done   | -     | Vendor dashboard with stats              |
+| /verify           | Done   | -     | Receipt verification (coming soon badge) |
+| Network guard     | Done   | -     | Wrong-chain warning banner               |
+| SIWE auth         | Done   | -     | API client, JWT tokens, auto-refresh     |
+| Port backend sync | Done   | -     | Intent pattern with status lifecycle     |
+| Audit fixes       | Done   | -     | Per-port keys, env handling, UX          |
 
 **Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Detect → Collect
 
@@ -48,16 +52,17 @@
 
 **Goal:** Production-ready for hackathon demo
 
-| Task            | Status      | Owner | Notes                                    |
-| --------------- | ----------- | ----- | ---------------------------------------- |
-| Error handling  | Done        | -     | Network guard, graceful env handling     |
-| README          | Done        | -     | Root + frontend docs with contract addrs |
-| GaleonTender    | Not Started | -     | Batch collection via tender contract     |
-| Ponder indexer  | Done        | -     | Replace event scanning with indexed data |
-| Backend API     | In Progress | -     | SIWE auth, fog payments, receipts        |
-| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                    |
-| Evidence bundle | Not Started | -     | Screenshots, video                       |
-| Submission      | Not Started | -     | Hackathon write-up                       |
+| Task            | Status      | Owner | Notes                                          |
+| --------------- | ----------- | ----- | ---------------------------------------------- |
+| Error handling  | Done        | -     | Network guard, graceful env handling           |
+| README          | Done        | -     | Root + frontend docs with contract addrs       |
+| GaleonTender    | Not Started | -     | Batch collection via tender contract           |
+| Ponder indexer  | Done        | -     | Replace event scanning with indexed data       |
+| Backend API     | Done        | -     | SIWE auth, port sync, fog payments - 145 tests |
+| Receipt claim   | Pending     | -     | Frontend claim → API verify via Ponder         |
+| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                          |
+| Evidence bundle | Not Started | -     | Screenshots, video                             |
+| Submission      | Not Started | -     | Hackathon write-up                             |
 
 **Deadline:** January 15, 2026
 

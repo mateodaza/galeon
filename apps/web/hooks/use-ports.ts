@@ -3,182 +3,99 @@
 /**
  * React hook for Port management.
  *
- * Reads ports from PortRegistered events (temporary until backend is ready).
- * Provides functions for creating and managing ports.
- *
- * TODO [BACKEND_SWAP]: Replace event reading with backend API calls
- * - usePorts() queryFn: fetch('/api/ports?owner=${address}')
- * - Port creation stays on-chain, but can notify backend after tx confirms
+ * Reads ports from backend API.
+ * Creates ports via two-step flow:
+ * 1. Create port in backend → get UUID
+ * 2. Derive keys using UUID hash as seed
+ * 3. Update port with stealth keys
+ * 4. Send on-chain tx → wait for receipt → confirm
  */
 
-import { useMemo } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
-import { useQuery } from '@tanstack/react-query'
-import { keccak256, toHex, encodePacked } from 'viem'
+import { useMemo, useState, useCallback } from 'react'
+import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keccak256, toHex, encodePacked, stringToBytes } from 'viem'
 import { galeonRegistryAbi, CONTRACTS } from '@/lib/contracts'
 import { derivePortKeys, formatStealthMetaAddress } from '@galeon/stealth'
 import { useStealthContext } from '@/contexts/stealth-context'
+import { portsApi, type PortResponse, type PortStatus } from '@/lib/api'
 
-/** Port data structure */
+/** Port data structure (combines backend + derived data) */
 export interface Port {
-  portId: `0x${string}`
+  id: string // Backend UUID
+  portId: `0x${string}` | null // On-chain portId (indexerPortId)
   name: string
-  stealthMetaAddress: string
-  owner: `0x${string}`
+  stealthMetaAddress: string | null
+  owner?: `0x${string}`
   isActive: boolean
-  createdAt?: bigint
+  status: PortStatus
+  txHash: string | null
+  createdAt?: string
 }
 
 /**
- * Hook for reading user's ports from chain events.
- *
- * This is a temporary solution until the backend/Ponder is ready.
- * Reads PortRegistered events filtered by the connected wallet.
+ * Convert UUID to a deterministic 32-bit number for key derivation.
+ * Uses first 4 bytes of keccak256 hash.
+ */
+function uuidToPortIndex(uuid: string): number {
+  const hash = keccak256(stringToBytes(uuid))
+  return parseInt(hash.slice(2, 10), 16)
+}
+
+/**
+ * Hook for reading user's ports from backend API.
  */
 export function usePorts() {
-  const { address, chainId } = useAccount()
-  const publicClient = usePublicClient()
-
-  const contractAddress = useMemo(() => {
-    if (!chainId) return null
-    const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    return contracts?.galeonRegistry ?? null
-  }, [chainId])
+  const queryClient = useQueryClient()
 
   const {
-    data: ports,
+    data: portsData,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ['ports', address, chainId],
+    queryKey: ['ports'],
     queryFn: async (): Promise<Port[]> => {
-      if (!publicClient || !address || !contractAddress) {
-        return []
-      }
-
-      // ============================================================
-      // TODO [BACKEND_SWAP]: Replace this block with:
-      // const res = await fetch(`/api/ports?owner=${address}&chainId=${chainId}`)
-      // return res.json()
-      // ============================================================
-
-      // Start from deployment block (first block before all Galeon contracts)
-      const deploymentBlock = 89365202n
-      const CHUNK_SIZE = 40000n // Stay under 50k limit for WalletConnect RPC
-      const latestBlock = await publicClient.getBlockNumber()
-
-      type PortRegisteredLog = {
-        args: {
-          owner: `0x${string}`
-          portId: `0x${string}`
-          name: string
-          stealthMetaAddress: `0x${string}`
-        }
-        blockNumber: bigint
-      }
-
-      type PortDeactivatedLog = {
-        args: {
-          owner: `0x${string}`
-          portId: `0x${string}`
-        }
-      }
-
-      const portRegisteredEvent = {
-        type: 'event' as const,
-        name: 'PortRegistered' as const,
-        inputs: [
-          { name: 'owner', type: 'address', indexed: true },
-          { name: 'portId', type: 'bytes32', indexed: true },
-          { name: 'name', type: 'string', indexed: false },
-          { name: 'stealthMetaAddress', type: 'bytes', indexed: false },
-        ],
-      } as const
-
-      const portDeactivatedEvent = {
-        type: 'event' as const,
-        name: 'PortDeactivated' as const,
-        inputs: [
-          { name: 'owner', type: 'address', indexed: true },
-          { name: 'portId', type: 'bytes32', indexed: true },
-        ],
-      } as const
-
-      // Fetch logs in chunks to avoid RPC block range limits
-      const allPortLogs: PortRegisteredLog[] = []
-      const allDeactivationLogs: PortDeactivatedLog[] = []
-
-      let fromBlock = deploymentBlock
-      while (fromBlock <= latestBlock) {
-        const toBlock = fromBlock + CHUNK_SIZE > latestBlock ? latestBlock : fromBlock + CHUNK_SIZE
-
-        const [portLogs, deactivationLogs] = await Promise.all([
-          publicClient.getLogs({
-            address: contractAddress,
-            event: portRegisteredEvent,
-            args: { owner: address },
-            fromBlock,
-            toBlock,
-          }),
-          publicClient.getLogs({
-            address: contractAddress,
-            event: portDeactivatedEvent,
-            args: { owner: address },
-            fromBlock,
-            toBlock,
-          }),
-        ])
-
-        allPortLogs.push(...(portLogs as unknown as PortRegisteredLog[]))
-        allDeactivationLogs.push(...(deactivationLogs as unknown as PortDeactivatedLog[]))
-        fromBlock = toBlock + 1n
-      }
-
-      const logs = allPortLogs
-      const deactivationLogs = allDeactivationLogs
-
-      // Build set of deactivated port IDs
-      const deactivatedPorts = new Set(deactivationLogs.map((log) => log.args.portId))
-
-      // Map logs to Port objects
-      return logs.map((log) => {
-        const args = log.args
-
-        // Decode stealth meta-address bytes to string format
-        const metaAddressBytes = args.stealthMetaAddress
-        const formatted = decodeMetaAddress(metaAddressBytes)
-
-        return {
-          portId: args.portId,
-          name: args.name,
-          stealthMetaAddress: formatted,
-          owner: args.owner,
-          isActive: !deactivatedPorts.has(args.portId),
-          createdAt: log.blockNumber,
-        }
-      })
+      const response = await portsApi.list()
+      return response.data.map((port) => mapPortResponse(port))
     },
-    enabled: !!publicClient && !!address && !!contractAddress,
     staleTime: 30_000, // 30 seconds
   })
 
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['ports'] })
+  }, [queryClient])
+
   return {
-    ports: ports ?? [],
+    ports: portsData ?? [],
     isLoading,
     error,
     refetch,
+    invalidate,
   }
 }
 
 /**
  * Hook for creating a new port.
- * Uses per-port key derivation for cryptographic isolation.
+ *
+ * Two-step flow to avoid key reuse:
+ * 1. Create port in backend → get UUID
+ * 2. Derive keys using UUID hash as portIndex seed
+ * 3. Update port with stealth keys
+ * 4. Send on-chain tx → wait for receipt → confirm
  */
 export function useCreatePort() {
-  const { chainId } = useAccount()
+  const { address, chainId } = useAccount()
+  const publicClient = usePublicClient()
   const { masterSignature } = useStealthContext()
-  const { ports, refetch } = usePorts()
+  const { invalidate } = usePorts()
+  const queryClient = useQueryClient()
+
+  const [isPending, setIsPending] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [hash, setHash] = useState<`0x${string}` | undefined>()
+  const [error, setError] = useState<Error | null>(null)
 
   const contractAddress = useMemo(() => {
     if (!chainId) return null
@@ -186,11 +103,7 @@ export function useCreatePort() {
     return contracts?.galeonRegistry ?? null
   }, [chainId])
 
-  const { writeContract, data: hash, isPending, error, reset } = useWriteContract()
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  })
+  const { writeContractAsync } = useWriteContract()
 
   const createPort = async (name: string) => {
     if (!contractAddress) {
@@ -201,37 +114,118 @@ export function useCreatePort() {
       throw new Error('Keys not derived - please unlock first')
     }
 
-    // Use current port count as the index for deterministic key derivation
-    // This ensures each port gets unique, reproducible keys
-    const portIndex = ports.length
+    if (!address) {
+      throw new Error('Wallet not connected')
+    }
 
-    // Derive port-specific keys using master signature + port index
-    const portKeys = derivePortKeys(masterSignature, portIndex)
+    if (!publicClient) {
+      throw new Error('Public client not available')
+    }
 
-    // Generate unique port ID from name + random
-    const random = crypto.getRandomValues(new Uint8Array(16))
-    const portId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
+    // Reset state
+    setError(null)
+    setIsSuccess(false)
+    setHash(undefined)
+    setIsPending(true)
 
-    // Format stealth meta-address as bytes (66 bytes = spending + viewing pubkeys)
-    const metaAddressBytes = encodeMetaAddress(
-      portKeys.spendingPublicKey,
-      portKeys.viewingPublicKey
-    )
+    try {
+      // Step 1: Create port in backend (just name) → get UUID
+      const backendPort = await portsApi.create({ name, chainId })
 
-    writeContract({
-      address: contractAddress,
-      abi: galeonRegistryAbi,
-      functionName: 'registerPort',
-      args: [portId, name, metaAddressBytes],
-    })
+      // Step 2: Derive keys using UUID hash as portIndex (prevents key reuse)
+      const portIndex = uuidToPortIndex(backendPort.id)
+      const portKeys = derivePortKeys(masterSignature, portIndex)
 
-    return portId
+      // Format stealth meta-address as string for backend
+      const stealthMetaAddress = formatStealthMetaAddress(
+        portKeys.spendingPublicKey,
+        portKeys.viewingPublicKey,
+        'mnt'
+      )
+
+      // Get viewing key as hex for backend storage
+      const viewingKey = toHex(portKeys.viewingPrivateKey)
+
+      // Step 3: Update port with stealth keys
+      await portsApi.update(backendPort.id, { stealthMetaAddress, viewingKey })
+
+      // Optimistically add to cache
+      queryClient.setQueryData<Port[]>(['ports'], (old) => {
+        const newPort: Port = {
+          id: backendPort.id,
+          portId: null,
+          name: backendPort.name,
+          stealthMetaAddress,
+          isActive: true,
+          status: 'pending',
+          txHash: null,
+          createdAt: backendPort.createdAt,
+        }
+        return old ? [newPort, ...old] : [newPort]
+      })
+
+      // Step 4: Generate on-chain portId and send transaction
+      const random = crypto.getRandomValues(new Uint8Array(16))
+      const onChainPortId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
+
+      // Format stealth meta-address as bytes for chain (66 bytes = spending + viewing pubkeys)
+      const metaAddressBytes = encodeMetaAddress(
+        portKeys.spendingPublicKey,
+        portKeys.viewingPublicKey
+      )
+
+      const txHash = await writeContractAsync({
+        address: contractAddress,
+        abi: galeonRegistryAbi,
+        functionName: 'registerPort',
+        args: [onChainPortId, name, metaAddressBytes],
+      })
+
+      setHash(txHash)
+      setIsPending(false)
+      setIsConfirming(true)
+
+      // Step 5: Wait for transaction receipt
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+      // Step 6: Update backend with confirmed status and on-chain portId
+      try {
+        await portsApi.update(backendPort.id, {
+          txHash,
+          status: 'confirmed',
+          indexerPortId: onChainPortId,
+        })
+      } catch (updateErr) {
+        console.error('First update attempt failed, retrying...', updateErr)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await portsApi.update(backendPort.id, {
+          txHash,
+          status: 'confirmed',
+          indexerPortId: onChainPortId,
+        })
+      }
+
+      setIsConfirming(false)
+      setIsSuccess(true)
+      invalidate()
+
+      return backendPort.id
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to create port')
+      setError(error)
+      setIsPending(false)
+      setIsConfirming(false)
+      throw error
+    }
   }
 
-  // Refetch ports when transaction is confirmed
-  if (isSuccess) {
-    refetch()
-  }
+  const reset = useCallback(() => {
+    setIsPending(false)
+    setIsConfirming(false)
+    setIsSuccess(false)
+    setHash(undefined)
+    setError(null)
+  }, [])
 
   return {
     createPort,
@@ -245,27 +239,19 @@ export function useCreatePort() {
 }
 
 /**
- * Decode stealth meta-address bytes to string format.
- * Bytes format: 66 bytes = spending pubkey (33) + viewing pubkey (33)
+ * Map backend PortResponse to frontend Port interface
  */
-function decodeMetaAddress(bytes: `0x${string}`): string {
-  // Remove 0x prefix
-  const hex = bytes.slice(2)
-
-  if (hex.length !== 132) {
-    // 66 bytes = 132 hex chars
-    return `st:mnt:${bytes}` // fallback
+function mapPortResponse(port: PortResponse): Port {
+  return {
+    id: port.id,
+    portId: port.indexerPortId as `0x${string}` | null,
+    name: port.name,
+    stealthMetaAddress: port.stealthMetaAddress,
+    isActive: !port.archived,
+    status: port.status,
+    txHash: port.txHash,
+    createdAt: port.createdAt,
   }
-
-  const spendingPubKey = new Uint8Array(33)
-  const viewingPubKey = new Uint8Array(33)
-
-  for (let i = 0; i < 33; i++) {
-    spendingPubKey[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-    viewingPubKey[i] = parseInt(hex.slice(66 + i * 2, 66 + i * 2 + 2), 16)
-  }
-
-  return formatStealthMetaAddress(spendingPubKey, viewingPubKey, 'mnt')
 }
 
 /**

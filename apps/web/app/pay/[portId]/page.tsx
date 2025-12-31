@@ -67,7 +67,7 @@ export default function PayPage({ params }: PayPageProps) {
   // Show loading while fetching port
   if (isLoadingPort) {
     return (
-      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+      <AppShell maxWidth="lg" className="items-center justify-center">
         <div className="flex flex-1 flex-col items-center justify-center p-6">
           <Loader2 className="text-primary h-8 w-8 animate-spin" />
           <p className="text-muted-foreground mt-4">Loading port...</p>
@@ -79,7 +79,7 @@ export default function PayPage({ params }: PayPageProps) {
   // Port not found
   if (!portExists) {
     return (
-      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+      <AppShell maxWidth="lg" className="items-center justify-center">
         <div className="flex flex-1 flex-col items-center justify-center p-6">
           <XCircle className="text-muted-foreground h-16 w-16" />
           <h1 className="text-foreground mt-4 text-2xl font-bold">Port Not Found</h1>
@@ -91,7 +91,7 @@ export default function PayPage({ params }: PayPageProps) {
 
   if (isSuccess && txHash) {
     return (
-      <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+      <AppShell maxWidth="lg" className="items-center justify-center">
         <div className="flex flex-1 flex-col items-center justify-center p-6">
           <div className="w-full max-w-md text-center">
             <div className="bg-primary/20 mx-auto flex h-16 w-16 items-center justify-center rounded-full">
@@ -125,7 +125,7 @@ export default function PayPage({ params }: PayPageProps) {
   }
 
   return (
-    <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+    <AppShell maxWidth="lg" className="items-center justify-center">
       <div className="flex flex-1 flex-col items-center justify-center p-6">
         <div className="w-full max-w-md">
           <Card>

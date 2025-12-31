@@ -2,19 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useAppKitAccount } from '@reown/appkit/react'
 import { Loader2 } from 'lucide-react'
-import { Header, dashboardNav } from './header'
-import { useStealthContext } from '@/contexts/stealth-context'
+import { FloatingNav, dashboardNav } from './floating-nav'
+import { useSignIn } from '@/hooks/use-sign-in'
 import { cn } from '@/lib/utils'
 
 interface AppShellProps {
   children: React.ReactNode
-  /**
-   * Whether to show the dashboard navigation.
-   * @default true
-   */
-  showNav?: boolean
   /**
    * Whether authentication is required.
    * @default false
@@ -53,39 +47,39 @@ const maxWidthMap = {
  */
 export function AppShell({
   children,
-  showNav = true,
   requireAuth = false,
   requireKeys = false,
   maxWidth = '6xl',
   className,
 }: AppShellProps) {
   const router = useRouter()
-  const { isConnected } = useAppKitAccount()
-  const { hasKeys } = useStealthContext()
+  const { isConnected, hasKeys, isLoading } = useSignIn()
 
-  // Redirect if auth/keys required but not available
+  // Redirect if auth/keys required but not available (only after loading completes)
   useEffect(() => {
+    if (isLoading) return // Wait for session restoration
+
     if (requireAuth && !isConnected) {
       router.push('/setup')
     } else if (requireKeys && !hasKeys) {
       router.push('/setup')
     }
-  }, [requireAuth, requireKeys, isConnected, hasKeys, router])
+  }, [requireAuth, requireKeys, isConnected, hasKeys, isLoading, router])
 
-  // Show loading state while checking auth
-  if ((requireAuth && !isConnected) || (requireKeys && !hasKeys)) {
+  // Show loading state while restoring session or checking auth
+  if (isLoading || (requireAuth && !isConnected) || (requireKeys && !hasKeys)) {
     return (
       <main className="bg-background flex min-h-screen flex-col items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin" />
-        <p className="text-muted-foreground mt-4">Redirecting...</p>
+        <p className="text-muted-foreground mt-4">{isLoading ? 'Loading...' : 'Redirecting...'}</p>
       </main>
     )
   }
 
   return (
     <main className="bg-background flex min-h-screen flex-col">
-      <Header nav={showNav ? dashboardNav : undefined} />
-      <div className="flex-1 px-6 py-8">
+      <FloatingNav nav={dashboardNav} variant="light" />
+      <div className="flex-1 px-6 pb-8 pt-28">
         <div className={cn('mx-auto', maxWidthMap[maxWidth], className)}>{children}</div>
       </div>
     </main>

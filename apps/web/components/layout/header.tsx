@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Ship } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +33,7 @@ export function Header({ nav, showWallet = true }: HeaderProps) {
     <header className="flex items-center justify-between border-b px-6 py-4">
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2">
-          <Ship className="text-primary h-6 w-6" />
+          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
           <span className="text-foreground text-xl font-bold">Galeon</span>
         </Link>
         {nav && nav.length > 0 && (

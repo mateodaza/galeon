@@ -29,7 +29,7 @@ const sections: FlowSection[] = [
     id: 'report',
     title: 'Report',
     description:
-      'Generate selective disclosure proofs for compliance. Prove payment without revealing your main address.',
+      'Verify payments on-chain with receipt IDs. Selective disclosure proofs for compliance coming soon.',
     reverse: false,
   },
 ]

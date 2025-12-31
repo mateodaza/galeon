@@ -22,6 +22,8 @@ export default class extends BaseSchema {
       table.text('stealth_meta_address').notNullable()
       table.text('viewing_key_encrypted').notNullable() // Encrypted with APP_KEY via AdonisJS encryption service
       table.integer('chain_id').notNullable().defaultTo(5000) // Mantle Mainnet
+      table.enum('status', ['pending', 'confirmed']).notNullable().defaultTo('pending') // pending until verified by indexer
+      table.string('tx_hash', 66).nullable() // Transaction hash for on-chain verification
       table.boolean('active').notNullable().defaultTo(true)
       table.boolean('archived').notNullable().defaultTo(false)
       table.decimal('total_received', 78, 0).notNullable().defaultTo(0) // wei
@@ -32,6 +34,7 @@ export default class extends BaseSchema {
       table.timestamp('archived_at', { useTz: true }).nullable()
 
       table.index(['user_id', 'active'])
+      table.index(['status']) // For reconciliation queries
     })
   }
 

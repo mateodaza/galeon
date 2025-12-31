@@ -1,7 +1,7 @@
 # Frontend (apps/web) Progress
 
 > Next.js 16 + React 19 frontend with Reown AppKit
-> Last updated: 2025-12-27
+> Last updated: 2025-12-31
 
 ## Setup
 
@@ -12,8 +12,8 @@
 - [x] Set up Reown AppKit for wallet connection
 - [x] Define custom Mantle chains (5000, 5003)
 - [x] Configure SSR with cookie storage
-- [ ] Set up shadcn/ui (optional)
-- [ ] Create API client for AdonisJS
+- [x] Set up shadcn/ui components
+- [x] Create API client for AdonisJS (`lib/api.ts`)
 - [ ] Set up Transmit SSE client
 
 ## Pages
@@ -21,7 +21,8 @@
 - [x] Landing page (`/`) - Hero, features, wallet connect
 - [x] Setup/onboarding (`/setup`) - Stepper UI, key derivation
 - [x] Dashboard (`/dashboard`) - Mode switch, stats, quick actions
-- [x] Port management (`/dashboard/ports`) - List, create modal
+- [x] Receive (`/receive`) - Port management with backend integration
+- [x] Send (`/send`) - Payment initiation
 - [x] Payment flow (`/pay/[portId]`) - Amount input, confirm
 - [x] Collection (`/collect`) - Scan, collect all
 - [x] Verification (`/verify`) - Receipt ID input, on-chain check
@@ -31,24 +32,27 @@
 
 - [x] WalletButton - Connect/disconnect with Reown AppKit
 - [x] ConnectButton - Larger CTA for landing pages
-- [x] Providers - AppKit, Query, Wagmi, Stealth providers
+- [x] Providers - AppKit, Query, Wagmi, Stealth, Auth providers
 - [x] NetworkGuard - Wrong-chain warning banner
-- [x] PortCard - Port display with copy link
-- [x] CreatePortModal - Port creation form with per-port keys
+- [x] PortCard - Port display with status badge, copy link (pending/confirmed)
+- [x] CreatePortModal - Port creation with backend intent pattern
 - [x] StatCard - Dashboard stat display
 - [x] NavLink - Navigation link component
+- [x] AuthGuard - Route protection requiring authentication
+- [x] SignInModal - SIWE authentication modal
+- [x] AppShell - Layout with auth/keys requirements
 - [ ] ReceiptCard
 - [ ] CollectionPanel (advanced)
 - [ ] DashboardStats (advanced)
-- [ ] ModeSwitch (integrated in dashboard)
 
 ## Hooks
 
 - [x] useStealth - Stealth key derivation, address generation
-- [x] usePorts - Port CRUD (event-based, TODO: backend swap)
-- [x] useCreatePort - Port creation with per-port key derivation
+- [x] usePorts - Port list from backend API (React Query)
+- [x] useCreatePort - Port creation with intent pattern (backend → chain → confirm)
 - [x] useCollection - Scan + collect (manual sweeping)
 - [x] usePayment - Native payment with stealth addresses
+- [x] useSignIn - SIWE authentication flow
 - [ ] usePaymentStream - Transmit SSE (needs backend)
 
 ## Lib
@@ -56,6 +60,7 @@
 - [x] chains.ts - Mantle + Mantle Sepolia definitions
 - [x] wagmi.ts - WagmiAdapter with cookie storage, graceful env handling
 - [x] contracts.ts - ABIs for GaleonRegistry, Announcer, Registry (Tender address defined but not yet used)
+- [x] api.ts - API client with JWT auth, auto-refresh, typed endpoints
 
 ## Configuration
 
@@ -85,10 +90,19 @@
 - [x] Verify page - "Coming Soon" badge added
 - [x] Receipt hash - Now includes memo + amount + portId
 
+## Backend Integration (2025-12-31)
+
+- [x] API client with JWT tokens (`lib/api.ts`)
+- [x] SIWE authentication flow (`contexts/auth-context.tsx`, `hooks/use-sign-in.ts`)
+- [x] Port creation intent pattern (pending → chain tx → confirmed)
+- [x] Ports API integration (`portsApi` with typed requests/responses)
+- [x] Port status badges (pending/confirmed states)
+- [x] Payment link visibility based on confirmed status
+
 **Next Steps:**
 
 1. Integrate GaleonTender for batch collection (gas savings)
 2. Add tenderAbi to contracts.ts and update useCollection
 3. Replace event scanning with Ponder indexer
-4. Add API client for backend integration (SIWE, receipts)
-5. Add SSE for real-time payment notifications
+4. Add SSE for real-time payment notifications
+5. Receipt claim flow (claim → backend verifies via Ponder)

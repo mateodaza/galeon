@@ -93,6 +93,14 @@ export default class CollectionService {
       // Process native token receipts
       for (const receipt of nativeReceipts) {
         try {
+          // Skip ports without viewing keys (two-step creation incomplete)
+          if (!receipt.port.viewingKeyEncrypted) {
+            console.warn(
+              `Port ${receipt.port.id} has no viewing key, skipping receipt ${receipt.id}`
+            )
+            continue
+          }
+
           // TODO: Derive stealth private key properly using stealth library
           // This requires: ephemeralPubKey, spendingPrivateKey, viewingPrivateKey
           const ephemeralPubKeyBytes = StealthService.hexToBytes(receipt.ephemeralPubKey)
@@ -142,6 +150,14 @@ export default class CollectionService {
 
         for (const receipt of tokenReceiptList) {
           try {
+            // Skip ports without viewing keys (two-step creation incomplete)
+            if (!receipt.port.viewingKeyEncrypted) {
+              console.warn(
+                `Port ${receipt.port.id} has no viewing key, skipping receipt ${receipt.id}`
+              )
+              continue
+            }
+
             const ephemeralPubKeyBytes = StealthService.hexToBytes(receipt.ephemeralPubKey)
             const viewingKeyBytes = StealthService.hexToBytes(receipt.port.viewingKeyEncrypted)
             const spendingKeyBytes = new Uint8Array(32)
