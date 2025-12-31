@@ -8,10 +8,9 @@
  */
 
 import { useAppKit, useAppKitAccount, useDisconnect } from '@reown/appkit/react'
-import { useAccount, useBalance } from 'wagmi'
+import { useBalance } from 'wagmi'
 import { formatUnits } from 'viem'
 import { Wallet } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -50,7 +49,6 @@ export function WalletButton({ className = '' }: WalletButtonProps) {
   const { open } = useAppKit()
   const { address, isConnected } = useAppKitAccount()
   const { disconnect: _disconnect } = useDisconnect()
-  const { chain } = useAccount()
 
   // Fetch real balance from RPC (not AppKit's balance service)
   const { data: balance } = useBalance({
@@ -59,26 +57,16 @@ export function WalletButton({ className = '' }: WalletButtonProps) {
 
   if (isConnected && address) {
     return (
-      <div className={cn('flex items-center gap-2', className)}>
-        {/* Balance display */}
-        <div className="bg-secondary text-foreground rounded-lg px-3 py-2 text-sm font-medium">
-          {formatBalance(balance?.value, balance?.decimals)} {balance?.symbol ?? 'MNT'}
-        </div>
-
-        {/* Network indicator */}
-        <button
-          onClick={() => open({ view: 'Networks' })}
-          className="bg-secondary text-muted-foreground hover:bg-secondary/80 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-        >
-          <span className="bg-primary h-2 w-2 rounded-full" />
-          {chain?.name ?? 'Unknown'}
-        </button>
-
-        {/* Address button */}
+      <div className={cn('flex items-center gap-1.5', className)}>
+        {/* Balance + Address button */}
         <button
           onClick={() => open()}
-          className="bg-secondary text-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          className="flex cursor-pointer items-center gap-2 rounded-full bg-cyan-400/20 px-3 py-1.5 text-sm font-medium text-cyan-100 transition-colors hover:bg-cyan-400/30"
         >
+          <span className="text-cyan-300">
+            {formatBalance(balance?.value, balance?.decimals)} {balance?.symbol ?? 'MNT'}
+          </span>
+          <span className="text-white/70">·</span>
           <span>{formatAddress(address)}</span>
         </button>
       </div>
@@ -86,10 +74,16 @@ export function WalletButton({ className = '' }: WalletButtonProps) {
   }
 
   return (
-    <Button onClick={() => open()} className={className}>
+    <button
+      onClick={() => open()}
+      className={cn(
+        'flex cursor-pointer items-center gap-2 rounded-full bg-cyan-600/80 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500/80',
+        className
+      )}
+    >
       <Wallet className="h-4 w-4" />
-      Connect Wallet
-    </Button>
+      Connect
+    </button>
   )
 }
 
@@ -106,13 +100,15 @@ export function ConnectButton({ className = '' }: WalletButtonProps) {
   }
 
   return (
-    <Button
+    <button
       onClick={() => open()}
-      size="lg"
-      className={cn('shadow-primary/25 hover:shadow-primary/40 shadow-lg', className)}
+      className={cn(
+        'flex cursor-pointer items-center justify-center gap-2 rounded-full bg-cyan-600/80 px-6 py-3 text-base font-medium text-white shadow-lg shadow-cyan-600/20 transition-all hover:bg-cyan-500/80 hover:shadow-cyan-500/30',
+        className
+      )}
     >
       <Wallet className="h-5 w-5" />
       Connect Wallet
-    </Button>
+    </button>
   )
 }

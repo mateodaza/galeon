@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { m } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { GlassCard, GlassCardContent } from '@/components/ui/glass-card'
-import { Button } from '@/components/ui/button'
 import { tactilePress, slideUp, useAnimationPreset, useAnimationsEnabled } from '@/lib/animations'
 
 /**
@@ -31,20 +30,22 @@ export function CtaCard() {
         </div>
         {animationsEnabled ? (
           <m.div {...tactileProps} className="shrink-0">
-            <Button size="lg" asChild>
-              <Link href="/setup" className="gap-2">
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </m.div>
-        ) : (
-          <Button size="lg" asChild className="shrink-0">
-            <Link href="/setup" className="gap-2">
+            <Link
+              href="/setup"
+              className="flex cursor-pointer items-center gap-2 rounded-full bg-cyan-600/80 px-6 py-3 text-base font-medium text-white shadow-lg shadow-cyan-600/20 transition-all hover:bg-cyan-500/80 hover:shadow-cyan-500/30"
+            >
               Get Started
               <ArrowRight className="h-4 w-4" />
             </Link>
-          </Button>
+          </m.div>
+        ) : (
+          <Link
+            href="/setup"
+            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-cyan-600/80 px-6 py-3 text-base font-medium text-white shadow-lg shadow-cyan-600/20 transition-all hover:bg-cyan-500/80 hover:shadow-cyan-500/30"
+          >
+            Get Started
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         )}
       </GlassCardContent>
     </GlassCard>
