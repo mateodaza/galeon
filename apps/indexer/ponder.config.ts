@@ -18,14 +18,10 @@ const GALEON_TENDER = (process.env.GALEON_TENDER_ADDRESS ||
 const START_BLOCK = Number(process.env.START_BLOCK || 89365202)
 
 export default createConfig({
-  // Use PostgreSQL if DATABASE_URL is set, otherwise PGlite (embedded)
-  // Note: PGlite may crash during heavy backfill - use PostgreSQL for production
-  database: process.env.DATABASE_URL
-    ? {
-        kind: 'postgres',
-        connectionString: process.env.DATABASE_URL,
-      }
-    : undefined,
+  // Use PostgreSQL - connectionString defaults to DATABASE_URL env var
+  database: {
+    kind: 'postgres',
+  },
   chains: {
     mantle: {
       id: 5000,

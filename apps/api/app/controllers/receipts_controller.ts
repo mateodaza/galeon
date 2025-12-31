@@ -1,7 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Receipt from '#models/receipt'
 import Port from '#models/port'
-import { listReceiptsValidator, getReceiptValidator } from '#validators/receipt'
+import {
+  listReceiptsValidator,
+  getReceiptValidator,
+  createReceiptValidator,
+} from '#validators/receipt'
 
 export default class ReceiptsController {
   /**
@@ -66,6 +70,70 @@ export default class ReceiptsController {
         currentPage: receipts.currentPage,
         lastPage: receipts.lastPage,
       },
+    })
+  }
+
+  /**
+   * POST /receipts
+   * Create a pending receipt after frontend makes on-chain donation
+   * The cronjob will verify and fill in data from Ponder indexer
+   */
+  async store({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const { transactionHash, portId, chainId } = await createReceiptValidator.validate(
+      request.body()
+    )
+
+    // Verify the port belongs to the user
+    const port = await Port.query().where('id', portId).where('userId', user.id).first()
+
+    if (!port) {
+      return response.notFound({ error: 'Port not found' })
+    }
+
+    // Validate chainId matches port's chainId
+    if (chainId !== port.chainId) {
+      return response.badRequest({
+        error: `Chain ID mismatch: receipt is for chain ${chainId} but port is configured for chain ${port.chainId}`,
+      })
+    }
+
+    // Check if receipt with this (txHash, chainId) already exists
+    const existingReceipt = await Receipt.query()
+      .where('txHash', transactionHash)
+      .where('chainId', chainId)
+      .first()
+
+    if (existingReceipt) {
+      return response.conflict({ error: 'Receipt with this transaction hash already exists' })
+    }
+
+    // Create pending receipt with minimal data
+    // Cronjob will fill in: stealthAddress, ephemeralPubKey, viewTag, amount, etc.
+    const receipt = await Receipt.create({
+      portId: port.id,
+      txHash: transactionHash,
+      chainId,
+      status: 'pending',
+      // Placeholder values - will be filled by verify job
+      receiptHash: '',
+      stealthAddress: '',
+      ephemeralPubKey: '',
+      viewTag: 0,
+      payerAddress: '',
+      amount: '0',
+      currency: chainId === 5000 ? 'MNT' : 'ETH', // Default to native token
+      blockNumber: '0',
+      isFogPayment: false,
+    })
+
+    return response.created({
+      id: receipt.id,
+      txHash: receipt.txHash,
+      portId: receipt.portId,
+      chainId: receipt.chainId,
+      status: receipt.status,
+      createdAt: receipt.createdAt,
     })
   }
 

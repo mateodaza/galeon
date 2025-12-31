@@ -14,7 +14,6 @@ const AuthController = () => import('#controllers/auth_controller')
 const PortsController = () => import('#controllers/ports_controller')
 const ReceiptsController = () => import('#controllers/receipts_controller')
 const CollectionsController = () => import('#controllers/collections_controller')
-const WebhooksController = () => import('#controllers/webhooks_controller')
 const FogPaymentsController = () => import('#controllers/fog_payments_controller')
 
 // Health check
@@ -58,6 +57,7 @@ router
     router
       .group(() => {
         router.get('/', [ReceiptsController, 'index'])
+        router.post('/', [ReceiptsController, 'store'])
         router.get('/stats', [ReceiptsController, 'stats'])
         router.get('/:id', [ReceiptsController, 'show'])
       })
@@ -87,13 +87,5 @@ router
       })
       .prefix('/fog-payments')
       .use(middleware.auth())
-
-    // Webhook routes (TODO: Add webhookAuth middleware when ready)
-    router
-      .group(() => {
-        router.post('/alchemy', [WebhooksController, 'alchemy'])
-        router.post('/manual', [WebhooksController, 'manual'])
-      })
-      .prefix('/webhooks')
   })
   .prefix('/api/v1')

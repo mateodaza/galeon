@@ -26,10 +26,12 @@ async function createTestPort(
   userId: number,
   overrides: Partial<{
     name: string
-    stealthMetaAddress: string
-    viewingKeyEncrypted: string
+    stealthMetaAddress: string | null
+    viewingKeyEncrypted: string | null
     archived: boolean
     type: 'permanent' | 'recurring' | 'one-time' | 'burner'
+    status: 'pending' | 'confirmed'
+    chainId: number
   }> = {}
 ) {
   return Port.create({
@@ -39,6 +41,8 @@ async function createTestPort(
     stealthMetaAddress: overrides.stealthMetaAddress ?? validStealthMetaAddress,
     viewingKeyEncrypted: overrides.viewingKeyEncrypted ?? Port.encryptViewingKey(validViewingKey),
     archived: overrides.archived ?? false,
+    status: overrides.status ?? 'confirmed',
+    chainId: overrides.chainId ?? 5000,
   })
 }
 
@@ -88,10 +92,10 @@ test.group('PortsController', (group) => {
   })
 
   // =============================================================================
-  // POST /api/v1/ports - Create Port
+  // POST /api/v1/ports - Create Port (Step 1 of two-step flow)
   // =============================================================================
 
-  test('POST /ports creates a new port', async ({ client, assert }) => {
+  test('POST /ports creates a new port with pending status', async ({ client, assert }) => {
     const { accessToken } = await authenticateUser(client)
 
     const response = await client
@@ -99,16 +103,15 @@ test.group('PortsController', (group) => {
       .header('Authorization', `Bearer ${accessToken}`)
       .json({
         name: 'My Payment Port',
-        stealthMetaAddress: validStealthMetaAddress,
-        viewingKey: validViewingKey,
         chainId: 5000,
       })
 
     response.assertStatus(201)
     assert.exists(response.body().id)
     assert.equal(response.body().name, 'My Payment Port')
-    assert.equal(response.body().stealthMetaAddress, validStealthMetaAddress)
     assert.equal(response.body().chainId, 5000)
+    assert.equal(response.body().status, 'pending')
+    assert.isNull(response.body().stealthMetaAddress) // Not set in step 1
     assert.equal(response.body().totalReceived, '0')
     assert.equal(response.body().totalCollected, '0')
     assert.isFalse(response.body().archived)
@@ -121,44 +124,89 @@ test.group('PortsController', (group) => {
       .post('/api/v1/ports')
       .header('Authorization', `Bearer ${accessToken}`)
       .json({
-        stealthMetaAddress: validStealthMetaAddress,
-        viewingKey: validViewingKey,
+        name: 'Default Chain Port',
       })
 
     response.assertStatus(201)
     assert.equal(response.body().chainId, 5000)
   })
 
-  test('POST /ports encrypts viewing key', async ({ client, assert }) => {
-    const { accessToken, user } = await authenticateUser(client)
+  test('POST /ports defaults name to Unnamed Port', async ({ client, assert }) => {
+    const { accessToken } = await authenticateUser(client)
 
-    await client.post('/api/v1/ports').header('Authorization', `Bearer ${accessToken}`).json({
-      name: 'Encryption Test Port',
-      stealthMetaAddress: validStealthMetaAddress,
-      viewingKey: validViewingKey,
+    const response = await client
+      .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({})
+
+    response.assertStatus(201)
+    assert.equal(response.body().name, 'Unnamed Port')
+  })
+
+  test('POST /ports requires authentication', async ({ client }) => {
+    const response = await client.post('/api/v1/ports').json({
+      name: 'Test Port',
     })
 
-    // Verify encryption in database
+    response.assertStatus(401)
+  })
+
+  // =============================================================================
+  // Two-step port creation flow (POST + PATCH)
+  // =============================================================================
+
+  test('Two-step flow: POST creates port, PATCH adds stealth keys', async ({ client, assert }) => {
+    const { accessToken, user } = await authenticateUser(client)
+
+    // Step 1: Create port
+    const createResponse = await client
+      .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({ name: 'Two-Step Port' })
+
+    createResponse.assertStatus(201)
+    const portId = createResponse.body().id
+    assert.isNull(createResponse.body().stealthMetaAddress)
+
+    // Step 2: Add stealth keys via PATCH
+    const updateResponse = await client
+      .patch(`/api/v1/ports/${portId}`)
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({
+        stealthMetaAddress: validStealthMetaAddress,
+        viewingKey: validViewingKey,
+      })
+
+    updateResponse.assertStatus(200)
+    assert.equal(updateResponse.body().stealthMetaAddress, validStealthMetaAddress)
+
+    // Verify viewing key was encrypted
     const port = await Port.query().where('userId', user.id).firstOrFail()
     assert.notEqual(port.viewingKeyEncrypted, validViewingKey)
     assert.equal(port.decryptViewingKey(), validViewingKey)
   })
 
-  test('POST /ports rejects duplicate stealth meta address for same user', async ({
+  test('PATCH /ports/:id rejects duplicate stealth meta address for same user', async ({
     client,
     assert,
   }) => {
-    const { accessToken } = await authenticateUser(client)
+    const { accessToken, user } = await authenticateUser(client)
 
-    // Create first port
-    await client.post('/api/v1/ports').header('Authorization', `Bearer ${accessToken}`).json({
+    // Create first port with stealth address directly
+    await createTestPort(user.id, {
+      name: 'First Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKey: validViewingKey,
     })
 
-    // Try to create duplicate
-    const response = await client
+    // Create second port (step 1)
+    const createResponse = await client
       .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({ name: 'Second Port' })
+
+    // Try to add duplicate stealth address (step 2)
+    const response = await client
+      .patch(`/api/v1/ports/${createResponse.body().id}`)
       .header('Authorization', `Bearer ${accessToken}`)
       .json({
         stealthMetaAddress: validStealthMetaAddress,
@@ -169,51 +217,54 @@ test.group('PortsController', (group) => {
     assert.equal(response.body().error, 'Port with this stealth meta address already exists')
   })
 
-  test('POST /ports allows same stealth meta address for different users', async ({ client }) => {
-    const { accessToken: token1 } = await authenticateUser(client, testWallet, TEST_WALLET_ADDRESS)
+  test('PATCH /ports/:id allows same stealth meta address for different users', async ({
+    client,
+  }) => {
+    const { user: user1 } = await authenticateUser(client, testWallet, TEST_WALLET_ADDRESS)
     const { accessToken: token2 } = await authenticateUser(
       client,
       testWallet2,
       TEST_WALLET_ADDRESS_2
     )
 
-    // Create port for user 1
-    const response1 = await client
-      .post('/api/v1/ports')
-      .header('Authorization', `Bearer ${token1}`)
-      .json({
-        stealthMetaAddress: validStealthMetaAddress,
-        viewingKey: validViewingKey,
-      })
+    // Create port for user 1 with stealth address
+    await createTestPort(user1.id, {
+      name: 'User 1 Port',
+      stealthMetaAddress: validStealthMetaAddress,
+    })
 
-    response1.assertStatus(201)
-
-    // Create port with same stealth meta address for user 2
-    const response2 = await client
+    // Create port for user 2 (step 1)
+    const createResponse = await client
       .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${token2}`)
+      .json({ name: 'User 2 Port' })
+
+    createResponse.assertStatus(201)
+
+    // Add same stealth address for user 2 (step 2) - should succeed
+    const updateResponse = await client
+      .patch(`/api/v1/ports/${createResponse.body().id}`)
       .header('Authorization', `Bearer ${token2}`)
       .json({
         stealthMetaAddress: validStealthMetaAddress,
         viewingKey: validViewingKey,
       })
 
-    response2.assertStatus(201)
+    updateResponse.assertStatus(200)
   })
 
-  test('POST /ports requires authentication', async ({ client }) => {
-    const response = await client.post('/api/v1/ports').json({
-      stealthMetaAddress: validStealthMetaAddress,
-      viewingKey: validViewingKey,
-    })
-
-    response.assertStatus(401)
-  })
-
-  test('POST /ports validates stealthMetaAddress format', async ({ client }) => {
+  test('PATCH /ports/:id validates stealthMetaAddress format', async ({ client }) => {
     const { accessToken } = await authenticateUser(client)
 
-    const response = await client
+    // Create port
+    const createResponse = await client
       .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({ name: 'Format Test Port' })
+
+    // Try to add invalid stealth address
+    const response = await client
+      .patch(`/api/v1/ports/${createResponse.body().id}`)
       .header('Authorization', `Bearer ${accessToken}`)
       .json({
         stealthMetaAddress: 'invalid-format',
@@ -223,28 +274,22 @@ test.group('PortsController', (group) => {
     response.assertStatus(422)
   })
 
-  test('POST /ports validates viewingKey format', async ({ client }) => {
+  test('PATCH /ports/:id validates viewingKey format', async ({ client }) => {
     const { accessToken } = await authenticateUser(client)
 
-    const response = await client
+    // Create port
+    const createResponse = await client
       .post('/api/v1/ports')
+      .header('Authorization', `Bearer ${accessToken}`)
+      .json({ name: 'Format Test Port' })
+
+    // Try to add invalid viewing key
+    const response = await client
+      .patch(`/api/v1/ports/${createResponse.body().id}`)
       .header('Authorization', `Bearer ${accessToken}`)
       .json({
         stealthMetaAddress: validStealthMetaAddress,
         viewingKey: 'not-a-valid-key',
-      })
-
-    response.assertStatus(422)
-  })
-
-  test('POST /ports requires viewingKey', async ({ client }) => {
-    const { accessToken } = await authenticateUser(client)
-
-    const response = await client
-      .post('/api/v1/ports')
-      .header('Authorization', `Bearer ${accessToken}`)
-      .json({
-        stealthMetaAddress: validStealthMetaAddress,
       })
 
     response.assertStatus(422)
@@ -314,22 +359,16 @@ test.group('PortsController', (group) => {
   test('GET /ports includes archived ports when requested', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    await Port.createMany([
-      {
-        userId: user.id,
-        name: 'Active Port',
-        stealthMetaAddress: 'st:mnt:0x' + '1'.repeat(132),
-        viewingKeyEncrypted: Port.encryptViewingKey('0x' + '1'.repeat(64)),
-        archived: false,
-      },
-      {
-        userId: user.id,
-        name: 'Archived Port',
-        stealthMetaAddress: 'st:mnt:0x' + '2'.repeat(132),
-        viewingKeyEncrypted: Port.encryptViewingKey('0x' + '2'.repeat(64)),
-        archived: true,
-      },
-    ])
+    await createTestPort(user.id, {
+      name: 'Active Port',
+      stealthMetaAddress: 'st:mnt:0x' + '1'.repeat(132),
+      archived: false,
+    })
+    await createTestPort(user.id, {
+      name: 'Archived Port',
+      stealthMetaAddress: 'st:mnt:0x' + '2'.repeat(132),
+      archived: true,
+    })
 
     const response = await client
       .get('/api/v1/ports')
@@ -345,11 +384,9 @@ test.group('PortsController', (group) => {
 
     // Create 5 ports
     for (let i = 0; i < 5; i++) {
-      await Port.create({
-        userId: user.id,
+      await createTestPort(user.id, {
         name: `Port ${i}`,
         stealthMetaAddress: `st:mnt:0x${i.toString().repeat(132).slice(0, 132)}`,
-        viewingKeyEncrypted: Port.encryptViewingKey(`0x${i.toString().repeat(64).slice(0, 64)}`),
       })
     }
 
@@ -375,19 +412,15 @@ test.group('PortsController', (group) => {
     const { user: user2 } = await authenticateUser(client, testWallet2, TEST_WALLET_ADDRESS_2)
 
     // Create port for user 1
-    await Port.create({
-      userId: user1.id,
+    await createTestPort(user1.id, {
       name: 'User 1 Port',
       stealthMetaAddress: 'st:mnt:0x' + '1'.repeat(132),
-      viewingKeyEncrypted: Port.encryptViewingKey('0x' + '1'.repeat(64)),
     })
 
     // Create port for user 2
-    await Port.create({
-      userId: user2.id,
+    await createTestPort(user2.id, {
       name: 'User 2 Port',
       stealthMetaAddress: 'st:mnt:0x' + '2'.repeat(132),
-      viewingKeyEncrypted: Port.encryptViewingKey('0x' + '2'.repeat(64)),
     })
 
     const response = await client.get('/api/v1/ports').header('Authorization', `Bearer ${token1}`)
@@ -406,11 +439,9 @@ test.group('PortsController', (group) => {
   test('GET /ports does not expose viewing key', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    await Port.create({
-      userId: user.id,
+    await createTestPort(user.id, {
       name: 'Secret Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -430,11 +461,9 @@ test.group('PortsController', (group) => {
   test('GET /ports/:id returns a single port', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'My Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -467,11 +496,9 @@ test.group('PortsController', (group) => {
       TEST_WALLET_ADDRESS_2
     )
 
-    const port = await Port.create({
-      userId: user1.id,
+    const port = await createTestPort(user1.id, {
       name: 'User 1 Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -504,11 +531,9 @@ test.group('PortsController', (group) => {
   test('PATCH /ports/:id updates port name', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'Original Name',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -527,11 +552,9 @@ test.group('PortsController', (group) => {
   test('PATCH /ports/:id archives a port', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'To Archive',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: false,
     })
 
@@ -550,11 +573,9 @@ test.group('PortsController', (group) => {
   test('PATCH /ports/:id unarchives a port', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'Archived Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: true,
     })
 
@@ -570,11 +591,9 @@ test.group('PortsController', (group) => {
   test('PATCH /ports/:id updates multiple fields', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'Original',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: false,
     })
 
@@ -610,11 +629,9 @@ test.group('PortsController', (group) => {
       TEST_WALLET_ADDRESS_2
     )
 
-    const port = await Port.create({
-      userId: user1.id,
+    const port = await createTestPort(user1.id, {
       name: 'User 1 Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -638,11 +655,9 @@ test.group('PortsController', (group) => {
   test('PATCH /ports/:id validates name length', async ({ client }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'Original',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
     })
 
     const response = await client
@@ -660,11 +675,9 @@ test.group('PortsController', (group) => {
   test('DELETE /ports/:id archives the port', async ({ client, assert }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'To Delete',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: false,
     })
 
@@ -698,11 +711,9 @@ test.group('PortsController', (group) => {
       TEST_WALLET_ADDRESS_2
     )
 
-    const port = await Port.create({
-      userId: user1.id,
+    const port = await createTestPort(user1.id, {
       name: 'User 1 Port',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: false,
     })
 
@@ -729,11 +740,9 @@ test.group('PortsController', (group) => {
   }) => {
     const { accessToken, user } = await authenticateUser(client)
 
-    const port = await Port.create({
-      userId: user.id,
+    const port = await createTestPort(user.id, {
       name: 'Already Archived',
       stealthMetaAddress: validStealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(validViewingKey),
       archived: true,
     })
 

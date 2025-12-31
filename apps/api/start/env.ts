@@ -69,4 +69,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   PONDER_WEBHOOK_SECRET: Env.schema.string.optional(),
   REDIS_QUEUE: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for Ponder indexer database (read-only)
+  |----------------------------------------------------------
+  */
+  PONDER_DB_HOST: Env.schema.string.optional(),
+  PONDER_DB_PORT: Env.schema.number.optional(),
+  PONDER_DB_USER: Env.schema.string.optional(),
+  PONDER_DB_PASSWORD: Env.schema.string.optional(),
+  PONDER_DB_DATABASE: Env.schema.string.optional(),
 })
