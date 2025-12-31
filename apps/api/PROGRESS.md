@@ -23,7 +23,7 @@
 ## Phase 2: Database Migrations ✅
 
 - [x] `0001_create_users_table.ts`
-- [x] `0002_create_ports_table.ts` (+ `viewing_key_nonce`, `chain_id`)
+- [x] `0002_create_ports_table.ts` (+ `indexer_port_id`, `chain_id`, defaults)
 - [x] `0003_create_collections_table.ts`
 - [x] `0004_create_receipts_table.ts` (+ `user_id`, `fog_payment_id`, `is_fog_payment`)
 - [x] `0005_create_settings_table.ts`
@@ -91,10 +91,10 @@
 
 ## Test Coverage
 
-**100+ tests passing**
+**145 tests passing**
 
 - Unit tests: SiweService (14), Models (47), FogPayment (18)
-- Functional tests: AuthController (10), Models (14+)
+- Functional tests: AuthController (16), PortsController (35), Models (14+)
 
 ## API Endpoints (RESTful)
 
@@ -128,6 +128,40 @@
 
 \*Webhook auth middleware pending
 
+## Phase 11: Receipt Claim Flow (TODO)
+
+See [RECEIPT-CLAIM-FLOW.md](../../docs/RECEIPT-CLAIM-FLOW.md) for full specification.
+
+### Database Changes
+
+- [ ] Migration `0007_add_receipt_verification_fields.ts`
+- [ ] Update Receipt model (new status enum, verification fields)
+
+### Ponder Service
+
+- [ ] Create `app/services/ponder_service.ts`
+- [ ] Add `PONDER_API_URL` to env
+
+### Claim Endpoint
+
+- [ ] Add `claimReceiptValidator`
+- [ ] Add `ReceiptsController.claim` method
+- [ ] Add route `POST /api/v1/receipts/claim`
+- [ ] Write tests for claim endpoint
+
+### Verification Job
+
+- [ ] Create `VerifyReceiptsJob` (every 30s)
+- [ ] Verify claims against Ponder data
+- [ ] Update port stats on confirmation
+
+### SSE Notifications (Optional)
+
+- [ ] Notify user when receipt confirmed
+- [ ] Notify user when receipt rejected
+
+**Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
+
 ## Notes
 
 - JWT authentication via `@maximemrf/adonisjs-jwt` (stateless, with Redis blacklist for logout)
@@ -139,3 +173,5 @@
 - UUIDs for Port, Receipt, Collection IDs
 - Bigints stored as `decimal(78, 0)` to handle wei values
 - Alchemy RPC for Mantle mainnet
+- Port model: `id` (UUID) is primary key for FK references; `indexerPortId` (bytes32 hex, nullable) links to Ponder indexer
+- Viewing keys encrypted with APP_KEY via AdonisJS encryption service

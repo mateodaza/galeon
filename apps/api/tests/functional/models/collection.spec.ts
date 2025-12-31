@@ -18,12 +18,10 @@ test.group('Collection Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + Math.random().toString(16).slice(2).padEnd(64, '0'),
       name: 'Collection Test Port',
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + 'a'.repeat(132),
-      viewingKeyEncrypted: 'encrypted_key',
-      viewingKeyNonce: 'nonce_collection_test',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'a'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',

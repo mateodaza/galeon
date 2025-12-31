@@ -14,12 +14,11 @@ test.group('Port Model', () => {
     const columns = Port.$columnsDefinitions
     assert.isTrue(columns.has('id'))
     assert.isTrue(columns.has('userId'))
-    assert.isTrue(columns.has('portId'))
+    assert.isTrue(columns.has('indexerPortId'))
     assert.isTrue(columns.has('name'))
     assert.isTrue(columns.has('type'))
     assert.isTrue(columns.has('stealthMetaAddress'))
     assert.isTrue(columns.has('viewingKeyEncrypted'))
-    assert.isTrue(columns.has('viewingKeyNonce'))
     assert.isTrue(columns.has('chainId'))
     assert.isTrue(columns.has('active'))
     assert.isTrue(columns.has('archived'))

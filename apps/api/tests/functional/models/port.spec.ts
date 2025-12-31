@@ -16,12 +16,10 @@ test.group('Port Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + 'a'.repeat(64),
       name: 'My Payment Port',
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + 'b'.repeat(132),
-      viewingKeyEncrypted: 'encrypted_viewing_key_data',
-      viewingKeyNonce: 'test_nonce_12bytes',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'a'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -44,12 +42,10 @@ test.group('Port Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + 'c'.repeat(64),
       name: 'Test Port',
       type: 'recurring',
       stealthMetaAddress: 'st:mnt:0x' + 'd'.repeat(132),
-      viewingKeyEncrypted: 'encrypted_key',
-      viewingKeyNonce: 'nonce_12bytes',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'b'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -71,12 +67,10 @@ test.group('Port Model - Database', (group) => {
     await Port.createMany([
       {
         userId: user.id,
-        portId: '0x' + 'e'.repeat(64),
         name: 'Port 1',
         type: 'permanent',
         stealthMetaAddress: 'st:mnt:0x' + 'f'.repeat(132),
-        viewingKeyEncrypted: 'key1',
-        viewingKeyNonce: 'nonce1_12byte',
+        viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'c'.repeat(64)),
         active: true,
         archived: false,
         totalReceived: '0',
@@ -85,12 +79,10 @@ test.group('Port Model - Database', (group) => {
       },
       {
         userId: user.id,
-        portId: '0x' + '1'.repeat(64),
         name: 'Port 2',
         type: 'one-time',
         stealthMetaAddress: 'st:mnt:0x' + '2'.repeat(132),
-        viewingKeyEncrypted: 'key2',
-        viewingKeyNonce: 'nonce2_12byte',
+        viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'd'.repeat(64)),
         active: true,
         archived: false,
         totalReceived: '0',
@@ -104,21 +96,20 @@ test.group('Port Model - Database', (group) => {
     assert.lengthOf(user.ports, 2)
   })
 
-  test('port_id must be unique', async ({ assert }) => {
+  test('indexer_port_id must be unique when set', async ({ assert }) => {
     const user = await User.create({
       walletAddress: '0x3333333333333333333333333333333333333333',
     })
 
-    const portId = '0x' + '3'.repeat(64)
+    const indexerPortId = '0x' + '3'.repeat(64)
 
     await Port.create({
       userId: user.id,
-      portId,
+      indexerPortId,
       name: 'First Port',
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + '4'.repeat(132),
-      viewingKeyEncrypted: 'key1',
-      viewingKeyNonce: 'nonce_unique1',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'e'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -129,12 +120,11 @@ test.group('Port Model - Database', (group) => {
     try {
       await Port.create({
         userId: user.id,
-        portId,
+        indexerPortId,
         name: 'Duplicate Port',
         type: 'permanent',
         stealthMetaAddress: 'st:mnt:0x' + '5'.repeat(132),
-        viewingKeyEncrypted: 'key2',
-        viewingKeyNonce: 'nonce_unique2',
+        viewingKeyEncrypted: Port.encryptViewingKey('0x' + 'f'.repeat(64)),
         active: true,
         archived: false,
         totalReceived: '0',
@@ -154,12 +144,10 @@ test.group('Port Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + '6'.repeat(64),
       name: 'Stats Port',
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + '7'.repeat(132),
-      viewingKeyEncrypted: 'key',
-      viewingKeyNonce: 'nonce_stats',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + '1'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -184,12 +172,10 @@ test.group('Port Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + '8'.repeat(64),
       name: 'Archive Port',
       type: 'burner',
       stealthMetaAddress: 'st:mnt:0x' + '9'.repeat(132),
-      viewingKeyEncrypted: 'key',
-      viewingKeyNonce: 'nonce_archive',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + '2'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -213,12 +199,10 @@ test.group('Port Model - Database', (group) => {
 
     const port = await Port.create({
       userId: user.id,
-      portId: '0x' + 'a1'.repeat(32),
       name: 'Cascade Port',
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + 'b1'.repeat(66),
-      viewingKeyEncrypted: 'key',
-      viewingKeyNonce: 'nonce_cascade',
+      viewingKeyEncrypted: Port.encryptViewingKey('0x' + '3'.repeat(64)),
       active: true,
       archived: false,
       totalReceived: '0',
@@ -231,5 +215,34 @@ test.group('Port Model - Database', (group) => {
 
     const foundPort = await Port.find(portId)
     assert.isNull(foundPort)
+  })
+
+  test('can encrypt and decrypt viewing key', async ({ assert }) => {
+    const originalKey = '0x' + 'abcd'.repeat(16)
+    const encrypted = Port.encryptViewingKey(originalKey)
+
+    // Encrypted value should be different from original
+    assert.notEqual(encrypted, originalKey)
+
+    // Create a port and verify decryption works
+    const user = await User.create({
+      walletAddress: '0x7777777777777777777777777777777777777777',
+    })
+
+    const port = await Port.create({
+      userId: user.id,
+      name: 'Encryption Test Port',
+      type: 'permanent',
+      stealthMetaAddress: 'st:mnt:0x' + 'cd'.repeat(66),
+      viewingKeyEncrypted: encrypted,
+      active: true,
+      archived: false,
+      totalReceived: '0',
+      totalCollected: '0',
+      paymentCount: 0,
+    })
+
+    const decrypted = port.decryptViewingKey()
+    assert.equal(decrypted, originalKey)
   })
 })
