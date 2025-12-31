@@ -26,8 +26,19 @@ export default class CollectionService {
 
       // TODO: Implement port scanning with stealth library
       // This requires decrypting viewing key and scanning announcements
-      // For now, return receipts as claimable
+      // For now, return receipts as claimable (only if they have required fields)
       for (const receipt of receipts) {
+        // Skip receipts missing required fields (verification incomplete)
+        if (
+          !receipt.stealthAddress ||
+          !receipt.ephemeralPubKey ||
+          receipt.viewTag === null ||
+          !receipt.amount ||
+          !receipt.currency
+        ) {
+          continue
+        }
+
         allClaimable.push({
           receiptId: receipt.id,
           portId: port.id,
@@ -101,6 +112,12 @@ export default class CollectionService {
             continue
           }
 
+          // Skip receipts missing required fields
+          if (!receipt.ephemeralPubKey || !receipt.amount) {
+            console.warn(`Receipt ${receipt.id} missing required fields, skipping`)
+            continue
+          }
+
           // TODO: Derive stealth private key properly using stealth library
           // This requires: ephemeralPubKey, spendingPrivateKey, viewingPrivateKey
           const ephemeralPubKeyBytes = StealthService.hexToBytes(receipt.ephemeralPubKey)
@@ -155,6 +172,12 @@ export default class CollectionService {
               console.warn(
                 `Port ${receipt.port.id} has no viewing key, skipping receipt ${receipt.id}`
               )
+              continue
+            }
+
+            // Skip receipts missing required fields
+            if (!receipt.ephemeralPubKey || !receipt.amount) {
+              console.warn(`Receipt ${receipt.id} missing required fields, skipping`)
               continue
             }
 
