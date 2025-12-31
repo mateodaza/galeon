@@ -91,10 +91,10 @@
 
 ## Test Coverage
 
-**145 tests passing**
+**169 tests passing**
 
 - Unit tests: SiweService (14), Models (47), FogPayment (18)
-- Functional tests: AuthController (16), PortsController (35), Models (14+)
+- Functional tests: AuthController (16), PortsController (35), ReceiptsController (24), Models (14+)
 
 ## API Endpoints (RESTful)
 
@@ -111,6 +111,7 @@
 | Ports       | PATCH  | `/api/v1/ports/:id`                  | JWT       | Update port                  |
 | Ports       | DELETE | `/api/v1/ports/:id`                  | JWT       | Archive port                 |
 | Receipts    | GET    | `/api/v1/receipts`                   | JWT       | List receipts                |
+| Receipts    | POST   | `/api/v1/receipts`                   | JWT       | Create pending receipt       |
 | Receipts    | GET    | `/api/v1/receipts/stats`             | JWT       | Receipt statistics           |
 | Receipts    | GET    | `/api/v1/receipts/:id`               | JWT       | Get receipt                  |
 | Collections | GET    | `/api/v1/collections`                | JWT       | List collections             |
@@ -128,39 +129,35 @@
 
 \*Webhook auth middleware pending
 
-## Phase 11: Receipt Claim Flow (TODO)
+## Phase 11: Receipt Flow ✅
 
-See [RECEIPT-CLAIM-FLOW.md](../../docs/RECEIPT-CLAIM-FLOW.md) for full specification.
+### Ponder Service ✅
 
-### Database Changes
+- [x] Create `app/services/ponder_service.ts` (direct PostgreSQL connection)
+- [x] Add Ponder DB env variables (`PONDER_DB_HOST`, `PONDER_DB_PORT`, etc.)
+- [x] Add `ponder` connection to `config/database.ts`
 
-- [ ] Migration `0007_add_receipt_verification_fields.ts`
-- [ ] Update Receipt model (new status enum, verification fields)
+### Receipt Creation Endpoint ✅
 
-### Ponder Service
+- [x] Add `createReceiptValidator` (validates txHash, portId, chainId)
+- [x] Add `ReceiptsController.store` method
+- [x] Add route `POST /api/v1/receipts`
+- [x] Write tests for receipt creation (24 tests)
 
-- [ ] Create `app/services/ponder_service.ts`
-- [ ] Add `PONDER_API_URL` to env
+### Verification Job ✅
 
-### Claim Endpoint
+- [x] Create `VerifyReceiptsJob` (`app/jobs/verify_receipts.ts`)
+- [x] Query pending receipts
+- [x] Verify against Ponder indexer database
+- [x] Fill in receipt data (stealthAddress, ephemeralPubKey, viewTag, amount, etc.)
+- [x] Update status to confirmed
 
-- [ ] Add `claimReceiptValidator`
-- [ ] Add `ReceiptsController.claim` method
-- [ ] Add route `POST /api/v1/receipts/claim`
-- [ ] Write tests for claim endpoint
+**Flow:** Frontend donates on-chain → Calls `POST /receipts` with txHash → Cronjob verifies against Ponder DB → Confirmed
 
-### Verification Job
-
-- [ ] Create `VerifyReceiptsJob` (every 30s)
-- [ ] Verify claims against Ponder data
-- [ ] Update port stats on confirmation
-
-### SSE Notifications (Optional)
+### SSE Notifications (TODO)
 
 - [ ] Notify user when receipt confirmed
 - [ ] Notify user when receipt rejected
-
-**Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
 
 ## Notes
 

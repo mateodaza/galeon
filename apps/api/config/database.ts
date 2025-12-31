@@ -18,6 +18,17 @@ const dbConfig = defineConfig({
         paths: ['database/migrations'],
       },
     },
+    // Ponder indexer database (read-only)
+    ponder: {
+      client: 'pg',
+      connection: {
+        host: env.get('PONDER_DB_HOST'),
+        port: env.get('PONDER_DB_PORT'),
+        user: env.get('PONDER_DB_USER'),
+        password: env.get('PONDER_DB_PASSWORD'),
+        database: env.get('PONDER_DB_DATABASE'),
+      },
+    },
   },
 })
 

@@ -58,6 +58,7 @@ router
     router
       .group(() => {
         router.get('/', [ReceiptsController, 'index'])
+        router.post('/', [ReceiptsController, 'store'])
         router.get('/stats', [ReceiptsController, 'stats'])
         router.get('/:id', [ReceiptsController, 'show'])
       })
