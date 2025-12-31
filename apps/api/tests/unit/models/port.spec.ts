@@ -19,6 +19,8 @@ test.group('Port Model', () => {
     assert.isTrue(columns.has('type'))
     assert.isTrue(columns.has('stealthMetaAddress'))
     assert.isTrue(columns.has('viewingKeyEncrypted'))
+    assert.isTrue(columns.has('viewingKeyNonce'))
+    assert.isTrue(columns.has('chainId'))
     assert.isTrue(columns.has('active'))
     assert.isTrue(columns.has('archived'))
     assert.isTrue(columns.has('totalReceived'))

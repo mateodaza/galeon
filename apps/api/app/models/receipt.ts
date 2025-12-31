@@ -3,6 +3,7 @@ import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Port from '#models/port'
 import Collection from '#models/collection'
+import User from '#models/user'
 
 export type ReceiptStatus = 'pending' | 'confirmed' | 'collected'
 
@@ -11,10 +12,19 @@ export default class Receipt extends BaseModel {
   declare id: string
 
   @column()
-  declare portId: string
+  declare portId: string | null // nullable for fog payments
+
+  @column()
+  declare userId: number | null // for fog payments that don't have a port
 
   @column()
   declare collectionId: string | null
+
+  @column()
+  declare fogPaymentId: string | null // links to scheduled fog payment if applicable
+
+  @column()
+  declare isFogPayment: boolean
 
   @column()
   declare receiptHash: string // bytes32 hex
@@ -67,6 +77,9 @@ export default class Receipt extends BaseModel {
   // Relationships
   @belongsTo(() => Port)
   declare port: BelongsTo<typeof Port>
+
+  @belongsTo(() => User)
+  declare user: BelongsTo<typeof User>
 
   @belongsTo(() => Collection)
   declare collection: BelongsTo<typeof Collection>

@@ -23,6 +23,7 @@ test.group('Collection Model - Database', (group) => {
       type: 'permanent',
       stealthMetaAddress: 'st:mnt:0x' + 'a'.repeat(132),
       viewingKeyEncrypted: 'encrypted_key',
+      viewingKeyNonce: 'nonce_collection_test',
       active: true,
       archived: false,
       totalReceived: '0',

@@ -4,6 +4,8 @@ import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Port from '#models/port'
 import Collection from '#models/collection'
+import FogPayment from '#models/fog_payment'
+import Receipt from '#models/receipt'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
@@ -24,6 +26,12 @@ export default class User extends BaseModel {
 
   @hasMany(() => Collection)
   declare collections: HasMany<typeof Collection>
+
+  @hasMany(() => FogPayment)
+  declare fogPayments: HasMany<typeof FogPayment>
+
+  @hasMany(() => Receipt)
+  declare receipts: HasMany<typeof Receipt> // For fog payment receipts linked directly to user
 
   // Refresh tokens provider for JWT
   static refreshTokens = DbAccessTokensProvider.forModel(User, {

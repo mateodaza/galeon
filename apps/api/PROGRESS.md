@@ -1,7 +1,7 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2025-12-27
+> Last updated: 2025-12-31
 
 ## Setup
 
@@ -23,10 +23,11 @@
 ## Phase 2: Database Migrations ✅
 
 - [x] `0001_create_users_table.ts`
-- [x] `0002_create_ports_table.ts`
+- [x] `0002_create_ports_table.ts` (+ `viewing_key_nonce`, `chain_id`)
 - [x] `0003_create_collections_table.ts`
-- [x] `0004_create_receipts_table.ts`
+- [x] `0004_create_receipts_table.ts` (+ `user_id`, `fog_payment_id`, `is_fog_payment`)
 - [x] `0005_create_settings_table.ts`
+- [x] `0006_create_fog_payments_table.ts`
 
 ## Phase 3: Models ✅
 
@@ -34,6 +35,7 @@
 - [x] Port model (with unit + functional tests)
 - [x] Receipt model (with unit + functional tests)
 - [x] Collection model (with unit + functional tests)
+- [x] FogPayment model (with unit tests, hop chain relationships)
 
 ## Phase 4: Services ✅
 
@@ -50,6 +52,7 @@
 - [x] Collection validators (`collect.ts`)
 - [x] Receipt validators (`receipt.ts`)
 - [x] Webhook validators (`webhook.ts`)
+- [x] Fog payment validators (`fog_payment.ts`)
 
 ## Phase 6: Middleware ✅
 
@@ -65,6 +68,7 @@
 - [x] ReceiptsController (queries + stats)
 - [x] CollectionsController (initiate + execute)
 - [x] WebhooksController (Alchemy + manual)
+- [x] FogPaymentsController (CRUD, cancel, funding, hop-chain)
 
 ## Phase 8: Jobs ✅
 
@@ -87,34 +91,40 @@
 
 ## Test Coverage
 
-**85 tests passing**
+**100+ tests passing**
 
-- Unit tests: SiweService (14), Models (47)
-- Functional tests: AuthController (10), Models (14)
+- Unit tests: SiweService (14), Models (47), FogPayment (18)
+- Functional tests: AuthController (10), Models (14+)
 
 ## API Endpoints (RESTful)
 
-| Resource    | Method | Path                              | Auth      | Description                  |
-| ----------- | ------ | --------------------------------- | --------- | ---------------------------- |
-| Health      | GET    | `/`                               | Public    | Health check                 |
-| Auth        | GET    | `/api/v1/auth/nonce`              | Public    | Get SIWE nonce               |
-| Auth        | POST   | `/api/v1/auth/verify`             | Public    | Login (access + refresh JWT) |
-| Auth        | POST   | `/api/v1/auth/refresh`            | Public    | Refresh access token         |
-| Auth        | POST   | `/api/v1/auth/logout`             | JWT       | Logout (blacklist + revoke)  |
-| Ports       | GET    | `/api/v1/ports`                   | JWT       | List ports                   |
-| Ports       | POST   | `/api/v1/ports`                   | JWT       | Create port                  |
-| Ports       | GET    | `/api/v1/ports/:id`               | JWT       | Get port                     |
-| Ports       | PATCH  | `/api/v1/ports/:id`               | JWT       | Update port                  |
-| Ports       | DELETE | `/api/v1/ports/:id`               | JWT       | Archive port                 |
-| Receipts    | GET    | `/api/v1/receipts`                | JWT       | List receipts                |
-| Receipts    | GET    | `/api/v1/receipts/stats`          | JWT       | Receipt statistics           |
-| Receipts    | GET    | `/api/v1/receipts/:id`            | JWT       | Get receipt                  |
-| Collections | GET    | `/api/v1/collections`             | JWT       | List collections             |
-| Collections | POST   | `/api/v1/collections`             | JWT       | Initiate collection          |
-| Collections | GET    | `/api/v1/collections/:id`         | JWT       | Get collection               |
-| Collections | POST   | `/api/v1/collections/:id/execute` | JWT       | Execute collection           |
-| Webhooks    | POST   | `/api/v1/webhooks/alchemy`        | Webhook\* | Alchemy events               |
-| Webhooks    | POST   | `/api/v1/webhooks/manual`         | Webhook\* | Manual announcement          |
+| Resource    | Method | Path                                 | Auth      | Description                  |
+| ----------- | ------ | ------------------------------------ | --------- | ---------------------------- |
+| Health      | GET    | `/`                                  | Public    | Health check                 |
+| Auth        | GET    | `/api/v1/auth/nonce`                 | Public    | Get SIWE nonce               |
+| Auth        | POST   | `/api/v1/auth/verify`                | Public    | Login (access + refresh JWT) |
+| Auth        | POST   | `/api/v1/auth/refresh`               | Public    | Refresh access token         |
+| Auth        | POST   | `/api/v1/auth/logout`                | JWT       | Logout (blacklist + revoke)  |
+| Ports       | GET    | `/api/v1/ports`                      | JWT       | List ports                   |
+| Ports       | POST   | `/api/v1/ports`                      | JWT       | Create port                  |
+| Ports       | GET    | `/api/v1/ports/:id`                  | JWT       | Get port                     |
+| Ports       | PATCH  | `/api/v1/ports/:id`                  | JWT       | Update port                  |
+| Ports       | DELETE | `/api/v1/ports/:id`                  | JWT       | Archive port                 |
+| Receipts    | GET    | `/api/v1/receipts`                   | JWT       | List receipts                |
+| Receipts    | GET    | `/api/v1/receipts/stats`             | JWT       | Receipt statistics           |
+| Receipts    | GET    | `/api/v1/receipts/:id`               | JWT       | Get receipt                  |
+| Collections | GET    | `/api/v1/collections`                | JWT       | List collections             |
+| Collections | POST   | `/api/v1/collections`                | JWT       | Initiate collection          |
+| Collections | GET    | `/api/v1/collections/:id`            | JWT       | Get collection               |
+| Collections | POST   | `/api/v1/collections/:id/execute`    | JWT       | Execute collection           |
+| Webhooks    | POST   | `/api/v1/webhooks/alchemy`           | Webhook\* | Alchemy events               |
+| Webhooks    | POST   | `/api/v1/webhooks/manual`            | Webhook\* | Manual announcement          |
+| FogPayments | GET    | `/api/v1/fog-payments`               | JWT       | List fog payments            |
+| FogPayments | POST   | `/api/v1/fog-payments`               | JWT       | Schedule fog payment         |
+| FogPayments | GET    | `/api/v1/fog-payments/:id`           | JWT       | Get fog payment              |
+| FogPayments | POST   | `/api/v1/fog-payments/:id/cancel`    | JWT       | Cancel pending payment       |
+| FogPayments | PATCH  | `/api/v1/fog-payments/:id/funding`   | JWT       | Update funding info          |
+| FogPayments | GET    | `/api/v1/fog-payments/:id/hop-chain` | JWT       | Get hop chain for compliance |
 
 \*Webhook auth middleware pending
 

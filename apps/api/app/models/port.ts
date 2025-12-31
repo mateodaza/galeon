@@ -29,6 +29,12 @@ export default class Port extends BaseModel {
   declare viewingKeyEncrypted: string
 
   @column()
+  declare viewingKeyNonce: string // IV for AES-GCM decryption
+
+  @column()
+  declare chainId: number
+
+  @column()
   declare active: boolean
 
   @column()

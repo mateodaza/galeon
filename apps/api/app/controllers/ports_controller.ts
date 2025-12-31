@@ -34,6 +34,7 @@ export default class PortsController {
         portId: port.portId,
         name: port.name,
         stealthMetaAddress: port.stealthMetaAddress,
+        chainId: port.chainId,
         totalReceived: port.totalReceived,
         totalCollected: port.totalCollected,
         archived: port.archived,
@@ -72,6 +73,9 @@ export default class PortsController {
       userId: user.id,
       name: data.name,
       stealthMetaAddress: data.stealthMetaAddress,
+      viewingKeyEncrypted: data.viewingKeyEncrypted,
+      viewingKeyNonce: data.viewingKeyNonce,
+      chainId: data.chainId ?? 5000, // Default to Mantle mainnet
     })
 
     return response.created({
@@ -79,6 +83,7 @@ export default class PortsController {
       portId: port.portId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
+      chainId: port.chainId,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,
@@ -107,6 +112,7 @@ export default class PortsController {
       portId: port.portId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
+      chainId: port.chainId,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,
@@ -146,6 +152,7 @@ export default class PortsController {
       portId: port.portId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
+      chainId: port.chainId,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,

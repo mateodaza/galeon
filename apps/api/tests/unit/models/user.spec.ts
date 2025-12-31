@@ -33,4 +33,16 @@ test.group('User Model', () => {
     assert.isTrue(relations.has('collections'))
     assert.equal(relations.get('collections')?.type, 'hasMany')
   })
+
+  test('has fogPayments relationship', async ({ assert }) => {
+    const relations = User.$relationsDefinitions
+    assert.isTrue(relations.has('fogPayments'))
+    assert.equal(relations.get('fogPayments')?.type, 'hasMany')
+  })
+
+  test('has receipts relationship for fog payments', async ({ assert }) => {
+    const relations = User.$relationsDefinitions
+    assert.isTrue(relations.has('receipts'))
+    assert.equal(relations.get('receipts')?.type, 'hasMany')
+  })
 })

@@ -13,6 +13,9 @@ export const createPortValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1).maxLength(100).optional(),
     stealthMetaAddress: vine.string().regex(stealthMetaAddressRegex),
+    viewingKeyEncrypted: vine.string().minLength(1), // AES-GCM encrypted viewing key
+    viewingKeyNonce: vine.string().minLength(1), // IV for AES-GCM decryption
+    chainId: vine.number().positive().optional(), // Defaults to 5000 (Mantle)
   })
 )
 
