@@ -228,6 +228,120 @@ test.group('AuthController', (group) => {
     assert.exists(refreshResponse.body().refreshToken)
   })
 
+  test('POST /api/v1/auth/refresh rejects invalid token', async ({ client }) => {
+    const response = await client
+      .post('/api/v1/auth/refresh')
+      .header('Authorization', 'Bearer invalid_refresh_token_here')
+
+    response.assertStatus(401)
+    response.assertBodyContains({ error: 'Invalid or expired refresh token' })
+  })
+
+  test('POST /api/v1/auth/refresh rejects missing Authorization header', async ({ client }) => {
+    const response = await client.post('/api/v1/auth/refresh')
+
+    response.assertStatus(401)
+  })
+
+  test('POST /api/v1/auth/refresh rejects malformed Authorization header', async ({ client }) => {
+    // Missing "Bearer " prefix
+    const response = await client
+      .post('/api/v1/auth/refresh')
+      .header('Authorization', 'some_token_without_bearer_prefix')
+
+    response.assertStatus(401)
+  })
+
+  test('POST /api/v1/auth/refresh rejects already-rotated token', async ({ client, assert }) => {
+    // First authenticate to get tokens
+    const nonceResponse = await client
+      .get('/api/v1/auth/nonce')
+      .qs({ walletAddress: TEST_WALLET_ADDRESS })
+
+    const { nonce, chainId } = nonceResponse.body()
+
+    const siweMessage = new SiweMessage({
+      domain: 'localhost',
+      address: TEST_WALLET_ADDRESS,
+      statement: 'Sign in to Galeon',
+      uri: 'http://localhost:3333',
+      version: '1',
+      chainId,
+      nonce,
+      issuedAt: new Date().toISOString(),
+    })
+
+    const message = siweMessage.prepareMessage()
+    const signature = await testWallet.signMessage(message)
+
+    const authResponse = await client.post('/api/v1/auth/verify').json({ message, signature })
+    const { refreshToken: originalRefreshToken } = authResponse.body()
+
+    // Use the refresh token once - this rotates it and invalidates the original
+    const firstRefresh = await client
+      .post('/api/v1/auth/refresh')
+      .header('Authorization', `Bearer ${originalRefreshToken}`)
+
+    firstRefresh.assertStatus(200)
+    assert.exists(firstRefresh.body().refreshToken)
+
+    // Try to use the OLD (now-rotated) token again - should fail
+    const secondRefresh = await client
+      .post('/api/v1/auth/refresh')
+      .header('Authorization', `Bearer ${originalRefreshToken}`)
+
+    secondRefresh.assertStatus(401)
+    secondRefresh.assertBodyContains({ error: 'Invalid or expired refresh token' })
+  })
+
+  test('POST /api/v1/auth/refresh with rotated token returns new tokens that work', async ({
+    client,
+    assert,
+  }) => {
+    // Authenticate
+    const nonceResponse = await client
+      .get('/api/v1/auth/nonce')
+      .qs({ walletAddress: TEST_WALLET_ADDRESS })
+
+    const { nonce, chainId } = nonceResponse.body()
+
+    const siweMessage = new SiweMessage({
+      domain: 'localhost',
+      address: TEST_WALLET_ADDRESS,
+      statement: 'Sign in to Galeon',
+      uri: 'http://localhost:3333',
+      version: '1',
+      chainId,
+      nonce,
+      issuedAt: new Date().toISOString(),
+    })
+
+    const message = siweMessage.prepareMessage()
+    const signature = await testWallet.signMessage(message)
+
+    const authResponse = await client.post('/api/v1/auth/verify').json({ message, signature })
+    const { refreshToken: firstToken } = authResponse.body()
+
+    // First refresh - get new tokens
+    const firstRefresh = await client
+      .post('/api/v1/auth/refresh')
+      .header('Authorization', `Bearer ${firstToken}`)
+
+    firstRefresh.assertStatus(200)
+    const { refreshToken: secondToken, accessToken } = firstRefresh.body()
+
+    // Verify the new access token works for authenticated routes
+    const protectedResponse = await client
+      .post('/api/v1/auth/logout')
+      .header('Authorization', `Bearer ${accessToken}`)
+
+    protectedResponse.assertStatus(200)
+
+    // Note: After logout, refresh tokens are deleted, so we can't test further refresh
+    // But we've verified the rotated tokens work correctly
+    assert.notEqual(firstToken, secondToken, 'Refresh token should be rotated')
+  })
+
   test('POST /api/v1/auth/logout requires authentication', async ({ client }) => {
     const response = await client.post('/api/v1/auth/logout')
 
