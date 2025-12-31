@@ -31,7 +31,7 @@ export default class PortsController {
     return response.ok({
       data: ports.all().map((port) => ({
         id: port.id,
-        portId: port.portId,
+        indexerPortId: port.indexerPortId,
         name: port.name,
         stealthMetaAddress: port.stealthMetaAddress,
         chainId: port.chainId,
@@ -71,16 +71,19 @@ export default class PortsController {
 
     const port = await Port.create({
       userId: user.id,
-      name: data.name,
+      name: data.name ?? 'Unnamed Port',
+      type: 'permanent', // Default type for API-created ports
       stealthMetaAddress: data.stealthMetaAddress,
-      viewingKeyEncrypted: data.viewingKeyEncrypted,
-      viewingKeyNonce: data.viewingKeyNonce,
+      viewingKeyEncrypted: Port.encryptViewingKey(data.viewingKey),
       chainId: data.chainId ?? 5000, // Default to Mantle mainnet
     })
 
+    // Refresh to get database defaults (totalReceived, totalCollected, etc.)
+    await port.refresh()
+
     return response.created({
       id: port.id,
-      portId: port.portId,
+      indexerPortId: port.indexerPortId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,
@@ -109,7 +112,7 @@ export default class PortsController {
 
     return response.ok({
       id: port.id,
-      portId: port.portId,
+      indexerPortId: port.indexerPortId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,
@@ -149,7 +152,7 @@ export default class PortsController {
 
     return response.ok({
       id: port.id,
-      portId: port.portId,
+      indexerPortId: port.indexerPortId,
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,

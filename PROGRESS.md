@@ -17,9 +17,10 @@
 | Stealth library | Done        | -     | 30 tests, audited, documented (README.md)                 |
 | Contracts       | Done        | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
 | Ponder indexer  | Done        | -     | Event handlers, schema, REST API (direct DB access)       |
+| Receipt Claim   | Not Started | -     | Frontend claims → API verifies via Ponder → user linked   |
 | Real-time       | Not Started | -     | Transmit SSE                                              |
 
-**Milestone:** Payment on testnet → Ponder indexes → API receives webhook → SSE broadcasts
+**Milestone:** Payment on chain → Frontend claims → API verifies → User notified
 
 ---
 
