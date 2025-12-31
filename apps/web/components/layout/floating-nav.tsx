@@ -87,7 +87,7 @@ export function FloatingNav() {
                 {link.label}
               </Link>
             ))}
-            <div className="mt-2 border-t border-white/10 pt-4">
+            <div className="mt-2 flex justify-center border-t border-white/10 pt-4">
               <WalletButton />
             </div>
           </div>

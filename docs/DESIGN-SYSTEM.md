@@ -484,9 +484,20 @@ The repo already has custom components (`wallet-button.tsx`, page-specific compo
 
 ## Implementation Plan
 
-### Phase 1: Foundation
+### Current Status
 
-**Files to create/modify:**
+> **Landing page complete.** The homepage uses the new dark glass theme with cyan accents. Other pages still need migration.
+
+**Active color scheme (landing):**
+
+- Background: Dark gradient with ocean imagery
+- Glass cards: `bg-slate-900/50 backdrop-blur-xl border-white/20`
+- Primary buttons: `bg-cyan-600/80 hover:bg-cyan-500/80`
+- Text: `text-white`, `text-cyan-100/80`, `text-cyan-300`
+
+### Phase 1: Foundation ✅
+
+**Files created/modified:**
 
 1. `apps/web/app/globals.css` - Tailwind @theme tokens
 2. `apps/web/lib/utils.ts` - cn() helper
@@ -495,36 +506,36 @@ The repo already has custom components (`wallet-button.tsx`, page-specific compo
 
 **Tasks:**
 
-- [ ] Set up Tailwind v4 @theme with design tokens
-- [ ] Initialize shadcn/ui with custom theme
-- [ ] Install Motion and create animation presets
-- [ ] Install Lucide icons
-- [ ] Create theme toggle component (light/dark)
+- [x] Set up Tailwind v4 @theme with design tokens
+- [x] Initialize shadcn/ui with custom theme
+- [x] Install Motion and create animation presets
+- [x] Install Lucide icons
+- [ ] Create theme toggle component (light/dark) - _Deferred, dark-only for hackathon_
 
-### Phase 2: Core Components
+### Phase 2: Core Components ✅
 
-**Components to build:**
+**Components built:**
 
-- [ ] `Button` - All variants with gradient primary
-- [ ] `Card` - Default, glass, outlined, interactive
-- [ ] `GlassCard` - Glassmorphism wrapper
-- [ ] `Input` - Text, number, with validation states
+- [x] `Button` - shadcn/ui with custom variants
+- [x] `Card` - Default and glass variants
+- [x] `GlassCard` - Glassmorphism wrapper (`components/ui/glass-card.tsx`)
+- [x] `Input` - shadcn/ui base
 - [ ] `Dialog` / `Modal` - With glass background
 - [ ] `Toast` - With Motion animations
 - [ ] `Badge` - Status indicators
 - [ ] `Skeleton` - Loading states with shimmer
 
-### Phase 3: Layout Components
+### Phase 3: Layout Components (Partial)
 
-- [ ] `AppShell` - Main layout wrapper
-- [ ] `Header` - Navigation, wallet button
+- [ ] `AppShell` - Main layout wrapper for dashboard
+- [x] `FloatingNav` - Glass navbar with mobile hamburger menu
 - [ ] `Sidebar` - Dashboard navigation
 - [ ] `PageHeader` - Title, breadcrumbs
 - [ ] `Container` - Max-width wrapper
 
 ### Phase 4: Feature Components
 
-- [ ] `PortCard` - Glass card for ports
+- [x] `PortCard` - Basic version exists (`components/port-card.tsx`)
 - [ ] `FogWalletCard` - Fog wallet display
 - [ ] `PaymentForm` - Amount, recipient input
 - [ ] `TransactionRow` - Transaction list item
@@ -533,20 +544,88 @@ The repo already has custom components (`wallet-button.tsx`, page-specific compo
 
 ### Phase 5: Pages
 
-- [ ] Homepage - New design system
-- [ ] About page - Update styling
-- [ ] Dashboard shell
-- [ ] Setup/onboarding flow
-- [ ] Payment page
+- [x] Homepage/Landing - New design system with glass theme
+- [ ] About page - Update to match landing style
+- [ ] Dashboard (`/dashboard`) - Needs full redesign
+- [ ] Ports page (`/dashboard/ports`) - Needs glass cards
+- [ ] Setup/onboarding (`/setup`) - Needs glass forms
+- [ ] Payment page (`/pay/[portId]`) - Needs glass payment form
+- [ ] Collect page (`/collect`) - Needs transaction styling
+- [ ] Verify page (`/verify`) - Needs status indicators
 
 ### Phase 6: Polish
 
-- [ ] Page transitions
+- [x] Landing page animations (Motion presets)
+- [x] Mobile responsive navbar
+- [ ] Page transitions between routes
 - [ ] Loading states everywhere
 - [ ] Success animations
 - [ ] Error states
 - [ ] Empty states
-- [ ] Responsive refinements
+- [ ] Responsive refinements for all pages
+
+---
+
+## Remaining Work
+
+### High Priority (Core Functionality)
+
+1. **Dashboard shell** - Create `AppShell` layout with sidebar navigation
+2. **Setup page** - Glass forms for port creation
+3. **Payment page** - Glass payment form with amount input
+4. **Collect page** - Transaction list with status indicators
+
+### Medium Priority (Polish)
+
+5. **About page** - Migrate to glass theme
+6. **Port cards** - Update to match landing glass style
+7. **Form components** - Glass-styled inputs, selects
+8. **Toast notifications** - For transaction feedback
+
+### Low Priority (Nice to Have)
+
+9. **Page transitions** - Smooth route animations
+10. **Loading skeletons** - Shimmer effects
+11. **Empty states** - Illustrations for no-data views
+12. **Success animations** - Confetti, checkmarks
+
+---
+
+## Migration Guide: Page-by-Page
+
+### Converting a page to glass theme:
+
+1. **Background**: Add ocean gradient or use `bg-slate-950`
+2. **Cards**: Replace `bg-card` with `GlassCard` component
+3. **Text colors**:
+   - Headings: `text-white`
+   - Body: `text-cyan-100/80`
+   - Muted: `text-cyan-100/50`
+4. **Borders**: Use `border-white/20` or `border-white/10`
+5. **Buttons**: Use `bg-cyan-600/80` for primary actions
+6. **Inputs**: Add `bg-white/5 border-white/20 text-white`
+
+### Example conversion:
+
+```tsx
+// Before (semantic colors)
+<div className="bg-card border rounded-lg p-4">
+  <h2 className="text-foreground">Title</h2>
+  <p className="text-muted-foreground">Description</p>
+  <Button>Action</Button>
+</div>
+
+// After (glass theme)
+<GlassCard>
+  <GlassCardContent>
+    <h2 className="text-white">Title</h2>
+    <p className="text-cyan-100/70">Description</p>
+    <button className="bg-cyan-600/80 text-white rounded-full px-4 py-2">
+      Action
+    </button>
+  </GlassCardContent>
+</GlassCard>
+```
 
 ---
 
