@@ -159,7 +159,6 @@
 - [ ] Notify user when receipt confirmed
 - [ ] Notify user when receipt rejected
 
-
 **Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
 
 ## Port Creation Intent Pattern (2025-12-31)

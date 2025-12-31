@@ -19,8 +19,8 @@ export default class extends BaseSchema {
         .enum('type', ['permanent', 'recurring', 'one-time', 'burner'])
         .notNullable()
         .defaultTo('permanent')
-      table.text('stealth_meta_address').notNullable()
-      table.text('viewing_key_encrypted').notNullable() // Encrypted with APP_KEY via AdonisJS encryption service
+      table.text('stealth_meta_address').nullable() // Nullable for two-step creation flow
+      table.text('viewing_key_encrypted').nullable() // Encrypted with APP_KEY, nullable for two-step flow
       table.integer('chain_id').notNullable().defaultTo(5000) // Mantle Mainnet
       table.enum('status', ['pending', 'confirmed']).notNullable().defaultTo('pending') // pending until verified by indexer
       table.string('tx_hash', 66).nullable() // Transaction hash for on-chain verification
