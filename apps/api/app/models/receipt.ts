@@ -5,7 +5,7 @@ import Port from '#models/port'
 import Collection from '#models/collection'
 import User from '#models/user'
 
-export type ReceiptStatus = 'pending' | 'confirmed' | 'collected'
+export type ReceiptStatus = 'pending' | 'confirmed' | 'collected' | 'failed'
 
 export default class Receipt extends BaseModel {
   @column({ isPrimary: true })
@@ -27,25 +27,25 @@ export default class Receipt extends BaseModel {
   declare isFogPayment: boolean
 
   @column()
-  declare receiptHash: string // bytes32 hex
+  declare receiptHash: string | null // bytes32 hex - nullable for two-step flow
 
   @column()
-  declare stealthAddress: string
+  declare stealthAddress: string | null // nullable for two-step flow
 
   @column()
-  declare ephemeralPubKey: string // hex-encoded, needed to derive stealth private key
+  declare ephemeralPubKey: string | null // nullable for two-step flow
 
   @column()
-  declare viewTag: number // 0-255, fast scan optimization
+  declare viewTag: number | null // 0-255 - nullable for two-step flow
 
   @column()
-  declare payerAddress: string
+  declare payerAddress: string | null // nullable for two-step flow
 
   @column()
-  declare amount: string // bigint as string
+  declare amount: string | null // bigint as string - nullable for two-step flow
 
   @column()
-  declare currency: string
+  declare currency: string | null // nullable for two-step flow
 
   @column()
   declare tokenAddress: string | null
@@ -57,13 +57,19 @@ export default class Receipt extends BaseModel {
   declare txHash: string
 
   @column()
-  declare blockNumber: string // bigint as string
+  declare blockNumber: string | null // bigint as string - nullable for two-step flow
 
   @column()
   declare chainId: number
 
   @column()
   declare status: ReceiptStatus
+
+  @column()
+  declare verificationAttempts: number
+
+  @column()
+  declare verificationError: string | null
 
   @column.dateTime()
   declare collectedAt: DateTime | null

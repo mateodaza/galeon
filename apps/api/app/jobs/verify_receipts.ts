@@ -6,21 +6,25 @@ import PonderService from '#services/ponder_service'
  * VerifyReceipts Job
  *
  * Scheduled job to verify pending receipts against the Ponder indexer database.
- * - Queries all pending receipts
+ * - Queries all pending receipts with a txHash
  * - Checks Ponder DB for corresponding announcement
  * - If found, fills in receipt data and marks as confirmed
- * - If not found, leaves as pending for next job run
+ * - If not found after MAX_ATTEMPTS, marks as failed
  */
-interface VerifyReceiptsPayload {
+
+const MAX_VERIFICATION_ATTEMPTS = 10 // Stop retrying after 10 attempts (~10 minutes)
+
+export interface VerifyReceiptsPayload {
   batchSize?: number
+  ponderService?: PonderService // For testing - allows injecting a mock
 }
 
 export default class VerifyReceipts extends Job {
   async handle(payload: VerifyReceiptsPayload) {
     const batchSize = payload.batchSize ?? 100
-    this.logger.info(`VerifyReceipts job started with batchSize: ${batchSize}`)
+    this.logger?.info(`VerifyReceipts job started with batchSize: ${batchSize}`)
 
-    const ponderService = new PonderService()
+    const ponderService = payload.ponderService ?? new PonderService()
 
     // Get pending receipts
     const pendingReceipts = await Receipt.query()
@@ -28,10 +32,11 @@ export default class VerifyReceipts extends Job {
       .orderBy('createdAt', 'asc')
       .limit(batchSize)
 
-    this.logger.info(`Found ${pendingReceipts.length} pending receipts to verify`)
+    this.logger?.info(`Found ${pendingReceipts.length} pending receipts to verify`)
 
     let verified = 0
     let notFound = 0
+    let failed = 0
 
     for (const receipt of pendingReceipts) {
       try {
@@ -42,8 +47,21 @@ export default class VerifyReceipts extends Job {
         )
 
         if (!announcement) {
-          // Not indexed yet, will retry on next job run
-          notFound++
+          // Not indexed yet - increment attempt counter
+          receipt.verificationAttempts = (receipt.verificationAttempts ?? 0) + 1
+
+          if (receipt.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+            receipt.status = 'failed'
+            receipt.verificationError = 'Transaction not found in indexer after maximum attempts'
+            await receipt.save()
+            failed++
+            this.logger?.warn(
+              `Receipt ${receipt.id} marked as failed: tx ${receipt.txHash} not found after ${MAX_VERIFICATION_ATTEMPTS} attempts`
+            )
+          } else {
+            await receipt.save()
+            notFound++
+          }
           continue
         }
 
@@ -75,19 +93,20 @@ export default class VerifyReceipts extends Job {
               : 'ERC20'
         }
 
-        // Mark as confirmed
+        // Mark as confirmed and clear any previous error
         receipt.status = 'confirmed'
+        receipt.verificationError = null
         await receipt.save()
 
         verified++
-        this.logger.info(`Verified receipt ${receipt.id} from tx ${receipt.txHash}`)
+        this.logger?.info(`Verified receipt ${receipt.id} from tx ${receipt.txHash}`)
       } catch (error) {
-        this.logger.error(`Error verifying receipt ${receipt.id}: ${error}`)
+        this.logger?.error(`Error verifying receipt ${receipt.id}: ${error}`)
       }
     }
 
-    this.logger.info(
-      `VerifyReceipts job completed: ${verified} verified, ${notFound} not found yet`
+    this.logger?.info(
+      `VerifyReceipts job completed: ${verified} verified, ${notFound} not found yet, ${failed} failed`
     )
   }
 }

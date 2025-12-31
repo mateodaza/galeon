@@ -8,13 +8,35 @@ import {
   computeViewTag,
   type StealthClient,
 } from '@galeon/stealth'
-import type {
-  Announcement,
-  ScannedPayment,
-  StealthMetaAddress,
-  StealthAddressResult,
-} from '@galeon/stealth/types'
 import ChainService from '#services/chain_service'
+
+// Local type definitions (mirroring @galeon/stealth/types)
+// TODO: Fix package exports to properly expose types
+type StealthMetaAddress = `st:${'eth' | 'mnt'}:0x${string}`
+
+interface StealthAddressResult {
+  stealthAddress: `0x${string}`
+  ephemeralPublicKey: Uint8Array
+  viewTag: number
+}
+
+interface Announcement {
+  stealthAddress: `0x${string}`
+  ephemeralPubKey: Uint8Array
+  metadata: Uint8Array
+  txHash: `0x${string}`
+  blockNumber: bigint
+}
+
+interface ScannedPayment {
+  stealthAddress: `0x${string}`
+  stealthPrivateKey: Uint8Array
+  amount: bigint
+  token: `0x${string}` | null
+  receiptHash: `0x${string}`
+  txHash: `0x${string}`
+  blockNumber: bigint
+}
 
 export interface ClaimablePayment {
   receiptId: string

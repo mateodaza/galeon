@@ -25,19 +25,25 @@ export default class extends BaseSchema {
       // fog_payment_id links to scheduled fog payment if applicable
       table.uuid('fog_payment_id').nullable()
       table.boolean('is_fog_payment').notNullable().defaultTo(false)
-      table.string('receipt_hash', 66).notNullable().unique() // bytes32 hex
-      table.string('stealth_address', 42).notNullable()
-      table.text('ephemeral_pub_key').notNullable() // hex-encoded, needed to derive stealth private key for collection
-      table.smallint('view_tag').notNullable() // 0-255, fast scan optimization
-      table.string('payer_address', 42).notNullable()
-      table.decimal('amount', 78, 0).notNullable() // wei
-      table.string('currency', 10).notNullable() // MNT, ETH, USDC, etc.
+      // Two-step flow: receipt is created with txHash, then filled by VerifyReceipts job
+      table.string('receipt_hash', 66).nullable().unique() // bytes32 hex - filled by indexer
+      table.string('stealth_address', 42).nullable() // filled by indexer
+      table.text('ephemeral_pub_key').nullable() // hex-encoded - filled by indexer
+      table.smallint('view_tag').nullable() // 0-255 - filled by indexer
+      table.string('payer_address', 42).nullable() // filled by indexer
+      table.decimal('amount', 78, 0).nullable() // wei - filled by indexer
+      table.string('currency', 10).nullable() // MNT, ETH, USDC - filled by indexer
       table.string('token_address', 42).nullable() // null for native
       table.text('memo').nullable()
-      table.string('tx_hash', 66).notNullable()
-      table.bigInteger('block_number').notNullable()
+      table.string('tx_hash', 66).notNullable() // required at creation
+      table.bigInteger('block_number').nullable() // filled by indexer
       table.integer('chain_id').notNullable()
-      table.enum('status', ['pending', 'confirmed', 'collected']).notNullable().defaultTo('pending')
+      table
+        .enum('status', ['pending', 'confirmed', 'collected', 'failed'])
+        .notNullable()
+        .defaultTo('pending')
+      table.integer('verification_attempts').notNullable().defaultTo(0) // Track retry attempts
+      table.text('verification_error').nullable() // Store error message for failed verifications
       table.timestamp('collected_at', { useTz: true }).nullable()
       table.timestamp('created_at', { useTz: true }).notNullable()
       table.timestamp('updated_at', { useTz: true }).notNullable()
