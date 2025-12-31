@@ -35,6 +35,8 @@ export default class PortsController {
         name: port.name,
         stealthMetaAddress: port.stealthMetaAddress,
         chainId: port.chainId,
+        status: port.status,
+        txHash: port.txHash,
         totalReceived: port.totalReceived,
         totalCollected: port.totalCollected,
         archived: port.archived,
@@ -51,34 +53,23 @@ export default class PortsController {
 
   /**
    * POST /ports
-   * Create a new port
+   * Create a new port (step 1 of two-step flow)
+   *
+   * Returns the port ID which frontend uses to derive keys.
+   * Frontend then calls PATCH with stealthMetaAddress and viewingKey.
    */
   async store({ auth, request, response }: HttpContext) {
     const user = auth.user!
     const data = await createPortValidator.validate(request.body())
 
-    // Check if stealth meta address already exists for this user
-    const existing = await Port.query()
-      .where('userId', user.id)
-      .where('stealthMetaAddress', data.stealthMetaAddress)
-      .first()
-
-    if (existing) {
-      return response.conflict({
-        error: 'Port with this stealth meta address already exists',
-      })
-    }
-
     const port = await Port.create({
       userId: user.id,
       name: data.name ?? 'Unnamed Port',
-      type: 'permanent', // Default type for API-created ports
-      stealthMetaAddress: data.stealthMetaAddress,
-      viewingKeyEncrypted: Port.encryptViewingKey(data.viewingKey),
-      chainId: data.chainId ?? 5000, // Default to Mantle mainnet
+      type: 'permanent',
+      chainId: data.chainId ?? 5000,
+      status: 'pending',
     })
 
-    // Refresh to get database defaults (totalReceived, totalCollected, etc.)
     await port.refresh()
 
     return response.created({
@@ -87,6 +78,8 @@ export default class PortsController {
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,
+      status: port.status,
+      txHash: port.txHash,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,
@@ -116,6 +109,8 @@ export default class PortsController {
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,
+      status: port.status,
+      txHash: port.txHash,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,
@@ -147,6 +142,33 @@ export default class PortsController {
     if (data.archived !== undefined) {
       port.archived = data.archived
     }
+    if (data.txHash !== undefined) {
+      port.txHash = data.txHash
+    }
+    if (data.status !== undefined) {
+      port.status = data.status
+    }
+    if (data.indexerPortId !== undefined) {
+      port.indexerPortId = data.indexerPortId
+    }
+    // Step 2 of two-step creation: add stealth keys
+    if (data.stealthMetaAddress !== undefined) {
+      // Check for duplicates
+      const existing = await Port.query()
+        .where('userId', port.userId)
+        .where('stealthMetaAddress', data.stealthMetaAddress)
+        .whereNot('id', port.id)
+        .first()
+      if (existing) {
+        return response.conflict({
+          error: 'Port with this stealth meta address already exists',
+        })
+      }
+      port.stealthMetaAddress = data.stealthMetaAddress
+    }
+    if (data.viewingKey !== undefined) {
+      port.viewingKeyEncrypted = Port.encryptViewingKey(data.viewingKey)
+    }
 
     await port.save()
 
@@ -156,6 +178,8 @@ export default class PortsController {
       name: port.name,
       stealthMetaAddress: port.stealthMetaAddress,
       chainId: port.chainId,
+      status: port.status,
+      txHash: port.txHash,
       totalReceived: port.totalReceived,
       totalCollected: port.totalCollected,
       archived: port.archived,

@@ -48,13 +48,18 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
       }
 
   const copyPaymentLink = useCallback(() => {
+    if (!port.portId) return
     const link = `${window.location.origin}/pay/${port.portId}`
     navigator.clipboard.writeText(link)
     setCopied('link')
     setTimeout(() => setCopied(null), 2000)
   }, [port.portId])
 
+  // Payment links only available for confirmed ports
+  const canShowPaymentLink = showPaymentLink && port.status === 'confirmed' && port.portId
+
   const copyMetaAddress = useCallback(() => {
+    if (!port.stealthMetaAddress) return
     navigator.clipboard.writeText(port.stealthMetaAddress)
     setCopied('address')
     setTimeout(() => setCopied(null), 2000)
@@ -83,10 +88,17 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
             <div className="min-w-0 flex-1">
               <h3 className="text-foreground truncate text-lg font-semibold">{port.name}</h3>
               <p className="text-muted-foreground mt-1 font-mono text-xs">
-                {port.portId.slice(0, 10)}...{port.portId.slice(-8)}
+                {port.portId
+                  ? `${port.portId.slice(0, 10)}...${port.portId.slice(-8)}`
+                  : `${port.id.slice(0, 8)}...`}
               </p>
             </div>
             <div className="ml-2 flex items-center gap-2">
+              {port.status === 'pending' && (
+                <span className="bg-warning/10 text-warning rounded-full px-2 py-0.5 text-xs font-medium">
+                  Pending
+                </span>
+              )}
               <div
                 className={cn(
                   'h-2 w-2 rounded-full',
@@ -148,7 +160,7 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
           </div>
 
           {/* Actions */}
-          {showPaymentLink && (
+          {canShowPaymentLink && (
             <div className="mt-4 flex gap-2">
               <Button
                 variant="secondary"

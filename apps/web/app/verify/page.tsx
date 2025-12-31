@@ -60,7 +60,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <AppShell showNav={false} maxWidth="lg" className="items-center justify-center">
+    <AppShell maxWidth="lg" className="items-center justify-center">
       <div className="flex flex-1 flex-col items-center justify-center p-6">
         <div className="w-full max-w-lg">
           <div className="text-center">

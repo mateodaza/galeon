@@ -1,14 +1,16 @@
 'use client'
 
 /**
- * Port management page.
+ * Receive page - manage payment links (Ports).
  *
  * Lists all Ports and allows creating new ones.
  * Each Port has its own stealth meta-address for payment isolation.
+ * Includes collect functionality for claiming received funds.
  */
 
 import { useState, useEffect } from 'react'
-import { Ship, Plus, Loader2 } from 'lucide-react'
+import { Ship, Plus, Loader2, Download } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -24,23 +26,30 @@ import {
 import { PortCard } from '@/components/port-card'
 import { usePorts, useCreatePort } from '@/hooks/use-ports'
 
-export default function PortsPage() {
+export default function ReceivePage() {
+  const router = useRouter()
   const { ports, isLoading, error, refetch } = usePorts()
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const createButton = (
-    <Button onClick={() => setShowCreateModal(true)}>
-      <Plus className="h-4 w-4" />
-      Create Port
-    </Button>
+  const actions = (
+    <div className="flex gap-2">
+      <Button variant="outline" onClick={() => router.push('/collect')}>
+        <Download className="h-4 w-4" />
+        Collect Funds
+      </Button>
+      <Button onClick={() => setShowCreateModal(true)}>
+        <Plus className="h-4 w-4" />
+        New Payment Link
+      </Button>
+    </div>
   )
 
   return (
     <AppShell requireAuth requireKeys>
       <PageHeader
-        title="Ports"
-        description="Manage your payment endpoints"
-        actions={createButton}
+        title="Receive"
+        description="Create payment links and collect funds"
+        actions={actions}
       />
 
       {/* Loading state */}
@@ -54,7 +63,7 @@ export default function PortsPage() {
       {error && (
         <Card className="border-destructive bg-destructive/10">
           <CardContent className="pt-6">
-            <p className="text-destructive">Error loading ports: {error.message}</p>
+            <p className="text-destructive">Error loading payment links: {error.message}</p>
             <Button variant="link" onClick={() => refetch()} className="text-destructive mt-2">
               Try again
             </Button>
@@ -67,19 +76,19 @@ export default function PortsPage() {
         <Card className="py-16">
           <CardContent className="flex flex-col items-center justify-center">
             <Ship className="text-muted-foreground/50 h-16 w-16" />
-            <h2 className="text-foreground mt-4 text-xl font-semibold">No Ports yet</h2>
+            <h2 className="text-foreground mt-4 text-xl font-semibold">No payment links yet</h2>
             <p className="text-muted-foreground mt-2">
-              Create your first Port to start receiving private payments
+              Create your first payment link to start receiving private payments
             </p>
             <Button onClick={() => setShowCreateModal(true)} className="mt-6">
-              Create Your First Port
+              Create Your First Payment Link
             </Button>
           </CardContent>
         </Card>
       ) : !isLoading && !error ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ports.map((port) => (
-            <PortCard key={port.portId} port={port} />
+            <PortCard key={port.id} port={port} />
           ))}
         </div>
       ) : null}
@@ -139,15 +148,15 @@ function CreatePortModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Port</DialogTitle>
+          <DialogTitle>Create Payment Link</DialogTitle>
           <DialogDescription>
-            Each Port has its own stealth address for payment isolation.
+            Each payment link has its own stealth address for isolation.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div>
-            <label className="text-foreground block text-sm font-medium">Port Name</label>
+            <label className="text-foreground block text-sm font-medium">Name</label>
             <Input
               type="text"
               value={name}
@@ -160,7 +169,7 @@ function CreatePortModal({
 
           {error && (
             <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
-              {error.message || 'Failed to create port'}
+              {error.message || 'Failed to create payment link'}
             </div>
           )}
 
@@ -187,7 +196,7 @@ function CreatePortModal({
                 Confirming...
               </>
             ) : (
-              'Create Port'
+              'Create'
             )}
           </Button>
         </DialogFooter>

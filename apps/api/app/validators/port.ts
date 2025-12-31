@@ -7,24 +7,37 @@ import vine from '@vinejs/vine'
 const stealthMetaAddressRegex = /^st:(eth|mnt):0x[a-fA-F0-9]{132}$/
 
 /**
- * Validator for creating a new port
+ * Validator for creating a new port (step 1 of two-step flow)
+ * Only name and chainId required - stealth keys added via PATCH after ID is known
  */
 export const createPortValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1).maxLength(100).optional(),
-    stealthMetaAddress: vine.string().regex(stealthMetaAddressRegex),
-    viewingKey: vine.string().regex(/^0x[a-fA-F0-9]{64}$/), // 32-byte private key as hex
     chainId: vine.number().positive().optional(), // Defaults to 5000 (Mantle)
   })
 )
 
 /**
- * Validator for updating a port
+ * Validator for updating a port (includes step 2 of creation: adding stealth keys)
  */
 export const updatePortValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1).maxLength(100).optional(),
     archived: vine.boolean().optional(),
+    txHash: vine
+      .string()
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .optional(), // Transaction hash (32 bytes)
+    status: vine.enum(['pending', 'confirmed']).optional(),
+    indexerPortId: vine
+      .string()
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .optional(), // On-chain portId (keccak256 hash)
+    stealthMetaAddress: vine.string().regex(stealthMetaAddressRegex).optional(), // Step 2: add stealth keys
+    viewingKey: vine
+      .string()
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .optional(), // Step 2: 32-byte private key as hex
   })
 )
 

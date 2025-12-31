@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Ship, ExternalLink } from 'lucide-react'
-import { WalletButton } from '@/components/wallet-button'
+import { ExternalLink } from 'lucide-react'
+import { FloatingNav } from '@/components/layout/floating-nav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,17 +14,10 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <main className="bg-background flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Ship className="text-primary h-6 w-6" />
-          <span className="text-foreground text-xl font-bold">Galeon</span>
-        </Link>
-        <WalletButton />
-      </header>
+      <FloatingNav variant="light" />
 
       {/* Content */}
-      <div className="mx-auto max-w-3xl px-6 py-16">
+      <div className="mx-auto max-w-3xl px-6 pb-16 pt-24">
         {/* Hero */}
         <h1 className="text-foreground text-4xl font-bold sm:text-5xl">
           The Legend of <span className="text-primary">Galeon</span>

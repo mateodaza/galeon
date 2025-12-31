@@ -1,7 +1,7 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2025-12-31
+> Last updated: 2025-12-31 (Port intent pattern integrated)
 
 ## Setup
 
@@ -162,6 +162,23 @@ See [RECEIPT-CLAIM-FLOW.md](../../docs/RECEIPT-CLAIM-FLOW.md) for full specifica
 
 **Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
 
+## Port Creation Intent Pattern (2025-12-31)
+
+Frontend-backend integration for port creation:
+
+1. **Frontend creates intent** → `POST /api/v1/ports` with `stealthMetaAddress`, `viewingKey`
+2. **Backend stores pending** → Port created with `status: 'pending'`
+3. **Frontend sends on-chain tx** → `registerPort(portId, name, metaAddressBytes)`
+4. **Frontend waits for receipt** → `waitForTransactionReceipt`
+5. **Frontend confirms** → `PATCH /api/v1/ports/:id` with `txHash`, `status: 'confirmed'`, `indexerPortId`
+
+**Port Status Lifecycle:**
+
+- `pending` - Created in backend, awaiting on-chain confirmation
+- `confirmed` - Transaction confirmed, `indexerPortId` stored
+
+**Future:** Reconciliation job to verify pending ports against Ponder indexer.
+
 ## Notes
 
 - JWT authentication via `@maximemrf/adonisjs-jwt` (stateless, with Redis blacklist for logout)
@@ -175,3 +192,4 @@ See [RECEIPT-CLAIM-FLOW.md](../../docs/RECEIPT-CLAIM-FLOW.md) for full specifica
 - Alchemy RPC for Mantle mainnet
 - Port model: `id` (UUID) is primary key for FK references; `indexerPortId` (bytes32 hex, nullable) links to Ponder indexer
 - Viewing keys encrypted with APP_KEY via AdonisJS encryption service
+- CORS configured with all methods including PATCH for frontend integration

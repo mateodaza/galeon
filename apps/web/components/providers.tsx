@@ -7,6 +7,7 @@
  * - Reown AppKit (wallet connection)
  * - Wagmi (React hooks for Ethereum)
  * - TanStack Query (async state management)
+ * - Auth context (SIWE + JWT)
  * - Stealth keys context
  * - Motion (animations)
  */
@@ -18,6 +19,7 @@ import { WagmiProvider, type State } from 'wagmi'
 import { LazyMotion, domAnimation } from 'motion/react'
 import { wagmiAdapter, projectId, isWalletConfigured } from '@/lib/wagmi'
 import { mantle, mantleSepolia } from '@/lib/chains'
+import { AuthProvider } from '@/contexts/auth-context'
 import { StealthProvider } from '@/contexts/stealth-context'
 import { NetworkGuard } from '@/components/network-guard'
 
@@ -78,10 +80,12 @@ export function Providers({ children, initialState }: ProvidersProps) {
     <WagmiProvider config={wagmiAdapter.wagmiConfig} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
         <LazyMotion features={domAnimation} strict>
-          <StealthProvider>
-            <NetworkGuard />
-            {children}
-          </StealthProvider>
+          <AuthProvider>
+            <StealthProvider>
+              <NetworkGuard />
+              {children}
+            </StealthProvider>
+          </AuthProvider>
         </LazyMotion>
       </QueryClientProvider>
     </WagmiProvider>
