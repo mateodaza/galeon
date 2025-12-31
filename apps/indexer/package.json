@@ -4,21 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo 'TODO: add ponder.config.ts first'",
-    "start": "echo 'TODO: add ponder.config.ts first'",
-    "build": "echo 'TODO: add ponder.config.ts first'",
-    "codegen": "echo 'TODO: add ponder.config.ts first'",
+    "dev": "ponder dev",
+    "start": "ponder start",
+    "serve": "ponder serve",
+    "codegen": "ponder codegen",
     "lint": "eslint .",
-    "typecheck": "echo 'TODO: add ponder.config.ts first'"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@galeon/eslint-config": "workspace:*",
     "@galeon/stealth": "workspace:*",
-    "ponder": "^0.15.17",
-    "viem": "^2.43.3"
+    "hono": "^4.11.3",
+    "ponder": "^0.9.1",
+    "viem": "^2.21.58"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

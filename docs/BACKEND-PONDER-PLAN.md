@@ -529,136 +529,139 @@ async verify({ request, response, auth }: HttpContext) {
 
 ### Fog Keys Storage (Scheduled Payments - MVP)
 
-Backend fog key storage enables **scheduled payments** (fog delegation).
+Backend fog key storage enables **scheduled payments**. Each scheduled payment gets its own isolated fog session with encrypted keys specific to that payment.
 
-**fog_sessions table** (stores encrypted fog keys for backend execution)
+**Design: Per-Payment Fog Sessions (Option B)**
+
+```
+User
+ └── FogPayment (for payment 1, keys + payment details, expires after execution)
+ └── FogPayment (for payment 2, keys + payment details, expires after execution)
+ └── FogPayment (for payment 3, keys + payment details, expires after execution)
+```
+
+**Benefits:**
+
+- Each scheduled payment has isolated keys
+- Compromise of one doesn't affect others
+- Simpler mental model - one record per scheduled payment
+- Keys are deleted immediately after execution
+
+**fog_payments table** (each record is one scheduled payment with its own encrypted keys)
 
 ```typescript
-// apps/api/database/migrations/*_fog_sessions.ts
+// apps/api/database/migrations/*_fog_payments.ts
 export default class extends BaseSchema {
   async up() {
-    this.schema.createTable('fog_sessions', (table) => {
+    this.schema.createTable('fog_payments', (table) => {
       table.uuid('id').primary()
       table.integer('user_id').notNullable().references('users.id').onDelete('CASCADE')
 
-      // Fog keys encrypted with backend's public key (for delegation)
-      table.text('fog_keys_encrypted').notNullable() // Encrypted with FOG_ENCRYPTION_PUBLIC_KEY
+      // Fog wallet info
+      table.string('fog_address', 42).notNullable() // The stealth address of fog wallet
+      table.integer('fog_index').notNullable() // Index used with deriveFogKeys()
+
+      // Encrypted fog keys for THIS payment only (encrypted with backend's pubkey)
+      // Contains: { spendingPrivateKey, viewingPrivateKey, ephemeralPrivateKey }
+      table.text('fog_keys_encrypted').notNullable()
       table.text('fog_keys_nonce').notNullable()
 
-      // Session state
-      table.boolean('active').defaultTo(true)
-      table.timestamp('expires_at').notNullable()
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
+      // Recipient details (Bob's stealth address info)
+      table.string('recipient_stealth_address', 42).notNullable()
+      table.text('recipient_ephemeral_pub_key').notNullable() // 33 bytes hex
+      table.smallint('recipient_view_tag').notNullable() // 0-255
+      table.string('receipt_hash', 66).notNullable() // bytes32, matches computeReceiptHash()
 
-      table.index(['user_id'])
-      table.index(['active', 'expires_at'])
-    })
-  }
-}
-```
-
-**fog_delegations table** (individual scheduled payment authorizations)
-
-```typescript
-// apps/api/database/migrations/*_fog_delegations.ts
-export default class extends BaseSchema {
-  async up() {
-    this.schema.createTable('fog_delegations', (table) => {
-      table.uuid('id').primary()
-      table.integer('user_id').notNullable().references('users.id')
-      table.uuid('fog_session_id').notNullable().references('fog_sessions.id').onDelete('CASCADE')
-
-      // Fog wallet info
-      table.string('fog_address').notNullable()
-      table.integer('fog_index').notNullable()
-
-      // Payment details
-      table.string('recipient').notNullable()
-      table.string('recipient_ephemeral_pub_key').notNullable()
-      table.string('recipient_view_tag').notNullable()
-      table.string('receipt_hash').notNullable() // Must match computeReceiptHash() schema
-      table.decimal('amount', 78, 0).notNullable()
+      // Payment amount
+      table.decimal('amount', 78, 0).notNullable() // wei
+      table.string('token_address', 42).nullable() // null for native MNT
 
       // Time bounds
-      table.timestamp('send_at').notNullable()
-      table.timestamp('expires_at').notNullable()
+      table.timestamp('send_at', { useTz: true }).notNullable() // When to execute
+      table.timestamp('expires_at', { useTz: true }).notNullable() // Max execution time
 
-      // User's signed authorization
-      table.string('user_signature').notNullable()
-      table.text('delegation_message').notNullable()
+      // User's signed authorization (proves user authorized this specific payment)
+      table.text('user_signature').notNullable()
+      table.text('authorization_message').notNullable() // The message that was signed
 
       // Execution status
       table
         .enum('status', ['pending', 'processing', 'executed', 'failed', 'expired', 'cancelled'])
+        .notNullable()
         .defaultTo('pending')
-      table.string('tx_hash').nullable()
-      table.timestamp('executed_at').nullable()
+      table.string('tx_hash', 66).nullable() // Set on successful execution
+      table.timestamp('executed_at', { useTz: true }).nullable()
       table.text('error_message').nullable()
 
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
+      table.timestamp('created_at', { useTz: true }).notNullable()
+      table.timestamp('updated_at', { useTz: true }).notNullable()
 
+      // Indexes
       table.index(['user_id'])
-      table.index(['fog_session_id'])
       table.index(['status'])
-      table.index(['send_at'])
+      table.index(['send_at']) // For job scheduling
+      table.index(['status', 'send_at']) // Find pending payments due for execution
     })
   }
 }
 ```
 
-**Relationship:**
+**Key Differences from Previous Design:**
 
-- `fog_sessions` stores the user's encrypted fog keys (one active session per user)
-- `fog_delegations` stores individual payment authorizations that reference a session
-- When a session expires, all associated delegations are cancelled
-- See [FOG-SHIPWRECK-PLAN.md](FOG-SHIPWRECK-PLAN.md) for full delegation flow
+| Aspect        | Old (fog_sessions + fog_delegations)   | New (fog_payments)               |
+| ------------- | -------------------------------------- | -------------------------------- |
+| Tables        | 2 tables with FK relationship          | 1 table                          |
+| Keys per user | Shared across delegations              | Isolated per payment             |
+| Key lifetime  | Session duration (7-30 days)           | Until payment executes           |
+| Complexity    | Higher (manage sessions + delegations) | Lower (one record = one payment) |
+| Security      | Session compromise affects all         | Each payment isolated            |
 
-### Fog Session Encryption Details
+### Fog Payment Encryption Details
 
 ```typescript
 // Encryption scheme: ECIES with secp256k1 + AES-256-GCM
 // Backend generates a keypair at deploy time (stored in env vars)
 
-interface FogSessionEncryption {
+interface FogPaymentEncryption {
   // Frontend encrypts fog keys to backend's public key
   scheme: 'ecies-secp256k1-aes256gcm'
 
-  // Per-session random values
-  iv: Uint8Array // 12 bytes, unique per session
-  ephemeralPubKey: string // Frontend's ephemeral pubkey for ECDH
+  // Per-payment random values
+  nonce: Uint8Array // 12 bytes, unique per payment
 
-  // What's encrypted
+  // What's encrypted (specific to this fog wallet)
   plaintext: {
-    spendingPrivateKey: Uint8Array // 32 bytes
-    viewingPrivateKey: Uint8Array // 32 bytes
-    fogIndices: number[] // Which fog wallets are delegated
+    spendingPrivateKey: Uint8Array // 32 bytes - fog wallet spending key
+    viewingPrivateKey: Uint8Array // 32 bytes - fog wallet viewing key
+    ephemeralPrivateKey: Uint8Array // 32 bytes - used to derive fog stealth address
   }
 }
 
 // Backend decryption (in ProcessFogPayment job)
-const fogKeys = await CryptoService.decryptFogSession(
-  session.fogKeysEncrypted,
-  session.fogKeysNonce,
+const fogKeys = await CryptoService.decryptFogPayment(
+  fogPayment.fogKeysEncrypted,
+  fogPayment.fogKeysNonce,
   env.get('FOG_ENCRYPTION_PRIVATE_KEY')
 )
 ```
 
-**Session policies:**
+**Lifecycle:**
 
-- **One active session per user**: Creating new session invalidates previous
-- **Expiry enforcement**: Cron job marks expired sessions as inactive
-- **Cascade on expiry**: All pending delegations marked as `expired`
+1. User creates fog wallet (frontend), funds it
+2. User schedules payment → encrypts fog keys → `POST /fog/payments`
+3. Backend stores `fog_payments` record with encrypted keys
+4. Job executes at `send_at` → decrypts keys → sends payment
+5. On success: status = 'executed', keys can be deleted
+6. On failure: status = 'failed', user notified, can retry or cancel
 
-### Delegation Funding Validation
+### Fog Payment Funding Validation
 
-Before executing a delegation, the job validates the fog wallet has sufficient balance:
+Before executing a fog payment, the job validates the fog wallet has sufficient balance:
 
 ```typescript
 // In ProcessFogPayment job
-async validateFunding(delegation: FogDelegation): Promise<{ valid: boolean; reason?: string }> {
-  const fogAddress = delegation.fogAddress as `0x${string}`
+async validateFunding(fogPayment: FogPayment): Promise<{ valid: boolean; reason?: string }> {
+  const fogAddress = fogPayment.fogAddress as `0x${string}`
 
   // Get current balance
   const balance = await publicClient.getBalance({ address: fogAddress })
@@ -667,7 +670,7 @@ async validateFunding(delegation: FogDelegation): Promise<{ valid: boolean; reas
   const gasEstimate = await publicClient.estimateGas({
     account: fogAddress,
     to: GALEON_REGISTRY_ADDRESS,
-    value: BigInt(delegation.amount),
+    value: BigInt(fogPayment.amount),
     data: encodeFunctionData({
       abi: galeonRegistryAbi,
       functionName: 'payNative',
@@ -676,7 +679,7 @@ async validateFunding(delegation: FogDelegation): Promise<{ valid: boolean; reas
   })
 
   const gasCost = gasEstimate * (await publicClient.getGasPrice())
-  const requiredBalance = BigInt(delegation.amount) + gasCost
+  const requiredBalance = BigInt(fogPayment.amount) + gasCost
 
   if (balance < requiredBalance) {
     return {
@@ -688,10 +691,10 @@ async validateFunding(delegation: FogDelegation): Promise<{ valid: boolean; reas
   return { valid: true }
 }
 
-// If validation fails, mark delegation as 'failed' and notify user
+// If validation fails, mark fog payment as 'failed' and notify user
 ```
 
-**Delegation statuses:**
+**Fog payment statuses:**
 
 - `pending` - Waiting for `sendAt` time
 - `processing` - Job is executing
@@ -699,7 +702,6 @@ async validateFunding(delegation: FogDelegation): Promise<{ valid: boolean; reas
 - `failed` - Execution failed (has `errorMessage`)
 - `expired` - Passed `expiresAt` without execution
 - `cancelled` - User cancelled before execution
-- `insufficient_funds` - Fog wallet lacks balance (subset of failed)
 
 ### Viewing Key Encryption (Frontend)
 
@@ -787,18 +789,18 @@ Backend tracks fog payments for scheduled payment execution and Shipwreck report
 ### Backend Identification
 
 ```typescript
-// When processing delegations, the fog wallet address is known
-// We track which addresses are fog wallets via the fog_delegations table
+// When processing fog payments, the fog wallet address is known
+// We track which addresses are fog wallets via the fog_payments table
 
 // Check if a payer address is a fog wallet
 async function isFogPayment(payerAddress: string): Promise<{ isFog: boolean; userId?: number }> {
-  const delegation = await FogDelegation.query()
+  const fogPayment = await FogPayment.query()
     .where('fogAddress', payerAddress.toLowerCase())
     .where('status', 'executed')
     .first()
 
-  if (delegation) {
-    return { isFog: true, userId: delegation.userId }
+  if (fogPayment) {
+    return { isFog: true, userId: fogPayment.userId }
   }
 
   return { isFog: false }
@@ -1084,100 +1086,116 @@ POST   /api/v1/auth/logout        End session
 
 ```
 GET    /api/v1/fog/public-key          Get backend's encryption public key
-POST   /api/v1/fog/session             Create fog session (upload encrypted keys)
-DELETE /api/v1/fog/session             End fog session
-POST   /api/v1/fog/delegate            Create scheduled payment delegation
-GET    /api/v1/fog/delegations         List user's delegations
-GET    /api/v1/fog/delegations/:id     Get delegation details
-DELETE /api/v1/fog/delegations/:id     Cancel pending delegation
+POST   /api/v1/fog/payments            Create scheduled fog payment (upload encrypted keys + payment details)
+GET    /api/v1/fog/payments            List user's scheduled payments
+GET    /api/v1/fog/payments/:id        Get fog payment details
+DELETE /api/v1/fog/payments/:id        Cancel pending fog payment
 ```
 
 **Scheduled Payment Flow:**
 
-1. User creates fog session by encrypting fog keys with backend's public key
-2. User creates delegation with time-bound payment details + signature
-3. Backend queues ProcessFogPayment job for `sendAt` time
-4. Job decrypts fog keys, executes payment, notifies user via SSE
+1. User creates fog wallet (frontend), funds it with MNT
+2. User encrypts fog keys with backend's public key
+3. `POST /fog/payments` with encrypted keys + recipient + amount + time bounds + signature
+4. Backend stores `fog_payments` record, queues ProcessFogPayment job for `sendAt` time
+5. Job decrypts fog keys, executes payment, notifies user via SSE
+6. Keys are deleted after execution (success or failure)
 
 ### Job Execution & Result Tracking
 
 ```typescript
 // ProcessFogPayment job execution flow
-async handle({ delegationId }: { delegationId: string }) {
-  const delegation = await FogDelegation.find(delegationId)
+async handle({ fogPaymentId }: { fogPaymentId: string }) {
+  const fogPayment = await FogPayment.find(fogPaymentId)
 
   // 1. Validate pre-conditions
-  if (delegation.status !== 'pending') return
-  if (Date.now() < delegation.sendAt.getTime()) {
+  if (fogPayment.status !== 'pending') return
+  if (Date.now() < fogPayment.sendAt.getTime()) {
     // Requeue with delay
-    return this.dispatch({ delegationId }, { delay: delegation.sendAt.getTime() - Date.now() })
+    return this.dispatch({ fogPaymentId }, { delay: fogPayment.sendAt.getTime() - Date.now() })
   }
-  if (Date.now() > delegation.expiresAt.getTime()) {
-    delegation.status = 'expired'
-    await delegation.save()
-    await this.notifyUser(delegation.userId, 'delegation_expired', { delegationId })
+  if (Date.now() > fogPayment.expiresAt.getTime()) {
+    fogPayment.status = 'expired'
+    await fogPayment.save()
+    await this.clearEncryptedKeys(fogPayment) // Delete keys
+    await this.notifyUser(fogPayment.userId, 'fog_payment_expired', { fogPaymentId })
     return
   }
 
   // 2. Validate funding
-  const funding = await this.validateFunding(delegation)
+  const funding = await this.validateFunding(fogPayment)
   if (!funding.valid) {
-    delegation.status = 'failed'
-    delegation.errorMessage = funding.reason
-    await delegation.save()
-    await this.notifyUser(delegation.userId, 'delegation_failed', { delegationId, reason: funding.reason })
+    fogPayment.status = 'failed'
+    fogPayment.errorMessage = funding.reason
+    await fogPayment.save()
+    await this.clearEncryptedKeys(fogPayment) // Delete keys
+    await this.notifyUser(fogPayment.userId, 'fog_payment_failed', { fogPaymentId, reason: funding.reason })
     return
   }
 
   // 3. Mark as processing
-  delegation.status = 'processing'
-  await delegation.save()
+  fogPayment.status = 'processing'
+  await fogPayment.save()
 
   try {
     // 4. Decrypt fog keys and execute
-    const fogSession = await FogSession.find(delegation.fogSessionId)
-    const fogKeys = await CryptoService.decryptFogSession(fogSession.fogKeysEncrypted, fogSession.fogKeysNonce)
+    const fogKeys = await CryptoService.decryptFogPayment(
+      fogPayment.fogKeysEncrypted,
+      fogPayment.fogKeysNonce,
+      env.get('FOG_ENCRYPTION_PRIVATE_KEY')
+    )
 
-    const txHash = await RelayerService.executePayment({
+    const txHash = await RelayerService.executeFogPayment({
       fogKeys,
-      fogIndex: delegation.fogIndex,
-      recipient: delegation.recipient,
-      ephemeralPubKey: delegation.recipientEphemeralPubKey,
-      viewTag: delegation.recipientViewTag,
-      receiptHash: delegation.receiptHash,
-      amount: BigInt(delegation.amount),
+      recipientStealthAddress: fogPayment.recipientStealthAddress,
+      ephemeralPubKey: fogPayment.recipientEphemeralPubKey,
+      viewTag: fogPayment.recipientViewTag,
+      receiptHash: fogPayment.receiptHash,
+      amount: BigInt(fogPayment.amount),
     })
 
     // 5. Update status on success
-    delegation.status = 'executed'
-    delegation.txHash = txHash
-    delegation.executedAt = DateTime.now()
-    await delegation.save()
+    fogPayment.status = 'executed'
+    fogPayment.txHash = txHash
+    fogPayment.executedAt = DateTime.now()
+    await fogPayment.save()
 
-    // 6. Notify user
-    await this.notifyUser(delegation.userId, 'delegation_executed', { delegationId, txHash })
+    // 6. Clear encrypted keys (no longer needed)
+    await this.clearEncryptedKeys(fogPayment)
 
-    // 7. Log for audit
+    // 7. Notify user
+    await this.notifyUser(fogPayment.userId, 'fog_payment_executed', { fogPaymentId, txHash })
+
+    // 8. Log for audit
     await AuditLog.create({
-      userId: delegation.userId,
+      userId: fogPayment.userId,
       action: 'fog_payment_executed',
-      details: { delegationId, txHash, amount: delegation.amount },
+      details: { fogPaymentId, txHash, amount: fogPayment.amount },
     })
 
   } catch (error) {
-    delegation.status = 'failed'
-    delegation.errorMessage = error.message
-    await delegation.save()
-    await this.notifyUser(delegation.userId, 'delegation_failed', { delegationId, reason: error.message })
+    fogPayment.status = 'failed'
+    fogPayment.errorMessage = error.message
+    await fogPayment.save()
+    await this.clearEncryptedKeys(fogPayment) // Delete keys even on failure
+    await this.notifyUser(fogPayment.userId, 'fog_payment_failed', { fogPaymentId, reason: error.message })
   }
+}
+
+// Clear encrypted keys after execution (security: minimize key lifetime)
+async clearEncryptedKeys(fogPayment: FogPayment) {
+  fogPayment.fogKeysEncrypted = '' // Clear ciphertext
+  fogPayment.fogKeysNonce = ''
+  await fogPayment.save()
 }
 ```
 
 **How backend learns execution result:**
 
-- Job directly executes tx via `RelayerService.executePayment()`
-- On success: stores `txHash` in delegation record
-- On failure: stores `errorMessage` in delegation record
+- Job directly executes tx via `RelayerService.executeFogPayment()`
+- On success: stores `txHash` in fog payment record
+- On failure: stores `errorMessage` in fog payment record
+- Keys are cleared immediately after execution (win or lose)
 - Ponder will later index the resulting Announcement event (independent verification)
 
 ---
@@ -1292,12 +1310,14 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
 - [ ] Sync job for new receipts
 - [ ] Match receipts to ports
 
-### Phase 2: Fog Sessions + Scheduled Payments
+### Phase 2: Fog Payments (Scheduled Payments)
 
-- [ ] `fog_sessions` table migration
-- [ ] `fog_delegations` table migration
-- [ ] FogController with session + delegation endpoints
+- [ ] `fog_payments` table migration
+- [ ] FogPayment model
+- [ ] FogController with CRUD endpoints
 - [ ] ProcessFogPayment job (queued execution)
+- [ ] CryptoService for key encryption/decryption
+- [ ] RelayerService for payment execution
 - [ ] Fog payment identification in sync
 
 ### Phase 3: Collection Recording
@@ -1310,7 +1330,7 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
 
 - [ ] SSE setup with Transmit
 - [ ] Payment notification on new receipt
-- [ ] Delegation execution notification
+- [ ] Fog payment execution notification
 - [ ] Active session check before notify
 
 ### Phase 5: Shipwreck Data (Optional Backend)

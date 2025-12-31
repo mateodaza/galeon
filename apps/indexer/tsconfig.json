@@ -8,6 +8,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["ponder.config.ts", "ponder.schema.ts", "src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["ponder.config.ts", "ponder.schema.ts", "src/utils.ts", "tests/**/*"],
+  "exclude": ["node_modules", "src/index.ts", "src/api"]
 }
