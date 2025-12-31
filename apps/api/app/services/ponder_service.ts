@@ -44,80 +44,90 @@ export default class PonderService {
   private connection = 'ponder'
 
   /**
-   * Find announcement by transaction hash
+   * Find announcement by transaction hash and optional chainId
    */
-  async findAnnouncementByTxHash(txHash: string): Promise<PonderAnnouncement | null> {
-    try {
-      const result = await db
-        .connection(this.connection)
-        .from('announcements')
-        .where('transactionHash', txHash.toLowerCase())
-        .first()
+  async findAnnouncementByTxHash(
+    txHash: string,
+    chainId?: number
+  ): Promise<PonderAnnouncement | null> {
+    const query = db
+      .connection(this.connection)
+      .from('announcements')
+      .where('transactionHash', txHash.toLowerCase())
 
-      return result ? this.mapAnnouncement(result) : null
-    } catch {
-      return null
+    if (chainId !== undefined) {
+      query.where('chainId', chainId)
     }
+
+    const result = await query.first()
+    return result ? this.mapAnnouncement(result) : null
   }
 
   /**
-   * Find announcement by receipt hash
+   * Find announcement by receipt hash and optional chainId
    */
-  async findAnnouncementByReceiptHash(receiptHash: string): Promise<PonderAnnouncement | null> {
-    try {
-      const result = await db
-        .connection(this.connection)
-        .from('announcements')
-        .where('receiptHash', receiptHash.toLowerCase())
-        .first()
+  async findAnnouncementByReceiptHash(
+    receiptHash: string,
+    chainId?: number
+  ): Promise<PonderAnnouncement | null> {
+    const query = db
+      .connection(this.connection)
+      .from('announcements')
+      .where('receiptHash', receiptHash.toLowerCase())
 
-      return result ? this.mapAnnouncement(result) : null
-    } catch {
-      return null
+    if (chainId !== undefined) {
+      query.where('chainId', chainId)
     }
+
+    const result = await query.first()
+    return result ? this.mapAnnouncement(result) : null
   }
 
   /**
-   * Find receipt anchored by transaction hash
+   * Find receipt anchored by transaction hash and optional chainId
    */
-  async findReceiptAnchoredByTxHash(txHash: string): Promise<PonderReceiptAnchored | null> {
-    try {
-      const result = await db
-        .connection(this.connection)
-        .from('receipts_anchored')
-        .where('transactionHash', txHash.toLowerCase())
-        .first()
+  async findReceiptAnchoredByTxHash(
+    txHash: string,
+    chainId?: number
+  ): Promise<PonderReceiptAnchored | null> {
+    const query = db
+      .connection(this.connection)
+      .from('receipts_anchored')
+      .where('transactionHash', txHash.toLowerCase())
 
-      return result ? this.mapReceiptAnchored(result) : null
-    } catch {
-      return null
+    if (chainId !== undefined) {
+      query.where('chainId', chainId)
     }
+
+    const result = await query.first()
+    return result ? this.mapReceiptAnchored(result) : null
   }
 
   /**
-   * Find receipt anchored by receipt hash
+   * Find receipt anchored by receipt hash and optional chainId
    */
   async findReceiptAnchoredByReceiptHash(
-    receiptHash: string
+    receiptHash: string,
+    chainId?: number
   ): Promise<PonderReceiptAnchored | null> {
-    try {
-      const result = await db
-        .connection(this.connection)
-        .from('receipts_anchored')
-        .where('receiptHash', receiptHash.toLowerCase())
-        .first()
+    const query = db
+      .connection(this.connection)
+      .from('receipts_anchored')
+      .where('receiptHash', receiptHash.toLowerCase())
 
-      return result ? this.mapReceiptAnchored(result) : null
-    } catch {
-      return null
+    if (chainId !== undefined) {
+      query.where('chainId', chainId)
     }
+
+    const result = await query.first()
+    return result ? this.mapReceiptAnchored(result) : null
   }
 
   /**
    * Check if an announcement exists in the indexer
    */
-  async announcementExists(txHash: string): Promise<boolean> {
-    const announcement = await this.findAnnouncementByTxHash(txHash)
+  async announcementExists(txHash: string, chainId?: number): Promise<boolean> {
+    const announcement = await this.findAnnouncementByTxHash(txHash, chainId)
     return announcement !== null
   }
 

@@ -35,8 +35,11 @@ export default class VerifyReceipts extends Job {
 
     for (const receipt of pendingReceipts) {
       try {
-        // Look up announcement by transaction hash
-        const announcement = await ponderService.findAnnouncementByTxHash(receipt.txHash)
+        // Look up announcement by transaction hash and chainId
+        const announcement = await ponderService.findAnnouncementByTxHash(
+          receipt.txHash,
+          receipt.chainId
+        )
 
         if (!announcement) {
           // Not indexed yet, will retry on next job run
@@ -53,15 +56,23 @@ export default class VerifyReceipts extends Job {
         receipt.receiptHash = announcement.receiptHash ?? ''
 
         // Try to get amount from receipts_anchored table
-        const receiptAnchored = await ponderService.findReceiptAnchoredByTxHash(receipt.txHash)
+        const receiptAnchored = await ponderService.findReceiptAnchoredByTxHash(
+          receipt.txHash,
+          receipt.chainId
+        )
         if (receiptAnchored) {
           receipt.amount = receiptAnchored.amount
           receipt.tokenAddress =
             receiptAnchored.token === '0x0000000000000000000000000000000000000000'
               ? null
               : receiptAnchored.token
+          // Use MNT for native token on Mantle, ETH for other chains
           receipt.currency =
-            receiptAnchored.token === '0x0000000000000000000000000000000000000000' ? 'ETH' : 'TOKEN'
+            receiptAnchored.token === '0x0000000000000000000000000000000000000000'
+              ? receipt.chainId === 5000
+                ? 'MNT'
+                : 'ETH'
+              : 'ERC20'
         }
 
         // Mark as confirmed

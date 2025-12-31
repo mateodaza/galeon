@@ -91,8 +91,18 @@ export default class ReceiptsController {
       return response.notFound({ error: 'Port not found' })
     }
 
-    // Check if receipt with this txHash already exists
-    const existingReceipt = await Receipt.query().where('txHash', transactionHash).first()
+    // Validate chainId matches port's chainId
+    if (chainId !== port.chainId) {
+      return response.badRequest({
+        error: `Chain ID mismatch: receipt is for chain ${chainId} but port is configured for chain ${port.chainId}`,
+      })
+    }
+
+    // Check if receipt with this (txHash, chainId) already exists
+    const existingReceipt = await Receipt.query()
+      .where('txHash', transactionHash)
+      .where('chainId', chainId)
+      .first()
 
     if (existingReceipt) {
       return response.conflict({ error: 'Receipt with this transaction hash already exists' })
@@ -112,7 +122,7 @@ export default class ReceiptsController {
       viewTag: 0,
       payerAddress: '',
       amount: '0',
-      currency: 'ETH',
+      currency: chainId === 5000 ? 'MNT' : 'ETH', // Default to native token
       blockNumber: '0',
       isFogPayment: false,
     })
