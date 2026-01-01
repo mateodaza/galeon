@@ -214,7 +214,7 @@ export default class ReceiptsController {
     let collectedCount = 0
 
     for (const receipt of receipts) {
-      const amount = BigInt(receipt.amount)
+      const amount = BigInt(receipt.amount ?? '0')
       switch (receipt.status) {
         case 'pending':
           totalPending += amount

@@ -6,7 +6,7 @@ import User from '#models/user'
 import Receipt from '#models/receipt'
 
 export type PortType = 'permanent' | 'recurring' | 'one-time' | 'burner'
-export type PortStatus = 'pending' | 'confirmed'
+export type PortStatus = 'pending' | 'confirmed' | 'failed'
 
 /**
  * VIEWING KEY CUSTODY TRADE-OFF (Hackathon Decision)
@@ -55,6 +55,12 @@ export default class Port extends BaseModel {
 
   @column()
   declare chainId: number
+
+  @column()
+  declare verificationAttempts: number
+
+  @column()
+  declare verificationError: string | null
 
   /**
    * Decrypt the viewing key for scanning announcements

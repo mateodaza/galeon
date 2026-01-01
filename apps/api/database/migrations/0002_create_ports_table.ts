@@ -22,8 +22,10 @@ export default class extends BaseSchema {
       table.text('stealth_meta_address').nullable() // Nullable for two-step creation flow
       table.text('viewing_key_encrypted').nullable() // Encrypted with APP_KEY, nullable for two-step flow
       table.integer('chain_id').notNullable().defaultTo(5000) // Mantle Mainnet
-      table.enum('status', ['pending', 'confirmed']).notNullable().defaultTo('pending') // pending until verified by indexer
+      table.enum('status', ['pending', 'confirmed', 'failed']).notNullable().defaultTo('pending')
       table.string('tx_hash', 66).nullable() // Transaction hash for on-chain verification
+      table.integer('verification_attempts').notNullable().defaultTo(0) // Track retry attempts
+      table.text('verification_error').nullable() // Store error message for failed verifications
       table.boolean('active').notNullable().defaultTo(true)
       table.boolean('archived').notNullable().defaultTo(false)
       table.decimal('total_received', 78, 0).notNullable().defaultTo(0) // wei
