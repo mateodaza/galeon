@@ -219,9 +219,14 @@ describe('Property-based Tests', () => {
     })
 
     it('hexToBytes rejects invalid characters', () => {
-      const invalidHexArb = fc
-        .string({ minLength: 2, maxLength: 10 })
-        .filter((s) => /[^0-9a-fA-F]/.test(s) && s.length % 2 === 0)
+      const invalidHexArb = fc.string({ minLength: 2, maxLength: 10 }).filter((s) => {
+        // Must have even length
+        if (s.length % 2 !== 0) return false
+        // Strip 0x prefix if present (like the real function does)
+        const clean = s.toLowerCase().startsWith('0x') ? s.slice(2) : s
+        // After stripping, must be non-empty and contain invalid chars
+        return clean.length > 0 && /[^0-9a-fA-F]/.test(clean)
+      })
 
       fc.assert(
         fc.property(invalidHexArb, (invalidHex) => {
