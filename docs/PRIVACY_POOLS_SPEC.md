@@ -2005,6 +2005,106 @@ export type PoolNote = `galeon-note:${number}:${string}:${string}`
 | Link between deposit & withdrawal | ❌ No                       |
 | Deposit from sanctioned address   | ✅ Yes (but can't withdraw) |
 
+### v0 Known Limitations
+
+The commit-reveal v0 has several known limitations compared to the full ZK implementation:
+
+| Issue                                     | Description                                                                                          | Mitigation                                              | Upgrade Path                    |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------- |
+| **Gas payment metadata**                  | `registerWithdrawalAddress()` must be called from some EOA that pays gas, creating linkable metadata | Call from burner EOA or Port address                    | Add relayer in v1               |
+| **Registration is public**                | `WithdrawalAddressRegistered` events reveal which addresses are Galeon Fog wallets                   | Acceptable for v0 - not a security issue                | Relayer hides this              |
+| **Small anonymity sets**                  | With 2-hour timelock, few deposits may occur, limiting privacy                                       | Show pool size in UI, suggest waiting for larger sets   | ZK proofs don't need timelock   |
+| **Secret backup critical**                | If user loses localStorage, funds are stuck forever                                                  | Force backup confirmation, derive from master signature | Backend-encrypted backup option |
+| **Centralized ban list**                  | Owner-controlled ban list could be abused                                                            | Transparent on-chain, upgrade to DAO                    | DAO governance + multi-ASP      |
+| **No nullifiers**                         | Commit-reveal doesn't prevent same secret being used twice if not tracked                            | `d.withdrawn = true` flag prevents double-withdraw      | ZK nullifier hash               |
+| **Deposit-withdrawal linkable by timing** | Observer sees deposit, then ~2hrs later a withdrawal                                                 | Pool size provides k-anonymity                          | ZK proofs break timing link     |
+
+### v0 Gas Payment Considerations
+
+**Who pays gas for what:**
+
+| Action                        | Who Calls            | Who Pays Gas     | Privacy Implication           |
+| ----------------------------- | -------------------- | ---------------- | ----------------------------- |
+| `deposit()`                   | Port stealth address | Port (has funds) | ✅ OK - Port already public   |
+| `registerWithdrawalAddress()` | Any EOA              | Caller           | ⚠️ Links caller to Fog wallet |
+| `withdraw()`                  | Any EOA              | Caller           | ⚠️ Links caller to withdrawal |
+
+**Recommended flow for maximum privacy:**
+
+1. Generate Fog wallet address client-side
+2. Call `registerWithdrawalAddress()` from the Port address (before depositing)
+3. Call `deposit()` from the Port address
+4. Wait for timelock
+5. Call `withdraw()` from a fresh burner EOA (funded via CEX or other source)
+
+**v1 Improvement:** Relayer network will allow gas-free `registerWithdrawalAddress()` and `withdraw()` calls.
+
+---
+
+## Compliance with Privacy Pools Standard
+
+### Comparison with 0xbow Implementation
+
+Galeon's Privacy Pool is inspired by the [Privacy Pools protocol](https://docs.privacypools.com/) and [0xbow's implementation](https://github.com/0xbow-io/privacy-pools-core), but makes deliberate v0 simplifications:
+
+| Feature                    | 0xbow Privacy Pools                   | Galeon v0                   | Galeon Full Vision       |
+| -------------------------- | ------------------------------------- | --------------------------- | ------------------------ |
+| **Proof System**           | Groth16 ZK-SNARKs (BLS12-381)         | Commit-reveal with timelock | Groth16 ZK-SNARKs        |
+| **Commitment Scheme**      | `c = H(H(s,n), poolId)` with Poseidon | `c = keccak256(secret)`     | Poseidon-based           |
+| **Nullifiers**             | Required for ZK withdrawal            | Not used (flag-based)       | Required                 |
+| **ASP Model**              | Proactive deposit approval            | Reactive ban list           | Proactive + Shipwreck    |
+| **Ragequit**               | Yes - public exit if not ASP-approved | Not in v0                   | Yes                      |
+| **Partial Withdrawals**    | Supported                             | No - fixed 1 MNT            | Planned                  |
+| **Multi-Asset**            | Native + ERC20                        | Native only (MNT)           | Native + ERC20           |
+| **Deposit Source**         | Any address                           | Port addresses only         | Port + verified external |
+| **Withdrawal Destination** | Any address                           | Registered Fog wallets only | Any (with ZK proof)      |
+
+### Key Differences Explained
+
+**1. Port-Only Deposits (Galeon-specific)**
+
+0xbow allows any address to deposit, relying on ASP to filter bad actors post-deposit. Galeon v0 restricts deposits to Port addresses (covenant signers), making funds "clean by design."
+
+```
+0xbow:   Anyone → Pool → ASP filters → Withdrawal
+Galeon:  Port only → Pool → Ban list → Fog wallet
+```
+
+**2. No Ragequit in v0**
+
+0xbow's ragequit allows users to publicly exit if their deposit isn't ASP-approved. Galeon v0 doesn't need this because:
+
+- All depositors are covenant signers (pre-vetted)
+- Ban list is reactive, not proactive
+- Funds can always be withdrawn after timelock (unless banned)
+
+**3. Stealth-Only Withdrawals (Galeon-specific)**
+
+0xbow allows withdrawal to any address. Galeon requires registration of Fog wallet addresses with ephemeral key validation, ensuring:
+
+- Withdrawals go to proper stealth addresses
+- On-chain audit trail for compliance
+- No accidental withdrawal to traceable addresses
+
+### Roadmap to Full Compliance
+
+| Phase | Milestone              | Brings Galeon Closer To Standard    |
+| ----- | ---------------------- | ----------------------------------- |
+| v0.5  | Add ragequit mechanism | ✅ Exit guarantee                   |
+| v1.0  | ZK proofs (Groth16)    | ✅ Cryptographic unlinkability      |
+| v1.0  | Poseidon commitments   | ✅ ZK-friendly hashing              |
+| v1.0  | Nullifier tracking     | ✅ Standard double-spend prevention |
+| v1.5  | Multi-ASP support      | ✅ Decentralized compliance         |
+| v2.0  | Relayer network        | ✅ Gas-free withdrawals             |
+| v2.0  | Partial withdrawals    | ✅ Flexible amounts                 |
+
+### References
+
+- [Privacy Pools Documentation](https://docs.privacypools.com/) - Official protocol docs
+- [0xbow Privacy Pools Core](https://github.com/0xbow-io/privacy-pools-core) - Reference implementation
+- [Privacy Pools Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4563364) - Vitalik Buterin et al.
+- [0xbow Blog](https://0xbow.io/blog/getting-started-with-privacy-pools) - Getting started guide
+
 ---
 
 ## Testing Checklist
