@@ -8,6 +8,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
+import { keccak_256 } from '@noble/hashes/sha3.js'
 import { bytesToHex, hexToBytes } from './utils'
 import type { StealthKeys, StealthChainPrefix, StealthMetaAddress } from './types'
 
@@ -307,4 +308,32 @@ export function formatStealthMetaAddress(
   }
 
   return `st:${chainPrefix}:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}`
+}
+
+// ============================================================
+// Utility Functions for Web App
+// ============================================================
+
+/**
+ * Generate a cryptographically secure random private key.
+ *
+ * Uses secp256k1.utils.randomSecretKey() from @noble/curves.
+ *
+ * @returns 32-byte random private key
+ */
+export function generateRandomPrivateKey(): Uint8Array {
+  return secp256k1.utils.randomSecretKey()
+}
+
+/**
+ * Hash data using keccak256.
+ *
+ * Uses keccak_256 from @noble/hashes.
+ *
+ * @param data - Data to hash (Uint8Array or hex string with 0x prefix)
+ * @returns 32-byte hash as Uint8Array
+ */
+export function keccak256Hash(data: Uint8Array | `0x${string}`): Uint8Array {
+  const bytes = typeof data === 'string' ? hexToBytes(data.slice(2)) : data
+  return keccak_256(bytes)
 }

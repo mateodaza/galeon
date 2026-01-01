@@ -26,6 +26,8 @@ export {
   deriveFogKeys,
   parseStealthMetaAddress,
   formatStealthMetaAddress,
+  generateRandomPrivateKey,
+  keccak256Hash,
 } from './keys'
 
 // Re-export address functions

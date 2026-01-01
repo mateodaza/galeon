@@ -1603,6 +1603,17 @@ main().catch(console.error)
 
 **Goal:** Sender privacy with compliance accountability
 
+**CRITICAL: Multi-hop is ESSENTIAL for privacy**
+
+Fog Mode uses a multi-hop mixing pattern to break sender-recipient correlation:
+
+1. User funds Fog Wallet A (entry point)
+2. Fog Wallet A transfers to Fog Wallet B (intermediate hop)
+3. Fog Wallet B sends final payment to recipient
+
+This structural break in the transaction graph is the PRIMARY privacy mechanism.
+Time separation is optional (secondary enhancement, not required for meaningful privacy).
+
 | Task               | Description                                                                  |
 | ------------------ | ---------------------------------------------------------------------------- |
 | Fog Key Derivation | `deriveFogKeys()` with separate HKDF domain from Ports ✅                    |
@@ -1610,13 +1621,20 @@ main().catch(console.error)
 | Stealth Payment    | `prepareStealthPayment()` for full sender + recipient privacy ✅             |
 | Fog Reserve        | Pre-funded stealth wallets for sender privacy                                |
 | Fog Session        | Wallet-signature encryption for localStorage persistence                     |
-| Fog Payment        | Pay from fog wallet (instant, no temporal correlation)                       |
+| **Multi-hop Flow** | A → B → recipient chain with hop tracking (ESSENTIAL)                        |
+| Fog Payment        | Pay from intermediate fog wallet (hop >= 1 for privacy)                      |
 | Shipwreck Reports  | Compliance reports with cryptographic proofs                                 |
 | Shipwreck Export   | JSON export for auditors (MVP scope)                                         |
 
-**Deferred to post-hackathon:** Fog Delegation (backend-scheduled payments), PDF export
+**Privacy Model (Multi-hop is ESSENTIAL):**
 
-**Milestone:** Full privacy flow: Fund Reserve → Pay from Fog → Generate Compliance Report (JSON)
+- **Low privacy:** Single hop OR self-funded entry point
+- **Medium privacy:** Multi-hop but self-funded
+- **High privacy:** Multi-hop AND externally funded
+
+**Deferred to post-hackathon:** Fog Delegation (backend-scheduled payments), PDF export, time-based scheduling
+
+**Milestone:** Full privacy flow: Fund Entry → Transfer to Intermediate → Pay from Hop ≥1 → Generate Compliance Report (JSON)
 
 **Detailed Specs:**
 
