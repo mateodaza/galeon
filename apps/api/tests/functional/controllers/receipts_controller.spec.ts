@@ -91,7 +91,6 @@ async function createTestReceipt(
     amount: overrides.amount ?? '1000000000000000000',
     currency: overrides.currency ?? 'ETH',
     blockNumber: overrides.blockNumber ?? '12345678',
-    isFogPayment: false,
   })
 }
 

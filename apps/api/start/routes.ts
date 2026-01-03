@@ -14,7 +14,6 @@ const AuthController = () => import('#controllers/auth_controller')
 const PortsController = () => import('#controllers/ports_controller')
 const ReceiptsController = () => import('#controllers/receipts_controller')
 const CollectionsController = () => import('#controllers/collections_controller')
-const FogPaymentsController = () => import('#controllers/fog_payments_controller')
 
 // Health check
 router.get('/', async () => {
@@ -73,19 +72,6 @@ router
         router.post('/:id/execute', [CollectionsController, 'execute'])
       })
       .prefix('/collections')
-      .use(middleware.auth())
-
-    // Fog Payments routes (protected)
-    router
-      .group(() => {
-        router.get('/', [FogPaymentsController, 'index'])
-        router.post('/', [FogPaymentsController, 'store'])
-        router.get('/:id', [FogPaymentsController, 'show'])
-        router.post('/:id/cancel', [FogPaymentsController, 'cancel'])
-        router.patch('/:id/funding', [FogPaymentsController, 'updateFunding'])
-        router.get('/:id/hop-chain', [FogPaymentsController, 'hopChain'])
-      })
-      .prefix('/fog-payments')
       .use(middleware.auth())
   })
   .prefix('/api/v1')

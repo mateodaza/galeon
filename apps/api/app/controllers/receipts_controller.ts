@@ -124,7 +124,6 @@ export default class ReceiptsController {
       amount: '0',
       currency: chainId === 5000 ? 'MNT' : 'ETH', // Default to native token
       blockNumber: '0',
-      isFogPayment: false,
     })
 
     return response.created({

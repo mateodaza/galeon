@@ -1,6 +1,6 @@
 # Galeon API
 
-AdonisJS 6 backend for Galeon - handles authentication, port management, receipts, and fog scheduled payments.
+AdonisJS 6 backend for Galeon - handles authentication, port management, receipts, and collections.
 
 ## Quick Start
 
@@ -30,79 +30,39 @@ Uses SIWE (Sign-In with Ethereum) + JWT tokens. See [auth_controller.ts](./app/c
 | `/auth/refresh` | POST   | Exchange refresh token            |
 | `/auth/logout`  | POST   | Logout and blacklist tokens       |
 
-## Fog Delegation API (Scheduled Payments)
+## Ports API
 
-Fog scheduled payments enable users to schedule payments from fog wallets for future execution. This feature requires **temporary custody** of the fog wallet's spending key.
+Manage stealth address ports for receiving payments.
 
-### Trust Model
+| Endpoint     | Method | Auth | Description     |
+| ------------ | ------ | ---- | --------------- |
+| `/ports`     | GET    | Yes  | List user ports |
+| `/ports`     | POST   | Yes  | Create port     |
+| `/ports/:id` | GET    | Yes  | Get port        |
+| `/ports/:id` | PATCH  | Yes  | Update port     |
+| `/ports/:id` | DELETE | Yes  | Archive port    |
 
-- User explicitly opts in by scheduling a payment
-- Frontend encrypts the fog wallet's private key with the backend's ECIES public key
-- Backend holds the encrypted key only until execution time
-- Key material is deleted immediately after payment execution
-- Users can cancel pending delegations at any time
+## Receipts API
 
-### Endpoints
+Track and manage payment receipts.
 
-| Endpoint               | Method | Auth | Description                    |
-| ---------------------- | ------ | ---- | ------------------------------ |
-| `/fog/encryption-key`  | GET    | No   | Get backend's ECIES public key |
-| `/fog/delegations`     | POST   | Yes  | Schedule a fog payment         |
-| `/fog/delegations`     | GET    | Yes  | List user's scheduled payments |
-| `/fog/delegations/:id` | GET    | Yes  | Get delegation details         |
-| `/fog/delegations/:id` | DELETE | Yes  | Cancel pending delegation      |
-
-### Request: Schedule Payment
-
-```json
-POST /fog/delegations
-Authorization: Bearer <access_token>
-
-{
-  "fogWalletIndex": 0,
-  "encryptedSpendingKey": "04abc...encrypted-with-backend-pubkey",
-  "recipientAddress": "0x...",
-  "amount": "1000000000000000000",
-  "token": null,
-  "scheduledAt": "2025-01-15T10:00:00Z",
-  "memo": "Monthly subscription"
-}
-```
-
-### Response
-
-```json
-{
-  "id": "uuid",
-  "status": "pending",
-  "fogWalletIndex": 0,
-  "recipientAddress": "0x...",
-  "amount": "1000000000000000000",
-  "token": null,
-  "scheduledAt": "2025-01-15T10:00:00Z",
-  "createdAt": "2025-01-01T12:00:00Z"
-}
-```
-
-### Delegation Status Values
-
-| Status      | Description                               |
-| ----------- | ----------------------------------------- |
-| `pending`   | Scheduled, waiting for execution time     |
-| `executing` | Currently being processed                 |
-| `completed` | Successfully executed, txHash available   |
-| `failed`    | Execution failed, error message available |
-| `cancelled` | User cancelled before execution           |
+| Endpoint          | Method | Auth | Description            |
+| ----------------- | ------ | ---- | ---------------------- |
+| `/receipts`       | GET    | Yes  | List receipts          |
+| `/receipts`       | POST   | Yes  | Create pending receipt |
+| `/receipts/stats` | GET    | Yes  | Get statistics         |
+| `/receipts/:id`   | GET    | Yes  | Get receipt            |
 
 ## Collections API
 
-Track fund collection from stealth addresses (for Shipwreck compliance).
+Track fund collection from stealth addresses.
 
-| Endpoint                    | Method | Auth | Description                  |
-| --------------------------- | ------ | ---- | ---------------------------- |
-| `/collections`              | POST   | Yes  | Record collection initiation |
-| `/collections/:id/complete` | POST   | Yes  | Mark collection as complete  |
-| `/collections`              | GET    | Yes  | List user's collections      |
+| Endpoint                   | Method | Auth | Description                  |
+| -------------------------- | ------ | ---- | ---------------------------- |
+| `/collections`             | POST   | Yes  | Record collection initiation |
+| `/collections/:id/execute` | POST   | Yes  | Execute collection           |
+| `/collections`             | GET    | Yes  | List user's collections      |
+| `/collections/:id`         | GET    | Yes  | Get collection details       |
 
 ## Environment Variables
 
@@ -113,38 +73,32 @@ See [.env.example](./.env.example) for all configuration options.
 - `APP_KEY` - Session encryption key
 - `DB_*` - PostgreSQL connection
 
-### Optional (Fog Delegation)
+### Optional
 
-- `FOG_ENCRYPTION_PUBLIC_KEY` - ECIES public key for key encryption
-- `FOG_ENCRYPTION_PRIVATE_KEY` - ECIES private key for key decryption
 - `PONDER_DB_*` - Ponder database connection for blockchain sync
+- `ALCHEMY_WEBHOOK_SECRET` - Alchemy webhook signing key
 
 ## Architecture
 
 ```
 app/
 ├── controllers/
-│   ├── auth_controller.ts      # SIWE + JWT auth
-│   ├── ports_controller.ts     # Port CRUD
-│   ├── receipts_controller.ts  # Receipt management
-│   ├── collections_controller.ts # Collection tracking
-│   └── fog_controller.ts       # Fog delegation
+│   ├── auth_controller.ts       # SIWE + JWT auth
+│   ├── ports_controller.ts      # Port CRUD
+│   ├── receipts_controller.ts   # Receipt management
+│   └── collections_controller.ts # Collection tracking
 ├── models/
-│   ├── user.ts                 # User with refresh tokens
-│   ├── port.ts                 # Port with encrypted viewing key
-│   ├── receipt.ts              # Off-chain receipt data
-│   ├── collection.ts           # Collection records
-│   ├── fog_session.ts          # Fog session metadata
-│   └── fog_delegation.ts       # Scheduled payments
+│   ├── user.ts                  # User with refresh tokens
+│   ├── port.ts                  # Port with encrypted viewing key
+│   ├── receipt.ts               # Off-chain receipt data
+│   └── collection.ts            # Collection records
 ├── services/
-│   ├── siwe_service.ts         # SIWE verification
-│   ├── ponder_service.ts       # Ponder DB queries
-│   └── fog_executor_service.ts # Delegation execution
+│   ├── siwe_service.ts          # SIWE verification
+│   └── ponder_service.ts        # Ponder DB queries
 └── jobs/
-    └── execute_fog_delegation.ts # Background job
+    └── verify_receipts.ts       # Receipt verification job
 ```
 
 ## Related Documentation
 
 - [BACKEND-PONDER-PLAN.md](../../docs/BACKEND-PONDER-PLAN.md) - Full architecture plan
-- [FOG-SHIPWRECK-PLAN.md](../../docs/FOG-SHIPWRECK-PLAN.md) - Fog mode specification
