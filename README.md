@@ -85,17 +85,24 @@ Core stealth address library implementing EIP-5564 and EIP-6538:
 
 Solidity smart contracts deployed on Mantle:
 
-- `GaleonRegistry`: Port registration and payment processing
-- `GaleonTender`: Native token sweeping from stealth addresses
+**Base Contracts:**
+
+- `GaleonRegistry`: Port registration, payments, verifiedBalance tracking, stealth address freezing
 - `ERC5564Announcer`: Stealth payment announcements
 - `ERC6538Registry`: Stealth meta-address registry
+
+**Privacy Pool v1 (0xbow fork):**
+
+- `GaleonEntrypoint`: Pool registry, ASP roots, deposit routing
+- `GaleonPrivacyPoolSimple`: Native currency (MNT/ETH) mixing pool
+- `GaleonPrivacyPoolComplex`: ERC-20 token mixing pool
+- Port-only deposits, verifiedBalance gating, UUPS upgradeable
 
 ## Smart Contracts (Mantle Mainnet)
 
 | Contract         | Address                                      |
 | ---------------- | -------------------------------------------- |
-| GaleonRegistry   | `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C` |
-| GaleonTender     | `0x29D52d01947d91e241e9c7A4312F7463199e488c` |
+| GaleonRegistry   | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` |
 | ERC5564Announcer | `0x8C04238c49e22EB687ad706bEe645698ccF41153` |
 | ERC6538Registry  | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` |
 
@@ -161,6 +168,13 @@ SESSION_SECRET=xxx
 - Frontend interacts directly with contracts (backend API for indexing/SIWE)
 - Secrets excluded from version control
 
+**Privacy Pool Hardening:**
+
+- Port-only deposits via `canDeposit()` check
+- `verifiedBalance` prevents dirty sends and double-deposits
+- Stealth address freezing for compliance/port deactivation
+- UUPS upgradeable with verifier swapping for circuit upgrades
+
 ## Contributing
 
 1. Follow conventional commits (`feat:`, `fix:`, `chore:`, etc.)
@@ -170,7 +184,14 @@ SESSION_SECRET=xxx
 
 ## License
 
-MIT
+| Package              | License    | Notes                                                                             |
+| -------------------- | ---------- | --------------------------------------------------------------------------------- |
+| `apps/web`           | MIT        | Galeon frontend (original work)                                                   |
+| `apps/api`           | MIT        | Galeon backend (original work)                                                    |
+| `packages/stealth`   | MIT        | Stealth address library (original work)                                           |
+| `packages/contracts` | Apache-2.0 | Privacy Pool adapted from [0xbow](https://github.com/0xbow-io/privacy-pools-core) |
+
+All components are licensed for commercial use. See individual package LICENSE files for details.
 
 ---
 

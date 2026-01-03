@@ -67,7 +67,6 @@ export interface ChainConfig {
     announcer: `0x${string}`
     registry: `0x${string}`
     galeon: `0x${string}`
-    tender: `0x${string}`
   }
 }
 

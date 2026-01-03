@@ -137,11 +137,7 @@ export default function AboutPage() {
             <CardContent className="space-y-3 font-mono text-sm">
               <ContractRow
                 name="GaleonRegistry"
-                address="0x85F23B63E2a40ba74cD418063c43cE19bcbB969C"
-              />
-              <ContractRow
-                name="GaleonTender"
-                address="0x29D52d01947d91e241e9c7A4312F7463199e488c"
+                address="0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D"
               />
               <ContractRow
                 name="ERC5564Announcer"

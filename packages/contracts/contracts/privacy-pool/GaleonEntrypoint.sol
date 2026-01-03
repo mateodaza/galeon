@@ -66,6 +66,7 @@ contract GaleonEntrypoint is AccessControlUpgradeable, UUPSUpgradeable, Reentran
      * @notice Disables initializers. Using UUPS upgradeability pattern
      * @dev 0xbow original: Entrypoint constructor
      */
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

@@ -11,16 +11,14 @@ import { type Abi } from 'viem'
  */
 export const CONTRACTS = {
   5000: {
-    galeonRegistry: '0x85F23B63E2a40ba74cD418063c43cE19bcbB969C' as const,
+    galeonRegistry: '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D' as const,
     announcer: '0x8C04238c49e22EB687ad706bEe645698ccF41153' as const,
     registry: '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22' as const,
-    tender: '0x29D52d01947d91e241e9c7A4312F7463199e488c' as const,
   },
   5003: {
     galeonRegistry: '0x0000000000000000000000000000000000000000' as const,
     announcer: '0x0000000000000000000000000000000000000000' as const,
     registry: '0x0000000000000000000000000000000000000000' as const,
-    tender: '0x0000000000000000000000000000000000000000' as const,
   },
 } as const
 

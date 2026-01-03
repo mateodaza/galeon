@@ -44,6 +44,7 @@ abstract contract GaleonState is IGaleonState {
     // @dev GALEON: SCOPE made non-immutable for correct per-proxy values
 
     /// @inheritdoc IGaleonState
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable ASSET;
 
     /// @inheritdoc IGaleonState

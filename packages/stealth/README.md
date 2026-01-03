@@ -422,8 +422,7 @@ stealth_private_key = (spending_private_key + h) mod n
 | --------- | -------------------------------------------- |
 | Announcer | `0x8C04238c49e22EB687ad706bEe645698ccF41153` |
 | Registry  | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` |
-| Galeon    | `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C` |
-| Tender    | `0x29D52d01947d91e241e9c7A4312F7463199e488c` |
+| Galeon    | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` |
 
 ### Other Chains
 
@@ -441,7 +440,6 @@ updateContractAddresses(1, {
   announcer: '0x...', // Existing ERC-5564
   registry: '0x...', // Existing ERC-6538
   galeon: '0x...', // Deploy GaleonRegistry
-  tender: '0x...', // Deploy GaleonTender
 })
 ```
 

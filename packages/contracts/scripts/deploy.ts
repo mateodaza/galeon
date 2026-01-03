@@ -62,16 +62,8 @@ async function main() {
   const galeonAddr = await galeon.getAddress()
   console.log(`   ✓ GaleonRegistry: ${galeonAddr}`)
 
-  // 4. Deploy GaleonTender
-  console.log('4. Deploying GaleonTender...')
-  const GaleonTender = await ethers.getContractFactory('GaleonTender')
-  const tender = await GaleonTender.deploy()
-  await tender.waitForDeployment()
-  const tenderAddr = await tender.getAddress()
-  console.log(`   ✓ GaleonTender: ${tenderAddr}`)
-
-  // 5. Set GaleonRegistry as trusted relayer on Announcer
-  console.log('5. Setting GaleonRegistry as trusted relayer...')
+  // 4. Set GaleonRegistry as trusted relayer on Announcer
+  console.log('4. Setting GaleonRegistry as trusted relayer...')
   await announcer.setTrustedRelayer(galeonAddr, true)
   console.log(`   ✓ GaleonRegistry is now a trusted relayer`)
 
@@ -84,13 +76,11 @@ async function main() {
   console.log(`  announcer: '${announcerAddr}'`)
   console.log(`  registry:  '${registryAddr}'`)
   console.log(`  galeon:    '${galeonAddr}'`)
-  console.log(`  tender:    '${tenderAddr}'`)
 
   console.log(`\nExplorer Links:`)
   console.log(`  Announcer: ${config.explorer}/address/${announcerAddr}`)
   console.log(`  Registry:  ${config.explorer}/address/${registryAddr}`)
   console.log(`  Galeon:    ${config.explorer}/address/${galeonAddr}`)
-  console.log(`  Tender:    ${config.explorer}/address/${tenderAddr}`)
 
   console.log(`\n📋 Update @galeon/stealth config.ts with:\n`)
   console.log(`  ${chainId}: {`)
@@ -99,7 +89,6 @@ async function main() {
   console.log(`      announcer: '${announcerAddr}',`)
   console.log(`      registry: '${registryAddr}',`)
   console.log(`      galeon: '${galeonAddr}',`)
-  console.log(`      tender: '${tenderAddr}',`)
   console.log(`    },`)
   console.log(`  },`)
 
@@ -109,7 +98,6 @@ async function main() {
   console.log(
     `  npx hardhat verify --network mantle ${galeonAddr} ${announcerAddr} ${registryAddr}`
   )
-  console.log(`  npx hardhat verify --network mantle ${tenderAddr}`)
 }
 
 main().catch((error) => {

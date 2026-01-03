@@ -1,0 +1,24 @@
+Galeon Contracts
+Copyright 2025 Galeon
+
+This product includes software developed by:
+
+- 0xbow (https://github.com/0xbow-io/privacy-pools-core)
+  Privacy Pool contracts adapted under Apache License 2.0
+
+- OpenZeppelin (https://openzeppelin.com)
+  Smart contract libraries under MIT License
+
+- Privacy Scaling Explorations (https://github.com/privacy-scaling-explorations)
+  ZK-Kit libraries under MIT License
+
+- Poseidon Solidity (https://github.com/chancehudson/poseidon-solidity)
+  Poseidon hash implementation under MIT License
+
+Galeon Modifications to 0xbow Privacy Pools:
+- Port-only deposits via GaleonRegistry integration
+- verifiedBalance tracking to prevent dirty sends
+- Stealth address freezing for compliance
+- UUPS upgradeability for future circuit upgrades
+- Per-proxy SCOPE computation for proof domain separation
+- Integration with EIP-5564/6538 stealth address system
