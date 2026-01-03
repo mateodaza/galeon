@@ -22,7 +22,6 @@ const CURVE_ORDER = secp256k1.Point.Fn.ORDER
 const DOMAIN_SPENDING = 'galeon-stealth-spending-v1'
 const DOMAIN_VIEWING = 'galeon-stealth-viewing-v1'
 const DOMAIN_PORT = 'galeon-port-derivation-v1'
-const DOMAIN_FOG = 'galeon-fog-keys-v1'
 
 /**
  * Default non-zero salt for HKDF derivation.
@@ -165,72 +164,6 @@ export function derivePortKeys(
 
   // Derive port-specific viewing key
   const viewingPrivateKey = derivePrivateKey(sigBytes, `${DOMAIN_PORT}-viewing`, portSalt)
-  const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
-
-  // Build stealth meta-address
-  const stealthMetaAddress =
-    `st:${chainPrefix}:0x${bytesToHex(spendingPublicKey)}${bytesToHex(viewingPublicKey)}` as StealthMetaAddress
-
-  return {
-    spendingPrivateKey,
-    spendingPublicKey,
-    viewingPrivateKey,
-    viewingPublicKey,
-    stealthMetaAddress,
-  }
-}
-
-/**
- * Derive unique keys for a Fog wallet from a master signature and fog index.
- *
- * Uses a SEPARATE derivation domain from Ports to ensure:
- * - Fog index 0 produces different keys than Port index 0
- * - Analyzing port keys reveals nothing about fog keys
- * - Clear separation for audit/compliance
- *
- * @param masterSignature - User's master stealth signature (0x-prefixed hex)
- * @param fogIndex - Unique index for this Fog wallet (0, 1, 2, ...)
- * @param chainPrefix - Chain prefix for meta-address ('mnt' for Mantle). Defaults to 'mnt'.
- * @returns Fog wallet stealth keys
- *
- * @example
- * ```ts
- * const masterSig = await wallet.signMessage("Galeon master key")
- * const fog0Keys = deriveFogKeys(masterSig, 0)
- * const fog1Keys = deriveFogKeys(masterSig, 1)
- * // fog0Keys and fog1Keys are cryptographically independent
- * // AND different from derivePortKeys(masterSig, 0)
- * ```
- */
-export function deriveFogKeys(
-  masterSignature: `0x${string}`,
-  fogIndex: number,
-  chainPrefix: StealthChainPrefix = DEFAULT_PREFIX
-): StealthKeys {
-  // Validate inputs
-  if (!masterSignature.startsWith('0x') || masterSignature.length < 4) {
-    throw new Error('Invalid signature: must be 0x-prefixed hex')
-  }
-  if (!Number.isInteger(fogIndex) || fogIndex < 0) {
-    throw new Error('Fog index must be a non-negative integer')
-  }
-
-  const sigBytes = hexToBytes(masterSignature.slice(2))
-  if (sigBytes.length < 64) {
-    throw new Error('Invalid signature: too short (minimum 64 bytes)')
-  }
-
-  // Use fog index as salt for HKDF derivation
-  // This ensures each fog wallet gets completely independent keys
-  const fogSalt = new Uint8Array(32)
-  new DataView(fogSalt.buffer).setUint32(0, fogIndex, false)
-
-  // Derive fog-specific spending key (using DOMAIN_FOG, NOT DOMAIN_PORT)
-  const spendingPrivateKey = derivePrivateKey(sigBytes, `${DOMAIN_FOG}-spending`, fogSalt)
-  const spendingPublicKey = secp256k1.getPublicKey(spendingPrivateKey, true)
-
-  // Derive fog-specific viewing key
-  const viewingPrivateKey = derivePrivateKey(sigBytes, `${DOMAIN_FOG}-viewing`, fogSalt)
   const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
 
   // Build stealth meta-address

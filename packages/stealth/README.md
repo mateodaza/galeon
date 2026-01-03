@@ -61,7 +61,6 @@ const client = createStealthClient(5000, { chainPrefix: 'eth' }) // Use st:eth: 
 | `schemeId`                                     | `number`         | EIP-5564 scheme (always 1) |
 | `deriveKeys(sig)`                              | `function`       | Derive stealth keys        |
 | `derivePortKeys(sig, index)`                   | `function`       | Derive Port-specific keys  |
-| `deriveFogKeys(sig, index)`                    | `function`       | Derive Fog wallet keys     |
 | `generateAddress(metaAddr)`                    | `function`       | Generate stealth address   |
 | `scan(announcements, spendingKey, viewingKey)` | `function`       | Scan for payments          |
 
@@ -95,27 +94,6 @@ const port0Keys = derivePortKeys(masterSig, 0)
 const port1Keys = derivePortKeys(masterSig, 1)
 // port0Keys and port1Keys are independent
 ```
-
-#### `deriveFogKeys(masterSignature, fogIndex, chainPrefix?)`
-
-Derive keys for Fog wallets (sender privacy). Uses a **separate domain** from Ports to ensure cryptographic isolation.
-
-```typescript
-import { deriveFogKeys, derivePortKeys } from '@galeon/stealth'
-
-const fog0Keys = deriveFogKeys(masterSig, 0)
-const port0Keys = derivePortKeys(masterSig, 0)
-
-// IMPORTANT: fog0Keys !== port0Keys (different domains)
-// This prevents any linkability between Ports and Fog wallets
-```
-
-**When to use:**
-
-- `derivePortKeys` - For receiving payments (recipient privacy)
-- `deriveFogKeys` - For Fog Mode sender privacy (pre-funded stealth wallets)
-
-**Note:** Fog Mode is mainnet-only (Mantle 5000). Testnet (5003) is not supported for Fog.
 
 #### `parseStealthMetaAddress(metaAddress)`
 
@@ -413,15 +391,6 @@ Port-specific keys use the port index as additional salt:
 port_spending = HKDF(signature, port_salt, "galeon-port-derivation-v1-spending")
 port_viewing  = HKDF(signature, port_salt, "galeon-port-derivation-v1-viewing")
 ```
-
-Fog wallet keys use a **separate domain** for cryptographic isolation:
-
-```
-fog_spending = HKDF(signature, fog_salt, "galeon-fog-keys-v1-spending")
-fog_viewing  = HKDF(signature, fog_salt, "galeon-fog-keys-v1-viewing")
-```
-
-This ensures `deriveFogKeys(sig, 0)` produces different keys than `derivePortKeys(sig, 0)`.
 
 ### Stealth Address Generation
 

@@ -1,7 +1,15 @@
+/**
+ * @deprecated These tests are deprecated. Fog wallets have been replaced by Privacy Pool.
+ * See docs/FOG-SHIPWRECK-PLAN.md for the current ZK-based architecture.
+ *
+ * This file is kept for reference but the tests are skipped.
+ */
+
 import { test } from '@japa/runner'
 import FogPayment from '#models/fog_payment'
 
-test.group('FogPayment Model', () => {
+// TODO: Remove these tests when fog payment code is cleaned up
+test.group('FogPayment Model [DEPRECATED]', () => {
   test('has correct table name', async ({ assert }) => {
     assert.equal(FogPayment.table, 'fog_payments')
   })

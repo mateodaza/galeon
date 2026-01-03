@@ -1,0 +1,3 @@
+[submodule "packages/0xbow"]
+	path = packages/0xbow
+	url = https://github.com/0xbow-io/privacy-pools-core.git

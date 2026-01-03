@@ -2,6 +2,13 @@
 
 > Compliant Privacy Mixing for Private Payments
 
+> ⚠️ **Architecture Update (Jan 2026):** References to "fog wallets" in this spec are outdated.
+> The current architecture uses **direct Pool withdrawals**:
+>
+> - Port → Pool (deposit) → Recipient (withdraw with ZK proof)
+> - No intermediate fog wallets - withdrawals go directly to payment recipients
+> - See [FOG-SHIPWRECK-PLAN.md](./FOG-SHIPWRECK-PLAN.md) for the updated implementation plan
+
 ## Overview
 
 Privacy Pools is a mixing protocol that allows Galeon users to break the link between receiving and sending payments, while maintaining full compliance capability.
@@ -14,64 +21,507 @@ Privacy Pools is a mixing protocol that allows Galeon users to break the link be
 
 ---
 
-## Phased Implementation
+## Compliance Architecture Summary
 
-### Phase 1: MVP (v0)
+### The Galeon Trust Model (Explicit)
 
-| Component         | v0 Implementation                  | Upgrade Path                              |
-| ----------------- | ---------------------------------- | ----------------------------------------- |
-| **Pool Deposits** | Port addresses only                | Add external deposits with chain analysis |
-| **ASP**           | Simple ban list (owner-controlled) | DAO governance + chain analysis APIs      |
-| **Shipwreck**     | Owner-only reports                 | Community reporting with reputation       |
-| **ZK Proofs**     | Commit-reveal with timelock        | Full Groth16 ZK proofs                    |
-| **Withdrawals**   | To stealth addresses only          | Add relayer for gas-free withdrawals      |
+**What Galeon CAN See/Do:**
 
-### v0 Architecture
+- All Port payments (viewing key escrow → scan announcements)
+- Link commitments to depositors (`commitmentDepositor` mapping)
+- Block future deposits from flagged addresses
+- Exclude commitments from valid set (freeze withdrawals)
+- IP logs, covenant signatures, fog wallet metadata (if stored)
+
+**What Galeon CANNOT See/Do:**
+
+- Spend user funds (no spending keys)
+- Link withdrawal to deposit (ZK proof hides which commitment)
+- See withdrawal destination (stealth address, no viewing key)
+- Modify Merkle tree after deposit (immutable)
+
+| Layer    | Privacy From Public      | Privacy From Galeon                                   | Freeze Capability             |
+| -------- | ------------------------ | ----------------------------------------------------- | ----------------------------- |
+| **Port** | ✅ Yes (stealth address) | ❌ No (viewing key escrow)                            | ❌ No (user has spending key) |
+| **Pool** | ✅ Yes (ZK proofs)       | ✅ Partial (can't trace withdrawal, CAN link deposit) | ✅ Yes (exclusion set)        |
+
+> **User Understanding**: Users should know Galeon is NOT a trustless protocol. It's "privacy from public + compliance capability" not "privacy from everyone."
+
+---
+
+### Port-Only Deposit Enforcement (Concrete Mechanism)
+
+**Problem**: Stealth addresses don't inherently prove they came from a Port payment.
+
+**Solution**: GaleonRegistry tracks all stealth addresses that received payments:
+
+```solidity
+// In GaleonRegistry.payNative():
+isPortStealthAddress[stealthAddress] = true;
+verifiedBalance[stealthAddress] += netAmount;
+
+// In GaleonPrivacyPool.deposit():
+require(
+    galeonRegistry.isValidPortAddress(msg.sender),
+    "Depositor must be a Port stealth address"
+);
+require(
+    msg.value <= galeonRegistry.getVerifiedBalance(msg.sender),
+    "Amount exceeds verified balance"
+);
+
+// Deduct from verified balance to prevent double-deposit
+galeonRegistry.consumeVerifiedBalance(msg.sender, msg.value);
+```
+
+**Flow:**
+
+```
+1. Payer → GaleonRegistry.payNative() → stealth address receives 1 MNT
+   └── Registry records: isPortStealthAddress[stealth] = true
+   └── Registry records: verifiedBalance[stealth] = 1 MNT
+
+2. Stealth owner → GaleonPrivacyPool.deposit(commitment)
+   └── Pool checks: galeonRegistry.isValidPortAddress(msg.sender) ✅
+   └── Pool checks: msg.value <= verifiedBalance[msg.sender] ✅
+   └── Registry decrements: verifiedBalance[stealth] -= 1 MNT
+   └── Pool records: commitmentDepositor[commitment] = msg.sender
+
+3. Attacker sends dirty MNT directly to stealth address
+   └── verifiedBalance stays at 0 (not from GaleonRegistry)
+   └── Stealth can't deposit dirty funds (exceeds verifiedBalance)
+```
+
+**Edge Case - Direct Sends:**
+If someone sends MNT directly to a stealth address (not via GaleonRegistry):
+
+- `verifiedBalance` is NOT incremented
+- User can spend those funds normally (collect, send)
+- User CANNOT deposit them to Privacy Pool
+- This is the intended behavior (only "clean" funds in pool)
+
+---
+
+### ASP/Exclusion System (Following 0xbow Pattern)
+
+**0xbow Model**: Uses separate Association Sets (valid depositors vs excluded depositors), NOT Merkle tree pruning.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    0xbow ASP PATTERN                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   DEPOSIT MERKLE TREE (immutable after deposit)             │
+│   ┌───────────────────────────────────────────────┐         │
+│   │  All commitments ever deposited               │         │
+│   │  Root changes only on new deposits            │         │
+│   │  NEVER modified/pruned after deposit          │         │
+│   └───────────────────────────────────────────────┘         │
+│                                                              │
+│   ASSOCIATION SET (ASP-controlled)                          │
+│   ┌───────────────────────────────────────────────┐         │
+│   │  Valid Set: Commitments allowed to withdraw   │         │
+│   │  └── Updated by ASP (add/remove)              │         │
+│   │                                               │         │
+│   │  Exclusion Set: Commitments blocked           │         │
+│   │  └── Bad actors, sanctioned addresses         │         │
+│   └───────────────────────────────────────────────┘         │
+│                                                              │
+│   WITHDRAWAL PROOF must prove:                              │
+│   1. Commitment exists in Merkle tree (membership)          │
+│   2. Commitment is in Valid Set (association)               │
+│   3. Nullifier is fresh (not double-spent)                  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Galeon Implementation:**
+
+```solidity
+// ASP-controlled exclusion (does NOT modify Merkle tree)
+mapping(bytes32 => bool) public excludedCommitments;
+bytes32 public aspRoot; // Root of valid association set
+
+event CommitmentExcluded(bytes32 indexed commitment, string reason);
+event CommitmentReincluded(bytes32 indexed commitment);
+
+/// @notice ASP excludes a commitment (freeze)
+function excludeCommitment(bytes32 commitment, string calldata reason) external onlyASP {
+    require(commitments[commitment], "Commitment not in pool");
+    require(!excludedCommitments[commitment], "Already excluded");
+
+    excludedCommitments[commitment] = true;
+    exclusions[commitment] = Exclusion({
+        excluded: true,
+        excludedAt: block.timestamp,
+        amount: DENOMINATION,
+        depositor: commitmentDepositor[commitment]
+    });
+
+    // Update ASP root (recalculate valid set)
+    _updateASPRoot();
+
+    emit CommitmentExcluded(commitment, reason);
+}
+
+/// @notice Withdrawal must prove membership in BOTH trees
+function withdraw(
+    bytes calldata merkleProof,    // Proves: commitment in deposit tree
+    bytes calldata aspProof,       // Proves: commitment in valid set
+    bytes32 root,
+    bytes32 aspRoot_,
+    bytes32 nullifierHash,
+    address payable recipient,
+    ...
+) external {
+    // Verify merkle membership (deposit tree - immutable)
+    require(isKnownRoot(root), "Invalid merkle root");
+
+    // Verify ASP membership (valid set - mutable)
+    require(aspRoot_ == aspRoot, "Invalid ASP root");
+    require(!excludedCommitments[commitment], "Commitment excluded");
+
+    // ... rest of withdrawal logic
+}
+```
+
+**Why This Doesn't Break Proofs:**
+
+- Merkle tree is NEVER modified → old proofs still valid for membership
+- ASP root is separate → exclusion only affects ASP proof
+- Innocent users regenerate ASP proof with new root (simple)
+- Excluded users can't generate valid ASP proof (blocked)
+
+---
+
+### Stealth-Only Withdrawals + Relayer Considerations
+
+**Problem Without Relayer:**
+
+```
+1. User wants to withdraw to fresh stealth address
+2. Fresh address has 0 MNT (can't pay gas)
+3. User must fund it from somewhere → linkage leak!
+
+Options without relayer:
+a) Fund from exchange → links exchange account to stealth
+b) Fund from existing wallet → links wallets
+c) Use Pool withdrawal gas from another address → still needs funding
+```
+
+**Solution: Relayer Support (Future)**
+
+```solidity
+function withdraw(
+    bytes calldata proof,
+    bytes32 root,
+    bytes32 nullifierHash,
+    address payable recipient,
+    address relayer,           // Relayer pays gas
+    uint256 relayerFee         // Relayer compensation (from withdrawal)
+) external {
+    // ... verification ...
+
+    uint256 protocolFee = (DENOMINATION * withdrawalFeeBps) / 10000;
+    uint256 netAmount = DENOMINATION - protocolFee - relayerFee;
+
+    // Pay relayer (covers their gas cost + profit)
+    if (relayer != address(0) && relayerFee > 0) {
+        payable(relayer).transfer(relayerFee);
+    }
+
+    // Pay protocol fee
+    if (protocolFee > 0) {
+        payable(treasury).transfer(protocolFee);
+    }
+
+    // Pay recipient
+    payable(recipient).transfer(netAmount);
+}
+```
+
+**Hackathon Scope:**
+
+- ❌ No relayer (users must self-fund stealth addresses)
+- ⚠️ Document linkage risk in UI: "Funding this address may reduce privacy"
+- ✅ Contract supports relayer parameter (ready for future)
+
+**Future Relayer Network:**
+
+- Decentralized relayers compete on fees
+- User generates proof locally, sends to relayer
+- Relayer submits tx, receives fee from withdrawal
+- No linkage between user's funding source and stealth address
+
+---
+
+### Revenue/Freeze Interaction (Detailed)
+
+**Scenario: User deposits 1 MNT, gets excluded, then appeals**
+
+```
+Timeline:
+Day 0:   User deposits 1 MNT, commitment C created
+Day 5:   ASP excludes commitment C (flagged as bad actor)
+Day 10:  User appeals exclusion
+Day 35:  Appeal period ends (30 days from exclusion)
+Day 36:  Treasury can claim frozen funds
+
+Fee handling:
+- No withdrawal fee charged (user never withdrew)
+- No donation collected (user never withdrew)
+- Full 1 MNT goes to treasury (minus gas)
+```
+
+**Contract Implementation:**
+
+```solidity
+struct Exclusion {
+    bool excluded;
+    uint256 excludedAt;
+    uint256 amount;          // Frozen amount (DENOMINATION)
+    address depositor;       // Original depositor
+    bool appealed;           // Appeal filed
+    bool appealResolved;     // Appeal decision made
+    bool appealGranted;      // If true, funds returned to depositor
+}
+
+uint256 public constant APPEAL_PERIOD = 30 days;
+
+/// @notice Claim frozen funds after appeal period (treasury only)
+function claimFrozenFunds(bytes32 commitment) external {
+    Exclusion storage exc = exclusions[commitment];
+
+    require(exc.excluded, "Not excluded");
+    require(!exc.appealGranted, "Appeal was granted");
+    require(
+        block.timestamp >= exc.excludedAt + APPEAL_PERIOD,
+        "Appeal period not ended"
+    );
+    require(!frozenFundsClaimed[commitment], "Already claimed");
+
+    frozenFundsClaimed[commitment] = true;
+
+    // NO withdrawal fee on frozen funds (punitive, not service)
+    // Full amount to treasury
+    payable(treasury).transfer(exc.amount);
+
+    emit FrozenFundsClaimed(commitment, exc.amount);
+}
+
+/// @notice Grant appeal - return funds to depositor
+function grantAppeal(bytes32 commitment) external onlyASP {
+    Exclusion storage exc = exclusions[commitment];
+
+    require(exc.excluded, "Not excluded");
+    require(exc.appealed, "No appeal filed");
+    require(!exc.appealResolved, "Already resolved");
+
+    exc.appealResolved = true;
+    exc.appealGranted = true;
+    exc.excluded = false;
+
+    // Re-add to valid set
+    _updateASPRoot();
+
+    // User can now withdraw normally (with fees)
+    emit AppealGranted(commitment);
+}
+```
+
+**Fee Rules:**
+| Scenario | Protocol Fee | Donation | Recipient |
+|----------|--------------|----------|-----------|
+| Normal withdrawal | 0.3% | Optional | User |
+| Frozen → Treasury claim | 0% | N/A | Treasury |
+| Frozen → Appeal granted | 0.3% (on eventual withdraw) | Optional | User |
+
+---
+
+## Revenue Configuration
+
+### Revenue Streams
+
+| Stream                   | Type     | Hackathon | Production | Configurable | Description                          |
+| ------------------------ | -------- | --------- | ---------- | ------------ | ------------------------------------ |
+| **Pool Withdrawal Fee**  | Fee      | **0%**    | 0.3%       | ✅ Yes       | % of withdrawn amount to treasury    |
+| **Port Creation Fee**    | Fee      | **0 MNT** | 0.01 MNT   | ✅ Yes       | One-time fee for creating a Port     |
+| **Payment Fee**          | Fee      | **0%**    | 0%         | ✅ Yes       | % of payments through GaleonRegistry |
+| **Donation (Withdraw)**  | Optional | 0%        | 0%         | User choice  | User can tip treasury on withdraw    |
+| **Donation (Payment)**   | Optional | 0%        | 0%         | User choice  | User can tip treasury on payment     |
+| **Frozen Fund Recovery** | Treasury | N/A       | N/A        | N/A          | Unclaimed frozen funds after appeal  |
+
+### Fee Parameters (Configurable by Owner/Governance)
+
+```solidity
+// GaleonRegistry fee parameters
+uint256 public portCreationFee;      // Hackathon: 0, Production: 0.01 MNT
+uint256 public paymentFeeBps;        // Hackathon: 0, Production: 0
+
+// GaleonPrivacyPool fee parameters
+uint256 public withdrawalFeeBps;     // Hackathon: 0, Production: 30 (0.3%)
+uint256 public constant MAX_FEE_BPS = 500; // 5% max (protect users)
+
+// Treasury
+address public treasury;             // Receives all fees and donations
+```
+
+> **Hackathon Strategy**: All fees set to 0 for maximum adoption. Fee collection code is ready but disabled - flip switch for production.
+
+### Revenue Collection Points
+
+```
+1. PORT CREATION (GaleonRegistry)
+   └── User pays portCreationFee → Treasury
+
+2. PAYMENT (GaleonRegistry.payNative)
+   └── Fee: paymentFeeBps of amount → Treasury
+   └── Optional: User adds donation → Treasury
+
+3. POOL WITHDRAWAL (GaleonPrivacyPool.withdraw)
+   └── Fee: withdrawalFeeBps of amount → Treasury
+   └── Optional: User adds donation → Treasury
+
+4. FROZEN FUND RECOVERY (GaleonPrivacyPool.claimFrozenFunds)
+   └── Full amount after appeal period → Treasury
+```
+
+### Launch Strategy (Hackathon → Production)
+
+| Phase             | Port Fee     | Payment Fee | Withdraw Fee | Notes               |
+| ----------------- | ------------ | ----------- | ------------ | ------------------- |
+| **Hackathon**     | 0 MNT        | 0%          | 0%           | Maximum adoption    |
+| **Beta**          | 0 MNT        | 0%          | 0.1%         | Test fee collection |
+| **Production v1** | 0.01 MNT     | 0%          | 0.3%         | Sustainable revenue |
+| **Future**        | Configurable | 0.1%?       | 0.3%         | DAO governance      |
+
+### Donation Integration (Optional Tips)
+
+Users can optionally donate to Galeon treasury at key moments:
+
+```solidity
+// In GaleonPrivacyPool.withdraw
+function withdraw(
+    bytes calldata proof,
+    ...
+    uint256 donationBps  // 0 = no donation, user can choose 1-1000 (0.01%-10%)
+) external {
+    uint256 amount = DENOMINATION;
+    uint256 fee = (amount * withdrawalFeeBps) / 10000;
+    uint256 donation = (amount * donationBps) / 10000;
+    uint256 netAmount = amount - fee - donation;
+
+    // Transfer
+    treasury.transfer(fee + donation);
+    recipient.transfer(netAmount);
+
+    emit Withdrawn(..., fee, donation);
+}
+```
+
+### Revenue Projections (Example)
+
+| Scenario  | Monthly Volume | Withdraw Fee (0.3%) | Monthly Revenue |
+| --------- | -------------- | ------------------- | --------------- |
+| Hackathon | 100 MNT        | $0                  | $0              |
+| Early     | 10,000 MNT     | $30                 | ~$30            |
+| Growth    | 100,000 MNT    | $300                | ~$300           |
+| Scale     | 1M MNT         | $3,000              | ~$3,000         |
+
+_Note: Donations are upside - even 1% average donation rate doubles revenue_
+
+---
+
+## Implementation: Fork 0xbow (v1)
+
+### Decision: Fork 0xbow Instead of Building v0
+
+**Why 0xbow:**
+
+- Vitalik Buterin deposited 1 ETH and invested in pre-seed
+- Ethereum Foundation integrating into Kohaku wallet
+- $6M+ volume, 1,500+ users since March 2025 mainnet launch
+- $3.5M seed (Coinbase Ventures)
+- Production-tested Groth16 circuits + ASP system
+- BN254 curve is native on Mantle (EIP-196/197)
+
+**What We Keep from 0xbow:**
+
+- Groth16 ZK proofs (Poseidon hash, BN254 curve)
+- Merkle tree of deposits (depth 20)
+- Nullifier-based double-spend prevention
+- Full ASP system
+
+**What We Add (Galeon-specific):**
+
+- Port-only deposits (covenant compliance)
+- Stealth-only withdrawals (EIP-5564 integration)
+- Galeon Covenant integration
+
+| Component         | v1 Implementation (0xbow Fork)  | Future Upgrades                           |
+| ----------------- | ------------------------------- | ----------------------------------------- |
+| **Pool Deposits** | Port addresses only             | Add external deposits with chain analysis |
+| **ASP**           | 0xbow ASP system + ban list     | DAO governance + chain analysis APIs      |
+| **Shipwreck**     | Owner-only reports              | Community reporting with reputation       |
+| **ZK Proofs**     | Groth16 (0xbow circuits)        | Multi-denomination pools                  |
+| **Withdrawals**   | To registered stealth addresses | Add relayer for gas-free withdrawals      |
+
+### v1 Architecture (0xbow Fork)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      GALEON v0 - PORT-ONLY POOL                       │
+│                      GALEON v1 - 0xbow FORK + PORT-ONLY              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                       │
-│   FLOW: Receive → Pool → Withdraw → Pay                              │
+│   FLOW: Receive → Pool (ZK) → Withdraw → Pay                         │
 │                                                                       │
 │   ┌──────────────────┐                                               │
 │   │  PORT RECEIVES   │  ← Someone pays your payment link             │
-│   │  PAYMENT         │                                               │
+│   │  PAYMENT         │  ← Covenant signer, verified clean            │
 │   └────────┬─────────┘                                               │
 │            │                                                          │
 │            ▼                                                          │
 │   ┌──────────────────┐                                               │
-│   │  DEPOSIT TO      │  ← Fixed denomination (1 MNT)                 │
-│   │  PRIVACY POOL    │  ← Must be from Port stealth address          │
+│   │  DEPOSIT TO      │  ← commitment = Poseidon(nullifier, secret)   │
+│   │  PRIVACY POOL    │  ← Added to Merkle tree (depth 20)            │
 │   └────────┬─────────┘                                               │
 │            │                                                          │
-│            │  Wait for anonymity set to grow                         │
+│            │  Pool grows, anonymity set increases                    │
 │            ▼                                                          │
 │   ┌──────────────────┐                                               │
-│   │  WITHDRAW TO     │  ← Commit-reveal (v0) or ZK proof (v1)        │
-│   │  FOG WALLET      │  ← Breaks link between receive and send       │
+│   │  WITHDRAW WITH   │  ← ZK proof: "I know a secret in the tree"    │
+│   │  ZK PROOF        │  ← Nullifier prevents double-spend            │
+│   └────────┬─────────┘  ← ASP proves deposit is "good"               │
+│            │                                                          │
+│            ▼                                                          │
+│   ┌──────────────────┐                                               │
+│   │  FOG WALLET      │  ← Registered stealth address                 │
+│   │  RECEIVES FUNDS  │  ← No on-chain link to deposit                │
 │   └────────┬─────────┘                                               │
 │            │                                                          │
 │            ▼                                                          │
 │   ┌──────────────────┐                                               │
 │   │  PAY FROM        │  ← Private payment to any address             │
-│   │  FOG WALLET      │                                               │
+│   │  FOG WALLET      │  ← Source is cryptographically hidden         │
 │   └──────────────────┘                                               │
 │                                                                       │
-│   WHY PORT-ONLY:                                                      │
-│   • All deposits traced to covenant signers                          │
-│   • No need for complex chain analysis                               │
-│   • "Clean by design" - funds came from verified users               │
-│   • Simpler ASP logic (just check ban list)                          │
+│   WHY 0xbow FORK:                                                     │
+│   • Vitalik-backed, production-tested ($6M+ volume)                  │
+│   • Groth16 ZK proofs - true cryptographic unlinkability             │
+│   • BN254 curve native on Mantle (EIP-196/197)                       │
+│   • Full ASP system for compliance                                   │
+│                                                                       │
+│   GALEON ADDITIONS:                                                   │
+│   • Port-only deposits (covenant signers)                            │
+│   • Stealth-only withdrawals (EIP-5564)                              │
+│   • Covenant integration for compliance                              │
 │                                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 2: Full Vision
+### Future Upgrades (v2+)
 
 - External deposits with Chainalysis/TRM Labs integration
-- ZK proofs for withdrawal privacy
 - Community Shipwreck reporting with reputation system
 - DAO-controlled ASP governance
 - Multi-denomination pools
@@ -181,42 +631,12 @@ interface GaleonCovenant {
 | Backend      | Full covenant + signature | Verification, legal compliance       |
 | LocalStorage | Signature only            | Quick re-verification                |
 
-### Covenant On-Chain Registry
+### Covenant On-Chain Storage (Integrated in GaleonRegistry)
 
-```solidity
-// contracts/GaleonCovenantRegistry.sol
-contract GaleonCovenantRegistry {
-    // Mapping from address to covenant hash
-    mapping(address => bytes32) public covenantHashes;
+> **Design Decision:** Covenant storage is integrated into `GaleonRegistry`, not a separate contract.
+> This reduces deployment complexity, gas costs, and simplifies the architecture.
 
-    // Mapping from address to timestamp
-    mapping(address => uint256) public signedAt;
-
-    // Events
-    event CovenantSigned(address indexed signer, bytes32 covenantHash, uint256 timestamp);
-    event CovenantRevoked(address indexed signer, string reason);
-
-    /**
-     * @notice Register a signed covenant
-     * @param covenantHash Hash of the full covenant data
-     */
-    function registerCovenant(bytes32 covenantHash) external {
-        require(covenantHashes[msg.sender] == bytes32(0), "Already signed");
-
-        covenantHashes[msg.sender] = covenantHash;
-        signedAt[msg.sender] = block.timestamp;
-
-        emit CovenantSigned(msg.sender, covenantHash, block.timestamp);
-    }
-
-    /**
-     * @notice Check if an address has signed the covenant
-     */
-    function hasCovenant(address account) external view returns (bool) {
-        return covenantHashes[account] != bytes32(0);
-    }
-}
-```
+Covenant functionality is added directly to GaleonRegistry (see full contract below).
 
 ---
 
@@ -653,14 +1073,6 @@ interface ComplianceResponse {
   poolDeposits?: PoolDeposit[]
   poolWithdrawals?: PoolWithdrawal[]
   portTransfers?: PortTransfer[]
-
-  // Fog wallet data (if disclosure authorized)
-  fogWallets?: {
-    stealthAddress: `0x${string}`
-    createdAt: number
-    fundingSource: string
-    outgoingTxs?: `0x${string}`[]
-  }[]
 }
 ```
 
@@ -901,50 +1313,53 @@ export default class ComplianceController {
 
 ## Architecture Summary
 
-### v0 Architecture (MVP)
+### v1 Architecture (0xbow Fork)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        GALEON PRIVACY POOLS v0                       │
+│                    GALEON PRIVACY POOLS v1 (0xbow Fork)              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│   PORT-ONLY DEPOSITS (Clean by Design)                               │
-│   ─────────────────────────────────────                              │
+│   PORT-ONLY DEPOSITS + ZK PROOFS                                     │
+│   ──────────────────────────────                                     │
 │                                                                      │
 │   ┌──────────────┐                                                   │
 │   │    PORT      │  ← Only source (covenant signers)                 │
 │   │  Reception   │  ← Verified on-chain via GaleonRegistry           │
 │   └──────┬───────┘                                                   │
 │          │                                                           │
-│          │ deposit(commitment) - must be from Port stealth address   │
+│          │ deposit(commitment) - Poseidon(nullifier, secret)         │
 │          ▼                                                           │
 │   ┌──────────────────────────────────────────────────────────────┐  │
-│   │   PRIVACY POOL V0 (Commit-Reveal)                             │  │
-│   │   ─────────────────────────────────                           │  │
+│   │   PRIVACY POOL V1 (0xbow ZK)                                  │  │
+│   │   ───────────────────────────                                 │  │
 │   │                                                               │  │
 │   │   • Fixed 1 MNT denomination                                  │  │
-│   │   • Commit-reveal (not ZK for MVP)                            │  │
-│   │   • 2-hour minimum timelock                                   │  │
-│   │   • Owner-controlled ban list (ASP v0)                        │  │
+│   │   • Groth16 ZK proofs (BN254 curve)                          │  │
+│   │   • Poseidon hash commitments                                 │  │
+│   │   • Merkle tree (depth 20, ~1M deposits)                      │  │
+│   │   • Nullifier-based double-spend prevention                   │  │
+│   │   • 0xbow ASP system + Galeon ban list                        │  │
 │   │   • Port-only deposits (on-chain enforced)                    │  │
 │   │   • Stealth-only withdrawals (on-chain enforced)              │  │
 │   └──────────────────────────────────────────────────────────────┘  │
 │          │                                                           │
-│          │ withdraw(secret, recipient) - after timelock              │
+│          │ withdraw(proof, nullifier, recipient)                     │
+│          │ ZK proof: "I know secret for commitment in tree"          │
 │          ▼                                                           │
 │   ┌──────────────┐                                                   │
 │   │  FOG WALLET  │  ← Registered via registerWithdrawalAddress()    │
-│   │  (stealth)   │  ← Ephemeral key validated on-chain               │
+│   │  (stealth)   │  ← Cryptographically unlinked from deposit        │
 │   └──────┬───────┘                                                   │
 │          │                                                           │
-│          │ Ready to pay (link to Port broken)                        │
+│          │ Ready to pay (ZK-proven unlinkability)                    │
 │          ▼                                                           │
 │   ┌──────────────┐                                                   │
 │   │   PAYMENT    │  ← Private payment from Fog wallet                │
 │   └──────────────┘                                                   │
 │                                                                      │
-│   KEY INSIGHT: Fog/Hop complexity eliminated.                        │
-│   Pool provides mixing. Port funds are "pre-vetted".                 │
+│   WHY 0xbow: Vitalik-backed, $6M+ volume, production-tested          │
+│   Pool provides ZK mixing. Port funds are "pre-vetted".              │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -1036,53 +1451,580 @@ require(isValidWithdrawalAddress[recipient], "Must withdraw to Fog wallet");
 | Entry → Hop Flow     | ✅ Complete | Manual via AddHopModal                            |
 | Auto-Hop on Funding  | 🔄 Planned  | In simplified UX plan                             |
 
-### What We Need for v0
+### What We Need for v1 (0xbow Fork)
 
-| Component                      | Priority | Complexity | Notes                               |
-| ------------------------------ | -------- | ---------- | ----------------------------------- |
-| GaleonRegistry v2              | High     | Low        | Add `isPortStealthAddress` tracking |
-| GaleonPrivacyPoolV0 Contract   | High     | Medium     | Commit-reveal, not ZK               |
-| Port → Pool Deposit UI         | High     | Low        | Simple modal                        |
-| Pool → Stealth Withdrawal UI   | High     | Low        | Register + withdraw                 |
-| Note Management (localStorage) | High     | Low        | Encrypted secret storage            |
+| Component                      | Priority | Complexity | Notes                                 |
+| ------------------------------ | -------- | ---------- | ------------------------------------- |
+| Fork 0xbow contracts           | High     | Medium     | Clone and adapt for Galeon            |
+| GaleonRegistry v2              | High     | Low        | Add `isPortStealthAddress` tracking   |
+| ZK Circuit integration         | High     | Medium     | Use 0xbow circuits, build for browser |
+| Galeon-specific modifications  | High     | Medium     | Port-only deposits, stealth withdraw  |
+| Port → Pool Deposit UI         | High     | Medium     | Generate commitment, store note       |
+| Pool → Stealth Withdrawal UI   | High     | Medium     | ZK proof generation in browser        |
+| Note Management (localStorage) | High     | Low        | Encrypted secret + nullifier storage  |
+| Deploy to Mantle Sepolia       | High     | Low        | Verifier + Pool contracts             |
 
-### What We Need for Full Vision (Future)
+### What We Need for Future (v2+)
 
-| Component                      | Priority | Complexity |
-| ------------------------------ | -------- | ---------- |
-| ZK Circuit (Withdrawal Proof)  | Future   | High       |
-| Association Set Provider (ASP) | Future   | Medium     |
-| Chain Analysis Integration     | Future   | Medium     |
-| Relayer Network                | Future   | High       |
-| Multi-denomination Pools       | Future   | Medium     |
+| Component                  | Priority | Complexity |
+| -------------------------- | -------- | ---------- |
+| Chain Analysis Integration | Future   | Medium     |
+| Relayer Network            | Future   | High       |
+| Multi-denomination Pools   | Future   | Medium     |
+| ERC20 Token Pools          | Future   | Medium     |
+| DAO Governance for ASP     | Future   | High       |
 
 ---
 
 ## Smart Contract Specification
 
-### GaleonRegistry v2 Changes
+### GaleonRegistryV1.sol (Upgradeable - UUPS)
 
-To support on-chain Port verification, extend the existing `GaleonRegistry.sol`:
+> **Note**: GaleonRegistry integrates covenant storage directly - no separate GaleonCovenantRegistry contract needed. This simplifies architecture and reduces gas costs.
 
 ```solidity
-// Add to GaleonRegistry.sol state:
-/// @notice Track stealth addresses that received Port payments
-mapping(address => bool) public isPortStealthAddress;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
-// Add view function:
-/// @notice Check if an address received a Port payment
-function isValidPortAddress(address addr) external view returns (bool) {
-    return isPortStealthAddress[addr];
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
+/// @title GaleonRegistryV1
+/// @notice Central registry for Ports, Covenants, and Payments with revenue collection
+/// @dev UUPS upgradeable - covenant storage integrated (no separate contract)
+contract GaleonRegistryV1 is
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    // ============================================================
+    // CONSTANTS
+    // ============================================================
+
+    uint256 public constant SCHEME_ID = 1; // secp256k1
+    uint256 public constant MAX_FEE_BPS = 500; // 5% max fee
+
+    // ============================================================
+    // STATE - Covenant (integrated, not separate contract)
+    // ============================================================
+
+    /// @notice Covenant version (increment on changes)
+    uint256 public covenantVersion;
+
+    /// @notice IPFS hash of current covenant text
+    string public covenantIpfsHash;
+
+    /// @notice User covenant signatures: user => version => signed
+    mapping(address => mapping(uint256 => bool)) public hasSignedCovenant;
+
+    /// @notice Timestamp of signature
+    mapping(address => uint256) public covenantSignedAt;
+
+    // ============================================================
+    // STATE - Ports
+    // ============================================================
+
+    struct Port {
+        bytes32 id;
+        address owner;
+        string name;
+        bytes stealthMetaAddress; // 66 bytes: spending_pub (33) + viewing_pub (33)
+        bool active;
+        uint256 createdAt;
+    }
+
+    /// @notice Port by ID
+    mapping(bytes32 => Port) public ports;
+
+    /// @notice User's port IDs
+    mapping(address => bytes32[]) public userPorts;
+
+    // ============================================================
+    // STATE - Payment Tracking (for Privacy Pool)
+    // ============================================================
+
+    /// @notice Track stealth addresses that received Port payments
+    mapping(address => bool) public isPortStealthAddress;
+
+    /// @notice Track verified balance per stealth address (for amount-limited deposits)
+    mapping(address => uint256) public verifiedBalance;
+
+    // ============================================================
+    // STATE - Revenue Configuration
+    // ============================================================
+
+    /// @notice Treasury address for fees and donations
+    address public treasury;
+
+    /// @notice Port creation fee (wei) - Default: 0 during growth
+    uint256 public portCreationFee;
+
+    /// @notice Payment fee in basis points - Default: 0 during growth
+    uint256 public paymentFeeBps;
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
+
+    event CovenantUpdated(uint256 indexed version, string ipfsHash);
+    event CovenantSigned(address indexed user, uint256 indexed version, uint256 timestamp);
+
+    event PortRegistered(
+        bytes32 indexed portId,
+        address indexed owner,
+        string name,
+        bytes stealthMetaAddress
+    );
+    event PortDeactivated(bytes32 indexed portId);
+
+    event PaymentReceived(
+        address indexed stealthAddress,
+        address indexed payer,
+        uint256 amount,
+        bytes32 receiptHash,
+        uint256 fee
+    );
+
+    event ReceiptAnchored(
+        address indexed stealthAddress,
+        bytes32 indexed receiptHash,
+        address indexed payer,
+        uint256 amount,
+        address token,
+        uint256 timestamp
+    );
+
+    event FeesUpdated(uint256 portCreationFee, uint256 paymentFeeBps);
+    event TreasuryUpdated(address indexed treasury);
+
+    // ============================================================
+    // INITIALIZER (replaces constructor for upgradeable)
+    // ============================================================
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        address _owner,
+        address _treasury,
+        string calldata _covenantIpfsHash
+    ) external initializer {
+        __Ownable_init(_owner);
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+
+        treasury = _treasury;
+        covenantVersion = 1;
+        covenantIpfsHash = _covenantIpfsHash;
+
+        emit CovenantUpdated(1, _covenantIpfsHash);
+    }
+
+    // ============================================================
+    // COVENANT FUNCTIONS
+    // ============================================================
+
+    /// @notice Sign the current covenant version
+    function signCovenant() external {
+        require(!hasSignedCovenant[msg.sender][covenantVersion], "Already signed");
+
+        hasSignedCovenant[msg.sender][covenantVersion] = true;
+        covenantSignedAt[msg.sender] = block.timestamp;
+
+        emit CovenantSigned(msg.sender, covenantVersion, block.timestamp);
+    }
+
+    /// @notice Check if user has signed current covenant
+    function hasValidCovenant(address user) public view returns (bool) {
+        return hasSignedCovenant[user][covenantVersion];
+    }
+
+    /// @notice Update covenant (owner only) - requires re-signing
+    function updateCovenant(string calldata _ipfsHash) external onlyOwner {
+        covenantVersion++;
+        covenantIpfsHash = _ipfsHash;
+        emit CovenantUpdated(covenantVersion, _ipfsHash);
+    }
+
+    // ============================================================
+    // PORT FUNCTIONS
+    // ============================================================
+
+    /// @notice Register a new Port (requires covenant signature)
+    function registerPort(
+        string calldata name,
+        bytes calldata stealthMetaAddress
+    ) external payable returns (bytes32 portId) {
+        // Require covenant
+        require(hasValidCovenant(msg.sender), "Must sign covenant first");
+
+        // Require fee (if any)
+        require(msg.value >= portCreationFee, "Insufficient fee");
+
+        // Validate stealth meta address (66 bytes)
+        require(stealthMetaAddress.length == 66, "Invalid stealth meta address");
+
+        // Generate port ID
+        portId = keccak256(abi.encodePacked(msg.sender, name, block.timestamp));
+        require(ports[portId].id == bytes32(0), "Port already exists");
+
+        // Store port
+        ports[portId] = Port({
+            id: portId,
+            owner: msg.sender,
+            name: name,
+            stealthMetaAddress: stealthMetaAddress,
+            active: true,
+            createdAt: block.timestamp
+        });
+
+        userPorts[msg.sender].push(portId);
+
+        // Collect fee
+        if (msg.value > 0 && treasury != address(0)) {
+            payable(treasury).transfer(msg.value);
+        }
+
+        emit PortRegistered(portId, msg.sender, name, stealthMetaAddress);
+    }
+
+    /// @notice Deactivate a Port (owner only)
+    function deactivatePort(bytes32 portId) external {
+        require(ports[portId].owner == msg.sender, "Not owner");
+        require(ports[portId].active, "Already inactive");
+
+        ports[portId].active = false;
+        emit PortDeactivated(portId);
+    }
+
+    // ============================================================
+    // PAYMENT FUNCTIONS
+    // ============================================================
+
+    /// @notice Pay native token (MNT) to a stealth address
+    function payNative(
+        address stealthAddress,
+        bytes calldata ephemeralPubKey,
+        uint8 viewTag,
+        bytes32 receiptHash
+    ) external payable nonReentrant {
+        require(msg.value > 0, "No value");
+        require(ephemeralPubKey.length == 33, "Invalid ephemeral key");
+
+        // Calculate fee
+        uint256 fee = (msg.value * paymentFeeBps) / 10000;
+        uint256 netAmount = msg.value - fee;
+
+        // Track for Privacy Pool integration
+        isPortStealthAddress[stealthAddress] = true;
+        verifiedBalance[stealthAddress] += netAmount;
+
+        // Transfer to recipient
+        payable(stealthAddress).transfer(netAmount);
+
+        // Collect fee
+        if (fee > 0 && treasury != address(0)) {
+            payable(treasury).transfer(fee);
+        }
+
+        emit PaymentReceived(stealthAddress, msg.sender, netAmount, receiptHash, fee);
+        emit ReceiptAnchored(
+            stealthAddress,
+            receiptHash,
+            msg.sender,
+            netAmount,
+            address(0), // native token
+            block.timestamp
+        );
+    }
+
+    /// @notice Pay ERC-20 token to a stealth address
+    /// @dev For hackathon: MNT-only pool. ERC-20 support tracks verifiedBalance but separate pools needed.
+    function payToken(
+        address token,
+        address stealthAddress,
+        uint256 amount,
+        bytes calldata ephemeralPubKey,
+        uint8 viewTag,
+        bytes32 receiptHash
+    ) external nonReentrant {
+        require(amount > 0, "No amount");
+        require(ephemeralPubKey.length == 33, "Invalid ephemeral key");
+
+        // Calculate fee
+        uint256 fee = (amount * paymentFeeBps) / 10000;
+        uint256 netAmount = amount - fee;
+
+        // Transfer from sender
+        IERC20(token).transferFrom(msg.sender, stealthAddress, netAmount);
+        if (fee > 0 && treasury != address(0)) {
+            IERC20(token).transferFrom(msg.sender, treasury, fee);
+        }
+
+        // Track for Privacy Pool integration
+        // NOTE: verifiedBalance is MNT-denominated for hackathon pool
+        // Future: per-token verified balances for multi-token pools
+        isPortStealthAddress[stealthAddress] = true;
+        // verifiedBalance[stealthAddress] += netAmount; // Only for MNT pool
+
+        emit PaymentReceived(stealthAddress, msg.sender, netAmount, receiptHash, fee);
+        emit ReceiptAnchored(
+            stealthAddress,
+            receiptHash,
+            msg.sender,
+            netAmount,
+            token,
+            block.timestamp
+        );
+    }
+
+    // ============================================================
+    // VIEW FUNCTIONS (for Privacy Pool)
+    // ============================================================
+
+    /// @notice Check if address received a Port payment
+    function isValidPortAddress(address addr) external view returns (bool) {
+        return isPortStealthAddress[addr];
+    }
+
+    /// @notice Get verified balance for a stealth address
+    function getVerifiedBalance(address stealthAddress) external view returns (uint256) {
+        return verifiedBalance[stealthAddress];
+    }
+
+    // ============================================================
+    // PRIVACY POOL INTEGRATION
+    // ============================================================
+
+    /// @notice Authorized Privacy Pool contract
+    address public privacyPool;
+
+    /// @notice Consume verified balance (called by Privacy Pool on deposit)
+    /// @dev Only callable by the authorized Privacy Pool contract
+    function consumeVerifiedBalance(address stealthAddress, uint256 amount) external {
+        require(msg.sender == privacyPool, "Only Privacy Pool");
+        require(verifiedBalance[stealthAddress] >= amount, "Insufficient verified balance");
+
+        verifiedBalance[stealthAddress] -= amount;
+
+        emit VerifiedBalanceConsumed(stealthAddress, amount);
+    }
+
+    /// @notice Set the authorized Privacy Pool contract
+    function setPrivacyPool(address _privacyPool) external onlyOwner {
+        require(_privacyPool != address(0), "Invalid pool");
+        privacyPool = _privacyPool;
+        emit PrivacyPoolUpdated(_privacyPool);
+    }
+
+    event VerifiedBalanceConsumed(address indexed stealthAddress, uint256 amount);
+    event PrivacyPoolUpdated(address indexed privacyPool);
+
+    // ============================================================
+    // ADMIN FUNCTIONS
+    // ============================================================
+
+    /// @notice Update fee configuration
+    function setFees(uint256 _portCreationFee, uint256 _paymentFeeBps) external onlyOwner {
+        require(_paymentFeeBps <= MAX_FEE_BPS, "Fee too high");
+        portCreationFee = _portCreationFee;
+        paymentFeeBps = _paymentFeeBps;
+        emit FeesUpdated(_portCreationFee, _paymentFeeBps);
+    }
+
+    /// @notice Update treasury address
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
+    }
+
+    // ============================================================
+    // UUPS UPGRADE
+    // ============================================================
+
+    /// @notice Authorize upgrade (owner only)
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /// @notice Get implementation version
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 }
-
-// Update payNative function - add before existing emit:
-isPortStealthAddress[stealthAddress] = true;
-
-// Update payToken function - add before existing emit:
-isPortStealthAddress[stealthAddress] = true;
 ```
 
-### GaleonPrivacyPoolV0.sol (MVP - Commit-Reveal)
+**Key Integrations:**
+
+| Feature                    | Purpose                                               |
+| -------------------------- | ----------------------------------------------------- |
+| `hasValidCovenant()`       | Gate Port creation, payment sending                   |
+| `isPortStealthAddress`     | Verify deposits to Privacy Pool came from Ports       |
+| `verifiedBalance`          | Track clean funds per stealth address                 |
+| `consumeVerifiedBalance()` | Pool calls on deposit to deduct from verified balance |
+| `portCreationFee`          | Revenue from Port creation                            |
+| `paymentFeeBps`            | Revenue from payments                                 |
+| UUPS Upgradeable           | Future-proof contract upgrades                        |
+
+### GaleonPrivacyPool.sol (v1 - 0xbow Fork)
+
+> **Note**: This is based on forking 0xbow's privacy-pools-core contracts and adding Galeon-specific modifications.
+
+**Key Modifications to 0xbow:**
+
+```solidity
+// GALEON ADDITION 1: Port-only + Amount-limited deposits
+IGaleonRegistry public immutable galeonRegistry;
+
+// Track who deposited each commitment (for freeze capability)
+mapping(bytes32 => address) public commitmentDepositor;
+
+function deposit(bytes32 commitment) external payable {
+    // 0xbow standard checks
+    require(msg.value == DENOMINATION, "Invalid amount");
+    require(!commitments[commitment], "Duplicate commitment");
+
+    // GALEON: Port-only deposits (must have received payment via GaleonRegistry)
+    require(
+        galeonRegistry.isValidPortAddress(msg.sender),
+        "Depositor must be a Port stealth address"
+    );
+
+    // GALEON: Amount-limited deposits (only verified "clean" funds)
+    require(
+        galeonRegistry.getVerifiedBalance(msg.sender) >= msg.value,
+        "Amount exceeds verified balance"
+    );
+
+    // Consume verified balance (prevents depositing dirty funds)
+    galeonRegistry.consumeVerifiedBalance(msg.sender, msg.value);
+
+    // Track depositor for compliance/freeze capability
+    commitmentDepositor[commitment] = msg.sender;
+
+    // Rest of 0xbow deposit logic...
+    _insert(commitment);
+    commitments[commitment] = true;
+    emit Deposit(commitment, leafIndex, block.timestamp, msg.sender);
+}
+
+// GALEON ADDITION 2: Stealth-only withdrawals
+mapping(address => bool) public isValidWithdrawalAddress;
+
+function registerWithdrawalAddress(
+    address stealthAddress,
+    bytes calldata ephemeralPubKey,
+    bytes1 viewTag
+) external {
+    require(ephemeralPubKey.length == 33, "Invalid key length");
+    require(ephemeralPubKey[0] == 0x02 || ephemeralPubKey[0] == 0x03, "Invalid prefix");
+
+    isValidWithdrawalAddress[stealthAddress] = true;
+    emit WithdrawalAddressRegistered(stealthAddress, ephemeralPubKey, viewTag);
+}
+
+/// @notice Withdraw from pool with ZK proof
+/// @dev The ZK proof proves knowledge of (nullifier, secret) such that:
+///      1. commitment = Poseidon(nullifier, secret) exists in Merkle tree at `root`
+///      2. nullifierHash = Poseidon(nullifier) (public, prevents double-spend)
+///      3. commitment is in the valid association set (ASP root)
+///      The commitment itself is NEVER revealed - only proven via ZK.
+function withdraw(
+    bytes calldata proof,         // Groth16 proof
+    bytes32 root,                 // Merkle root (proves membership)
+    bytes32 aspRoot,              // Association set root (proves not excluded)
+    bytes32 nullifierHash,        // Poseidon(nullifier) - public, prevents double-spend
+    address payable recipient,    // Where to send funds
+    address relayer,              // Optional relayer (pays gas, receives fee)
+    uint256 relayerFee,           // Fee for relayer (deducted from withdrawal)
+    uint256 donationBps           // Optional donation to treasury (0-1000 = 0-10%)
+) external nonReentrant {
+    // GALEON: Stealth-only withdrawals
+    require(isValidWithdrawalAddress[recipient], "Must withdraw to stealth address");
+
+    // Prevent double-spend
+    require(!nullifierHashes[nullifierHash], "Already spent");
+    nullifierHashes[nullifierHash] = true;
+
+    // Verify merkle root is known (recent)
+    require(isKnownRoot(root), "Invalid merkle root");
+
+    // Verify ASP root matches current valid set
+    require(aspRoot == currentASPRoot, "Invalid ASP root");
+
+    // Verify ZK proof
+    // Public inputs: [root, aspRoot, nullifierHash, recipient, relayer, relayerFee]
+    // The proof validates that the prover knows (nullifier, secret, pathElements)
+    // such that Poseidon(nullifier, secret) is in the tree AND valid set
+    uint256[6] memory publicInputs = [
+        uint256(root),
+        uint256(aspRoot),
+        uint256(nullifierHash),
+        uint256(uint160(recipient)),
+        uint256(uint160(relayer)),
+        relayerFee
+    ];
+    require(verifier.verifyProof(proof, publicInputs), "Invalid ZK proof");
+
+    // Calculate amounts
+    uint256 protocolFee = (DENOMINATION * withdrawalFeeBps) / 10000;
+    uint256 donation = (DENOMINATION * donationBps) / 10000;
+    uint256 netAmount = DENOMINATION - protocolFee - donation - relayerFee;
+
+    // Distribute funds
+    if (relayerFee > 0 && relayer != address(0)) {
+        payable(relayer).transfer(relayerFee);
+    }
+    if (protocolFee + donation > 0) {
+        payable(treasury).transfer(protocolFee + donation);
+    }
+    payable(recipient).transfer(netAmount);
+
+    emit Withdrawal(recipient, nullifierHash, relayer, relayerFee, protocolFee, donation);
+}
+```
+
+**ZK Proof Structure (Groth16):**
+
+```
+Private Inputs (known only to prover):
+├── nullifier         (random 32 bytes, part of commitment)
+├── secret            (random 32 bytes, part of commitment)
+├── pathElements[20]  (Merkle proof siblings)
+├── pathIndices[20]   (left/right path indicators)
+└── aspPathElements   (ASP membership proof)
+
+Public Inputs (visible to verifier/contract):
+├── root              (Merkle root)
+├── aspRoot           (Association set root)
+├── nullifierHash     (Poseidon(nullifier))
+├── recipient         (withdrawal address)
+├── relayer           (relayer address)
+└── relayerFee        (relayer compensation)
+
+Circuit proves:
+1. commitment = Poseidon(nullifier, secret)
+2. commitment is in Merkle tree at root
+3. commitment is in ASP valid set at aspRoot
+4. nullifierHash = Poseidon(nullifier)
+
+The commitment is NEVER revealed - ZK proves it exists without showing which one.
+```
+
+### 0xbow Contracts to Fork
+
+| Contract                    | Purpose                 | Modifications                      |
+| --------------------------- | ----------------------- | ---------------------------------- |
+| `PrivacyPool.sol`           | Main pool logic         | Add Port-only, stealth-only checks |
+| `Verifier.sol`              | Groth16 verifier        | None (use as-is)                   |
+| `MerkleTreeWithHistory.sol` | Incremental Merkle tree | None (use as-is)                   |
+| `Poseidon.sol`              | ZK-friendly hash        | None (use as-is)                   |
+
+### GaleonPrivacyPoolV0.sol (Fallback - Commit-Reveal)
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -1307,9 +2249,9 @@ contract GaleonPrivacyPoolV0 is ReentrancyGuard {
 }
 ```
 
-### GaleonPrivacyPool.sol (Full Vision - ZK-based)
+### GaleonPrivacyPool.sol (Full Vision - ZK-based with Compliance)
 
-> **Note**: This is the future full implementation with ZK proofs. Not needed for v0.
+> **Note**: This is the full implementation with ZK proofs and compliance features.
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -1327,6 +2269,10 @@ interface IVerifier {
     ) external view returns (bool);
 }
 
+interface IGaleonRegistry {
+    function isValidPortAddress(address addr) external view returns (bool);
+}
+
 contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
     // ============================================================
     // CONSTANTS
@@ -1334,27 +2280,51 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
 
     uint256 public constant DENOMINATION = 1 ether; // 1 MNT per deposit
     uint32 public constant MERKLE_TREE_HEIGHT = 20; // ~1M deposits
+    uint256 public constant APPEAL_PERIOD = 30 days;
 
     // ============================================================
     // STATE
     // ============================================================
+
+    // External contracts
+    IGaleonRegistry public immutable galeonRegistry;
+    IVerifier public withdrawVerifier;
 
     // Deposit tracking
     bytes32 public depositRoot;
     uint256 public depositCount;
     mapping(uint256 => bytes32) public depositHashes; // index => commitment
 
+    // COMPLIANCE: Track verified balances from GaleonRegistry
+    mapping(address => uint256) public verifiedBalance;
+
+    // COMPLIANCE: Track who deposited each commitment (for freeze capability)
+    mapping(bytes32 => address) public commitmentDepositor;
+    mapping(bytes32 => uint256) public commitmentAmount;
+
+    // COMPLIANCE: Exclusion system for bad actors
+    struct Exclusion {
+        bool excluded;
+        uint256 excludedAt;
+        uint256 amount;
+        address depositor;
+    }
+    mapping(bytes32 => Exclusion) public exclusions;
+    mapping(bytes32 => bool) public frozenClaimed;
+
+    // Treasury for recovered frozen funds
+    address public treasury;
+
     // Association Set Providers
-    mapping(address => bytes32) public aspRoots; // ASP address => merkle root
+    mapping(address => bytes32) public aspRoots;
     mapping(address => bool) public isApprovedASP;
-    address public defaultASP; // Galeon's ASP
+    address public defaultASP;
 
     // Nullifiers (prevent double-spend)
     mapping(bytes32 => bool) public nullifiers;
 
-    // Verifiers
-    IVerifier public depositVerifier;
-    IVerifier public withdrawVerifier;
+    // Stealth withdrawal addresses
+    mapping(address => bool) public isValidWithdrawalAddress;
 
     // ============================================================
     // EVENTS
@@ -1362,6 +2332,8 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
 
     event Deposit(
         bytes32 indexed commitment,
+        address indexed depositor,
+        uint256 amount,
         uint256 leafIndex,
         uint256 timestamp
     );
@@ -1373,6 +2345,29 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         uint256 timestamp
     );
 
+    event WithdrawalAddressRegistered(
+        address indexed stealthAddress,
+        bytes ephemeralPubKey,
+        bytes1 viewTag
+    );
+
+    event VerifiedPaymentRecorded(
+        address indexed stealthAddress,
+        uint256 amount
+    );
+
+    event CommitmentExcluded(
+        bytes32 indexed commitment,
+        address indexed depositor
+    );
+
+    event ExclusionRemoved(bytes32 indexed commitment);
+
+    event FrozenFundsClaimed(
+        bytes32 indexed commitment,
+        uint256 amount
+    );
+
     event ASPRootUpdated(
         address indexed asp,
         bytes32 newRoot,
@@ -1380,16 +2375,96 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
     );
 
     // ============================================================
+    // CONSTRUCTOR
+    // ============================================================
+
+    constructor(
+        address _galeonRegistry,
+        address _treasury,
+        address _owner
+    ) Ownable(_owner) {
+        require(_galeonRegistry != address(0), "Invalid registry");
+        require(_treasury != address(0), "Invalid treasury");
+        galeonRegistry = IGaleonRegistry(_galeonRegistry);
+        treasury = _treasury;
+    }
+
+    // ============================================================
+    // VERIFIED BALANCE TRACKING
+    // ============================================================
+
+    /**
+     * @notice Record a verified payment from GaleonRegistry
+     * @dev Only callable by GaleonRegistry after payNative/payToken
+     * @param stealthAddress The stealth address that received payment
+     * @param amount The amount received
+     */
+    function recordVerifiedPayment(
+        address stealthAddress,
+        uint256 amount
+    ) external {
+        require(msg.sender == address(galeonRegistry), "Only registry");
+        verifiedBalance[stealthAddress] += amount;
+        emit VerifiedPaymentRecorded(stealthAddress, amount);
+    }
+
+    // ============================================================
+    // STEALTH WITHDRAWAL REGISTRATION
+    // ============================================================
+
+    /**
+     * @notice Register a stealth address for withdrawal
+     * @param stealthAddress The stealth address to register
+     * @param ephemeralPubKey The ephemeral public key (33 bytes)
+     * @param viewTag The view tag for scanning
+     */
+    function registerWithdrawalAddress(
+        address stealthAddress,
+        bytes calldata ephemeralPubKey,
+        bytes1 viewTag
+    ) external {
+        require(stealthAddress != address(0), "Invalid address");
+        require(ephemeralPubKey.length == 33, "Invalid key length");
+        require(
+            ephemeralPubKey[0] == 0x02 || ephemeralPubKey[0] == 0x03,
+            "Invalid pubkey prefix"
+        );
+
+        isValidWithdrawalAddress[stealthAddress] = true;
+        emit WithdrawalAddressRegistered(stealthAddress, ephemeralPubKey, viewTag);
+    }
+
+    // ============================================================
     // DEPOSIT
     // ============================================================
 
     /**
      * @notice Deposit MNT into the pool
+     * @dev Only Port addresses with verified balance can deposit
      * @param commitment Hash of (secret, nullifier)
      */
     function deposit(bytes32 commitment) external payable nonReentrant {
-        require(msg.value == DENOMINATION, "Invalid deposit amount");
+        require(msg.value > 0, "Zero deposit");
         require(commitment != bytes32(0), "Invalid commitment");
+
+        // COMPLIANCE: Only Port addresses can deposit
+        require(
+            galeonRegistry.isValidPortAddress(msg.sender),
+            "Must deposit from Port"
+        );
+
+        // COMPLIANCE: Only verified amounts can be deposited (prevents dusting)
+        require(
+            verifiedBalance[msg.sender] >= msg.value,
+            "Exceeds verified balance"
+        );
+
+        // Deduct from verified balance
+        verifiedBalance[msg.sender] -= msg.value;
+
+        // COMPLIANCE: Track depositor for freeze capability
+        commitmentDepositor[commitment] = msg.sender;
+        commitmentAmount[commitment] = msg.value;
 
         // Add to merkle tree
         uint256 leafIndex = depositCount;
@@ -1397,7 +2472,7 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         depositRoot = _insertLeaf(commitment);
         depositCount++;
 
-        emit Deposit(commitment, leafIndex, block.timestamp);
+        emit Deposit(commitment, msg.sender, msg.value, leafIndex, block.timestamp);
     }
 
     // ============================================================
@@ -1406,9 +2481,9 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
 
     /**
      * @notice Withdraw from the pool with ZK proof
-     * @param proof ZK proof of valid deposit in association set
+     * @param proof ZK proof of valid deposit
      * @param nullifierHash Unique identifier to prevent double-spend
-     * @param recipient Address to receive funds
+     * @param recipient Registered stealth address to receive funds
      * @param asp Association Set Provider to use (0 = default)
      */
     function withdraw(
@@ -1420,6 +2495,12 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         require(!nullifiers[nullifierHash], "Already withdrawn");
         require(recipient != address(0), "Invalid recipient");
 
+        // COMPLIANCE: Only registered stealth addresses
+        require(
+            isValidWithdrawalAddress[recipient],
+            "Must withdraw to registered stealth"
+        );
+
         // Use default ASP if none specified
         address effectiveASP = asp == address(0) ? defaultASP : asp;
         require(isApprovedASP[effectiveASP], "ASP not approved");
@@ -1427,8 +2508,7 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         bytes32 aspRoot = aspRoots[effectiveASP];
         require(aspRoot != bytes32(0), "ASP has no root");
 
-        // Verify ZK proof
-        // Public inputs: [depositRoot, aspRoot, nullifierHash, recipient]
+        // Verify ZK proof (includes exclusion set check)
         bool valid = _verifyWithdrawProof(
             proof,
             depositRoot,
@@ -1449,13 +2529,79 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
     }
 
     // ============================================================
-    // ASP MANAGEMENT
+    // COMPLIANCE: EXCLUSION SYSTEM
     // ============================================================
 
     /**
-     * @notice Update ASP's association set root
-     * @param newRoot New merkle root of "good" deposits
+     * @notice Exclude a commitment (freeze bad actor's funds)
+     * @dev Only callable by approved ASP
+     * @param commitment The commitment to exclude
      */
+    function excludeCommitment(bytes32 commitment) external {
+        require(isApprovedASP[msg.sender], "Not approved ASP");
+        require(commitmentDepositor[commitment] != address(0), "Unknown commitment");
+        require(!exclusions[commitment].excluded, "Already excluded");
+
+        exclusions[commitment] = Exclusion({
+            excluded: true,
+            excludedAt: block.timestamp,
+            amount: commitmentAmount[commitment],
+            depositor: commitmentDepositor[commitment]
+        });
+
+        emit CommitmentExcluded(commitment, commitmentDepositor[commitment]);
+    }
+
+    /**
+     * @notice Remove exclusion (appeal successful)
+     * @dev Only callable by approved ASP
+     * @param commitment The commitment to un-exclude
+     */
+    function removeExclusion(bytes32 commitment) external {
+        require(isApprovedASP[msg.sender], "Not approved ASP");
+        require(exclusions[commitment].excluded, "Not excluded");
+
+        exclusions[commitment].excluded = false;
+        emit ExclusionRemoved(commitment);
+    }
+
+    /**
+     * @notice Claim frozen funds after appeal period
+     * @dev Only callable by approved ASP, funds go to treasury
+     * @param commitment The commitment with frozen funds
+     */
+    function claimFrozenFunds(bytes32 commitment) external {
+        require(isApprovedASP[msg.sender], "Not approved ASP");
+
+        Exclusion memory exc = exclusions[commitment];
+        require(exc.excluded, "Not excluded");
+        require(
+            block.timestamp >= exc.excludedAt + APPEAL_PERIOD,
+            "Appeal period active"
+        );
+        require(!frozenClaimed[commitment], "Already claimed");
+
+        frozenClaimed[commitment] = true;
+
+        (bool success, ) = treasury.call{value: exc.amount}("");
+        require(success, "Transfer failed");
+
+        emit FrozenFundsClaimed(commitment, exc.amount);
+    }
+
+    /**
+     * @notice Check if a commitment is excluded
+     * @param commitment The commitment to check
+     * @return True if excluded
+     */
+    function isExcluded(bytes32 commitment) external view returns (bool) {
+        return exclusions[commitment].excluded;
+    }
+
+    // ============================================================
+    // ASP MANAGEMENT
+    // ============================================================
+
     function updateASPRoot(bytes32 newRoot) external {
         require(isApprovedASP[msg.sender], "Not an approved ASP");
         aspRoots[msg.sender] = newRoot;
@@ -1475,6 +2621,11 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         defaultASP = asp;
     }
 
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
+    }
+
     // ============================================================
     // VIEW FUNCTIONS
     // ============================================================
@@ -1489,6 +2640,27 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
 
     function isNullifierUsed(bytes32 nullifier) external view returns (bool) {
         return nullifiers[nullifier];
+    }
+
+    function getVerifiedBalance(address addr) external view returns (uint256) {
+        return verifiedBalance[addr];
+    }
+
+    function getExclusion(bytes32 commitment) external view returns (
+        bool excluded,
+        uint256 excludedAt,
+        uint256 amount,
+        address depositor,
+        bool claimed
+    ) {
+        Exclusion memory exc = exclusions[commitment];
+        return (
+            exc.excluded,
+            exc.excludedAt,
+            exc.amount,
+            exc.depositor,
+            frozenClaimed[commitment]
+        );
     }
 
     // ============================================================
@@ -1509,8 +2681,12 @@ contract GaleonPrivacyPool is ReentrancyGuard, Ownable {
         address _recipient
     ) internal view returns (bool) {
         // Decode and verify using Groth16 verifier
+        // The ZK circuit proves:
+        // 1. User knows (secret, nullifier) for a commitment in the deposit tree
+        // 2. That commitment is NOT in the exclusion set
+        // 3. nullifierHash = hash(nullifier)
         // Implementation depends on ZK circuit
-        return true; // Placeholder
+        return true; // Placeholder - replace with actual verifier call
     }
 }
 ```
@@ -1624,35 +2800,67 @@ class GaleonASPService implements GaleonASP {
 
 ## Implementation Phases
 
-### v0 Implementation (MVP)
+### v1 Implementation (0xbow Fork)
 
-#### Phase 1: Smart Contracts (2-3 days)
+#### Phase 1: Fork & Adapt Contracts (3-4 days)
 
 **Deliverables:**
 
+- [ ] Clone 0xbow privacy-pools-core contracts
 - [ ] Update `GaleonRegistry.sol` with `isPortStealthAddress` tracking
-- [ ] Create `GaleonPrivacyPoolV0.sol` (commit-reveal)
+- [ ] Add Port-only deposits to forked PrivacyPool.sol
+- [ ] Add stealth-only withdrawals (registerWithdrawalAddress)
 - [ ] Deployment scripts for Mantle Sepolia
-- [ ] Basic tests
+- [ ] Integration tests
 
 **Checkpoints:**
 
+- [ ] 0xbow contracts compile on Mantle
 - [ ] GaleonRegistry tracks stealth addresses on payment
 - [ ] Pool only accepts deposits from tracked Port addresses
-- [ ] Commitment stored correctly
-- [ ] Timelock enforced (2 hours)
-- [ ] Secret validation works
+- [ ] Poseidon commitment stored correctly
 - [ ] Stealth address registration works
-- [ ] Ban/unban functions work
+- [ ] Verifier contract deployed and working
 
-#### Phase 2: Frontend Integration (2-3 days)
+#### Phase 2: ZK Circuit Integration (2-3 days)
+
+**Deliverables:**
+
+- [ ] Copy 0xbow Circom circuits
+- [ ] Generate proving key (use 0xbow trusted setup)
+- [ ] Build circuit artifacts for browser (wasm + zkey)
+- [ ] Integrate snarkjs for proof generation
+- [ ] Test proof generation in browser
+
+**Files:**
+
+```
+packages/circuits/
+├── withdraw.circom                 # 0xbow circuit
+├── poseidon.circom                 # Poseidon hash
+├── merkleProof.circom              # Merkle proof
+└── build/
+    ├── withdraw.wasm
+    ├── withdraw_final.zkey
+    └── verification_key.json
+```
+
+**Checkpoints:**
+
+- [ ] Circuit compiles with circom
+- [ ] Proof generation works in browser (<30s)
+- [ ] Proof verification on-chain succeeds
+- [ ] Invalid proofs are rejected
+
+#### Phase 3: Frontend Integration (2-3 days)
 
 **Files to create:**
 | File | Purpose |
 |------|---------|
 | `apps/web/contexts/pool-context.tsx` | Pool state + operations |
 | `apps/web/hooks/use-pool-deposit.ts` | Deposit from Port |
-| `apps/web/hooks/use-pool-withdraw.ts` | Withdraw to stealth |
+| `apps/web/hooks/use-pool-withdraw.ts` | ZK proof + withdraw |
+| `apps/web/lib/zk-prover.ts` | snarkjs integration |
 | `apps/web/components/pool/deposit-modal.tsx` | Deposit UI |
 | `apps/web/components/pool/withdraw-modal.tsx` | Withdraw UI |
 | `apps/web/components/pool/pool-status-card.tsx` | Pool stats |
@@ -1660,24 +2868,31 @@ class GaleonASPService implements GaleonASP {
 **Checkpoints:**
 
 - [ ] User can deposit from Port UI
-- [ ] Secret stored encrypted in localStorage
-- [ ] User can see pending deposits + timelock countdown
+- [ ] Note (secret + nullifier) stored encrypted in localStorage
+- [ ] User can see pending deposits + anonymity set size
 - [ ] User can register withdrawal stealth address
-- [ ] User can withdraw after timelock
+- [ ] ZK proof generation in browser works
+- [ ] User can withdraw with valid proof
 - [ ] Full flow works end-to-end
 
-#### Phase 3: Note Management (1 day)
+#### Phase 4: Note Management (1 day)
 
-**Secret storage:**
+**Note storage (like Tornado Cash):**
 
 ```typescript
 interface PoolNote {
-  depositIndex: number
-  secret: `0x${string}`
+  currency: 'MNT'
+  amount: string
+  netId: number // Chain ID
   commitment: `0x${string}`
+  nullifier: `0x${string}`
+  secret: `0x${string}`
+  leafIndex: number
   depositedAt: number
-  withdrawn: boolean
 }
+
+// Serialized format for backup
+// galeon-mnt-1-0x<commitment>-0x<nullifier>-0x<secret>
 
 // Encrypted in localStorage with session key
 const POOL_NOTES_KEY = 'galeon-pool-notes-{address}'
@@ -1685,20 +2900,22 @@ const POOL_NOTES_KEY = 'galeon-pool-notes-{address}'
 
 **Checkpoints:**
 
-- [ ] Secrets encrypted at rest
-- [ ] Backup/restore flow works
-- [ ] Note format is exportable
+- [ ] Notes encrypted at rest
+- [ ] Backup/export flow works
+- [ ] Note format is portable
 
-#### Phase 4: Testing & Deploy (1 day)
+#### Phase 5: Testing & Deploy (2 days)
 
 **Checkpoints:**
 
 - [ ] Deposit from Port succeeds
 - [ ] Deposit from non-Port fails
-- [ ] Withdrawal before timelock fails
-- [ ] Withdrawal with wrong secret fails
-- [ ] Withdrawal after timelock succeeds
-- [ ] Banned address can't deposit/withdraw
+- [ ] Withdrawal with valid proof succeeds
+- [ ] Withdrawal with invalid proof fails
+- [ ] Double-spend (same nullifier) fails
+- [ ] Invalid root fails
+- [ ] Stealth address registration works
+- [ ] Full flow: Port → Pool → Fog → Pay
 - [ ] Testnet deployment verified
 
 ---
@@ -1949,10 +3166,10 @@ export interface PoolDeposit {
 export interface PoolWithdrawal {
   id: string
   nullifierHash: `0x${string}`
-  recipient: `0x${string}`
+  recipient: `0x${string}` // Direct to recipient - no intermediate address
+  amount: string
   withdrawnAt: number
   txHash: `0x${string}`
-  fogIndex: number // Fog wallet it funded
   aspUsed: `0x${string}`
 }
 
@@ -2005,80 +3222,75 @@ export type PoolNote = `galeon-note:${number}:${string}:${string}`
 | Link between deposit & withdrawal | ❌ No                       |
 | Deposit from sanctioned address   | ✅ Yes (but can't withdraw) |
 
-### v0 Known Limitations
+### v1 Remaining Limitations (0xbow Fork)
 
-The commit-reveal v0 has several known limitations compared to the full ZK implementation:
+Even with the 0xbow fork providing ZK proofs, some limitations remain:
 
-| Issue                                     | Description                                                                                          | Mitigation                                              | Upgrade Path                    |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------- |
-| **Gas payment metadata**                  | `registerWithdrawalAddress()` must be called from some EOA that pays gas, creating linkable metadata | Call from burner EOA or Port address                    | Add relayer in v1               |
-| **Registration is public**                | `WithdrawalAddressRegistered` events reveal which addresses are Galeon Fog wallets                   | Acceptable for v0 - not a security issue                | Relayer hides this              |
-| **Small anonymity sets**                  | With 2-hour timelock, few deposits may occur, limiting privacy                                       | Show pool size in UI, suggest waiting for larger sets   | ZK proofs don't need timelock   |
-| **Secret backup critical**                | If user loses localStorage, funds are stuck forever                                                  | Force backup confirmation, derive from master signature | Backend-encrypted backup option |
-| **Centralized ban list**                  | Owner-controlled ban list could be abused                                                            | Transparent on-chain, upgrade to DAO                    | DAO governance + multi-ASP      |
-| **No nullifiers**                         | Commit-reveal doesn't prevent same secret being used twice if not tracked                            | `d.withdrawn = true` flag prevents double-withdraw      | ZK nullifier hash               |
-| **Deposit-withdrawal linkable by timing** | Observer sees deposit, then ~2hrs later a withdrawal                                                 | Pool size provides k-anonymity                          | ZK proofs break timing link     |
+| Issue                              | Description                                                                                          | Mitigation                               | Future Improvement              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------- |
+| **Gas payment for registration**   | `registerWithdrawalAddress()` must be called from some EOA that pays gas, creating linkable metadata | Call from Port address before depositing | Add relayer in v2               |
+| **Stealth registration is public** | `WithdrawalAddressRegistered` events reveal which addresses are Galeon Fog wallets                   | Not a security issue, just metadata      | Relayer hides this              |
+| **Note backup critical**           | If user loses localStorage, funds are stuck forever                                                  | Force backup confirmation, export option | Backend-encrypted backup option |
+| **Centralized ban list**           | Owner-controlled ban list could be abused                                                            | Transparent on-chain, multi-sig owner    | DAO governance + multi-ASP      |
+| **Port-only deposit restriction**  | Only Port addresses can deposit (by design)                                                          | Feature not bug - ensures covenant       | Optional external deposits v2   |
+| **Single denomination**            | Fixed 1 MNT per deposit                                                                              | Multiple deposits for larger amounts     | Multi-denomination pools v2     |
+| **Proof generation time**          | ZK proof takes 10-30s in browser                                                                     | Web worker, progress indicator           | WASM optimization, mobile       |
 
-### v0 Gas Payment Considerations
+### v1 Gas Payment Flow
 
 **Who pays gas for what:**
 
-| Action                        | Who Calls            | Who Pays Gas     | Privacy Implication           |
-| ----------------------------- | -------------------- | ---------------- | ----------------------------- |
-| `deposit()`                   | Port stealth address | Port (has funds) | ✅ OK - Port already public   |
-| `registerWithdrawalAddress()` | Any EOA              | Caller           | ⚠️ Links caller to Fog wallet |
-| `withdraw()`                  | Any EOA              | Caller           | ⚠️ Links caller to withdrawal |
+| Action                        | Who Calls            | Who Pays Gas     | Privacy Implication             |
+| ----------------------------- | -------------------- | ---------------- | ------------------------------- |
+| `deposit()`                   | Port stealth address | Port (has funds) | ✅ OK - Port already public     |
+| `registerWithdrawalAddress()` | Port address         | Port (has funds) | ✅ OK - done before deposit     |
+| `withdraw()`                  | Any EOA              | Caller           | ⚠️ Links gas payer to recipient |
 
 **Recommended flow for maximum privacy:**
 
 1. Generate Fog wallet address client-side
-2. Call `registerWithdrawalAddress()` from the Port address (before depositing)
+2. Call `registerWithdrawalAddress()` from the Port address (has funds)
 3. Call `deposit()` from the Port address
-4. Wait for timelock
-5. Call `withdraw()` from a fresh burner EOA (funded via CEX or other source)
+4. Wait for anonymity set to grow
+5. Generate ZK proof in browser
+6. Call `withdraw()` from a fresh burner EOA (funded via CEX)
 
-**v1 Improvement:** Relayer network will allow gas-free `registerWithdrawalAddress()` and `withdraw()` calls.
+**v2 Improvement:** Relayer network will allow gas-free `registerWithdrawalAddress()` and `withdraw()` calls.
 
 ---
 
 ## Compliance with Privacy Pools Standard
 
-### Comparison with 0xbow Implementation
+### Full Compliance via 0xbow Fork
 
-Galeon's Privacy Pool is inspired by the [Privacy Pools protocol](https://docs.privacypools.com/) and [0xbow's implementation](https://github.com/0xbow-io/privacy-pools-core), but makes deliberate v0 simplifications:
+Galeon v1 achieves **full compliance** with the Privacy Pools standard by forking 0xbow:
 
-| Feature                    | 0xbow Privacy Pools                   | Galeon v0                   | Galeon Full Vision       |
-| -------------------------- | ------------------------------------- | --------------------------- | ------------------------ |
-| **Proof System**           | Groth16 ZK-SNARKs (BLS12-381)         | Commit-reveal with timelock | Groth16 ZK-SNARKs        |
-| **Commitment Scheme**      | `c = H(H(s,n), poolId)` with Poseidon | `c = keccak256(secret)`     | Poseidon-based           |
-| **Nullifiers**             | Required for ZK withdrawal            | Not used (flag-based)       | Required                 |
-| **ASP Model**              | Proactive deposit approval            | Reactive ban list           | Proactive + Shipwreck    |
-| **Ragequit**               | Yes - public exit if not ASP-approved | Not in v0                   | Yes                      |
-| **Partial Withdrawals**    | Supported                             | No - fixed 1 MNT            | Planned                  |
-| **Multi-Asset**            | Native + ERC20                        | Native only (MNT)           | Native + ERC20           |
-| **Deposit Source**         | Any address                           | Port addresses only         | Port + verified external |
-| **Withdrawal Destination** | Any address                           | Registered Fog wallets only | Any (with ZK proof)      |
+| Feature                    | 0xbow Privacy Pools               | Galeon v1 (0xbow Fork)                    |
+| -------------------------- | --------------------------------- | ----------------------------------------- |
+| **Proof System**           | Groth16 ZK-SNARKs (BN254)         | ✅ Same (Groth16, BN254)                  |
+| **Commitment Scheme**      | Poseidon hash                     | ✅ Same (Poseidon)                        |
+| **Nullifiers**             | Required for ZK withdrawal        | ✅ Same (nullifier-based)                 |
+| **Merkle Tree**            | Depth 20 (~1M deposits)           | ✅ Same                                   |
+| **ASP Model**              | Proactive deposit approval        | ✅ Same + Galeon ban list                 |
+| **Ragequit**               | Yes - public exit if not approved | ✅ Same (from 0xbow)                      |
+| **Deposit Source**         | Any address                       | 🔒 Port addresses only (stricter)         |
+| **Withdrawal Destination** | Any address                       | 🔒 Registered Fog wallets only (stricter) |
+| **Multi-Asset**            | Native + ERC20                    | ⏳ Native only for v1, ERC20 in v2        |
 
-### Key Differences Explained
+### Galeon-Specific Modifications
 
-**1. Port-Only Deposits (Galeon-specific)**
+**1. Port-Only Deposits (Stricter than 0xbow)**
 
-0xbow allows any address to deposit, relying on ASP to filter bad actors post-deposit. Galeon v0 restricts deposits to Port addresses (covenant signers), making funds "clean by design."
+0xbow allows any address to deposit, relying on ASP to filter bad actors post-deposit. Galeon adds an additional layer:
 
 ```
 0xbow:   Anyone → Pool → ASP filters → Withdrawal
-Galeon:  Port only → Pool → Ban list → Fog wallet
+Galeon:  Port only → Pool → ASP + Ban list → Fog wallet (stealth-only)
 ```
 
-**2. No Ragequit in v0**
+This means all deposits are from covenant signers - "clean by design."
 
-0xbow's ragequit allows users to publicly exit if their deposit isn't ASP-approved. Galeon v0 doesn't need this because:
-
-- All depositors are covenant signers (pre-vetted)
-- Ban list is reactive, not proactive
-- Funds can always be withdrawn after timelock (unless banned)
-
-**3. Stealth-Only Withdrawals (Galeon-specific)**
+**2. Stealth-Only Withdrawals (Stricter than 0xbow)**
 
 0xbow allows withdrawal to any address. Galeon requires registration of Fog wallet addresses with ephemeral key validation, ensuring:
 
@@ -2086,30 +3298,349 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 - On-chain audit trail for compliance
 - No accidental withdrawal to traceable addresses
 
-### Roadmap to Full Compliance
+### v1 Compliance Status (0xbow Fork)
 
-| Phase | Milestone              | Brings Galeon Closer To Standard    |
-| ----- | ---------------------- | ----------------------------------- |
-| v0.5  | Add ragequit mechanism | ✅ Exit guarantee                   |
-| v1.0  | ZK proofs (Groth16)    | ✅ Cryptographic unlinkability      |
-| v1.0  | Poseidon commitments   | ✅ ZK-friendly hashing              |
-| v1.0  | Nullifier tracking     | ✅ Standard double-spend prevention |
-| v1.5  | Multi-ASP support      | ✅ Decentralized compliance         |
-| v2.0  | Relayer network        | ✅ Gas-free withdrawals             |
-| v2.0  | Partial withdrawals    | ✅ Flexible amounts                 |
+| Standard Feature         | Status | Notes                        |
+| ------------------------ | ------ | ---------------------------- |
+| Groth16 ZK proofs        | ✅ v1  | From 0xbow fork              |
+| Poseidon commitments     | ✅ v1  | From 0xbow fork              |
+| Nullifier tracking       | ✅ v1  | From 0xbow fork              |
+| Merkle tree membership   | ✅ v1  | From 0xbow fork              |
+| Ragequit mechanism       | ✅ v1  | From 0xbow fork              |
+| ASP system               | ✅ v1  | From 0xbow + Galeon ban list |
+| Port-only deposits       | ✅ v1  | Galeon addition (stricter)   |
+| Stealth-only withdrawals | ✅ v1  | Galeon addition (stricter)   |
+| Multi-ASP support        | ⏳ v2  | Planned for future           |
+| Relayer network          | ⏳ v2  | Gas-free withdrawals         |
+| Multi-denomination       | ⏳ v2  | 0.1, 1, 10 MNT pools         |
+| ERC20 tokens             | ⏳ v2  | USDC, USDT support           |
 
 ### References
 
+- [0xbow Privacy Pools](https://github.com/0xbow/privacy-pools) - Fork source (launched March 2025)
 - [Privacy Pools Documentation](https://docs.privacypools.com/) - Official protocol docs
-- [0xbow Privacy Pools Core](https://github.com/0xbow-io/privacy-pools-core) - Reference implementation
 - [Privacy Pools Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4563364) - Vitalik Buterin et al.
-- [0xbow Blog](https://0xbow.io/blog/getting-started-with-privacy-pools) - Getting started guide
+- [snarkjs](https://github.com/iden3/snarkjs) - ZK proof library
+- [Circom](https://docs.circom.io/) - Circuit language
+
+---
+
+## Compliance Enforcement System
+
+### Why `commitmentDepositor` is Required
+
+The Pool must track which stealth address deposited each commitment. This gives Galeon **freeze authority** without **surveillance capability**.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    WHAT commitmentDepositor ENABLES                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  WITHOUT commitmentDepositor:                                            │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ Bad actor deposits → we don't know which commitment            │     │
+│  │ → Cannot add to exclusion set                                  │     │
+│  │ → Cannot freeze their funds                                    │     │
+│  │ → They withdraw freely                                         │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  WITH commitmentDepositor:                                               │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ Bad actor deposits → we know their commitment                  │     │
+│  │ → Add commitment to exclusion set                              │     │
+│  │ → Their proof fails (can't prove NOT in exclusion)             │     │
+│  │ → Funds frozen                                                 │     │
+│  │                                                                │     │
+│  │ But: We still don't know where good actors withdraw to         │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Doesn't Reduce ZK Privacy
+
+The ZK proof structure preserves privacy even with `commitmentDepositor`:
+
+```
+Deposit:
+  commitment = hash(nullifier, secret)
+  → commitment is PUBLIC (stored in tree)
+  → nullifier + secret are PRIVATE (only user knows)
+
+Withdraw:
+  User proves: "I know (nullifier, secret) such that hash(nullifier, secret) is in the tree"
+  → Reveals: nullifierHash (to prevent double-spend)
+  → Does NOT reveal: which commitment, or the secret
+```
+
+**The missing link for tracing:**
+
+| Galeon Knows                     | Galeon Doesn't Know                   |
+| -------------------------------- | ------------------------------------- |
+| Commitment X belongs to User A   | The nullifier for commitment X        |
+| User B withdrew with nullifier N | Which commitment produced nullifier N |
+
+Without the `secret`, we cannot compute: `commitment → nullifier`. So even with `commitmentDepositor`:
+
+- "User A deposited commitment X" ✅
+- "Someone withdrew using nullifier N" ✅
+- **Cannot prove:** "User A made this withdrawal" ❌
+
+**Summary:**
+
+> `commitmentDepositor` = **freeze authority** without **surveillance capability**
+>
+> ZK protects the deposit → withdrawal link. These are orthogonal.
+
+---
+
+### Amount-Limited Deposits (Dusting Attack Prevention)
+
+**Problem:** Bad actor could send dirty funds directly to a valid Port stealth address, then the Port owner unknowingly deposits "dirty" funds to the Pool.
+
+**Solution:** Only allow deposits up to the amount verified through GaleonRegistry.
+
+```solidity
+// Track verified amounts per stealth address (from GaleonRegistry payments)
+mapping(address => uint256) public verifiedBalance;
+
+// Called by GaleonRegistry after payment
+function recordVerifiedPayment(address stealthAddress, uint256 amount) external {
+    require(msg.sender == address(galeonRegistry), "Only registry");
+    verifiedBalance[stealthAddress] += amount;
+}
+
+function deposit(bytes32 commitment) external payable {
+    require(msg.value > 0, "Zero deposit");
+    require(verifiedBalance[msg.sender] >= msg.value, "Exceeds verified balance");
+
+    // Deduct from verified balance (prevents double-deposit)
+    verifiedBalance[msg.sender] -= msg.value;
+
+    // Track depositor for compliance
+    commitmentDepositor[commitment] = msg.sender;
+    commitmentAmount[commitment] = msg.value;
+
+    // ... rest of deposit logic
+}
+```
+
+This ensures:
+
+1. Only funds that came through GaleonRegistry can enter the Pool
+2. Direct sends to stealth addresses cannot be deposited
+3. Dusting attacks are ineffective
+
+---
+
+### Bad Actor Handling by Stage
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    BAD ACTOR TIMELINE                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  STAGE 1: Port Active (Before Pool)                                     │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ Bad actor receives payments to Port                            │     │
+│  │                                                                │     │
+│  │ Galeon CAN:                                                    │     │
+│  │ ✅ See all payments (viewing key)                              │     │
+│  │ ✅ Generate reports                                            │     │
+│  │ ✅ Add to ASP blocklist                                        │     │
+│  │ ✅ Block future Pool deposits                                  │     │
+│  │                                                                │     │
+│  │ Galeon CANNOT:                                                 │     │
+│  │ ❌ Freeze funds in their stealth address (no spending key)     │     │
+│  │ ❌ Reverse payments                                            │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  STAGE 2: Deposited to Pool (Before Withdrawal)                         │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ Bad actor has commitment in Merkle tree                        │     │
+│  │                                                                │     │
+│  │ Galeon CAN:                                                    │     │
+│  │ ✅ Know which commitment belongs to them (commitmentDepositor) │     │
+│  │ ✅ Add commitment to ASP exclusion set                         │     │
+│  │ ✅ FREEZE their withdrawal (proof will fail exclusion check)   │     │
+│  │                                                                │     │
+│  │ Galeon CANNOT:                                                 │     │
+│  │ ❌ Seize funds directly (no admin withdrawal function)         │     │
+│  │ ❌ Know if they attempt to withdraw (anonymous attempts)       │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  STAGE 3: Already Withdrawn                                              │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ Bad actor withdrew with valid ZK proof                         │     │
+│  │                                                                │     │
+│  │ Galeon CAN:                                                    │     │
+│  │ ✅ Prove they deposited X amount on date Y (on-chain record)   │     │
+│  │ ✅ Provide pre-Pool transaction history                        │     │
+│  │ ✅ Sanction their Port (block future activity)                 │     │
+│  │                                                                │     │
+│  │ Galeon CANNOT:                                                 │     │
+│  │ ❌ Know where funds went (ZK privacy)                          │     │
+│  │ ❌ Reverse the withdrawal                                      │     │
+│  │ ❌ Link withdrawal address to deposit                          │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Insight:** The Pool is the "privacy firewall":
+
+- **Before Pool**: Full traceability (viewing keys)
+- **After Pool**: No traceability (ZK)
+
+---
+
+### Frozen Fund Recovery System
+
+Frozen funds shouldn't be wasted. The system provides appeal + treasury recovery:
+
+```solidity
+// Exclusion with metadata
+struct Exclusion {
+    bool excluded;
+    uint256 excludedAt;
+    uint256 amount;
+    address depositor;
+}
+
+mapping(bytes32 => Exclusion) public exclusions;
+mapping(bytes32 => bool) public frozenClaimed;
+
+uint256 public constant APPEAL_PERIOD = 30 days;
+address public treasury;
+
+// ASP excludes a commitment (freeze)
+function excludeCommitment(bytes32 commitment) external onlyASP {
+    require(commitmentDepositor[commitment] != address(0), "Unknown commitment");
+
+    exclusions[commitment] = Exclusion({
+        excluded: true,
+        excludedAt: block.timestamp,
+        amount: commitmentAmount[commitment],
+        depositor: commitmentDepositor[commitment]
+    });
+
+    emit CommitmentExcluded(commitment, commitmentDepositor[commitment]);
+}
+
+// ASP removes exclusion (appeal successful)
+function removeExclusion(bytes32 commitment) external onlyASP {
+    require(exclusions[commitment].excluded, "Not excluded");
+
+    exclusions[commitment].excluded = false;
+    emit ExclusionRemoved(commitment);
+    // User can now withdraw normally
+}
+
+// ASP claims frozen funds after appeal period
+function claimFrozenFunds(bytes32 commitment) external onlyASP {
+    Exclusion memory exc = exclusions[commitment];
+
+    require(exc.excluded, "Not excluded");
+    require(block.timestamp >= exc.excludedAt + APPEAL_PERIOD, "Appeal period active");
+    require(!frozenClaimed[commitment], "Already claimed");
+
+    frozenClaimed[commitment] = true;
+
+    (bool success, ) = treasury.call{value: exc.amount}("");
+    require(success, "Transfer failed");
+
+    emit FrozenFundsClaimed(commitment, exc.amount);
+}
+```
+
+**Recovery Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    EXCLUSION + RECOVERY FLOW                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Day 0: Bad actor discovered                                            │
+│         → ASP calls excludeCommitment(0xCOMM)                           │
+│         → User cannot withdraw (proof fails)                            │
+│         → Appeal period starts (30 days)                                │
+│                                                                          │
+│  Day 1-30: Appeal Window                                                │
+│         → User can contact Galeon to appeal                             │
+│         → If valid: ASP calls removeExclusion(0xCOMM)                   │
+│         → User withdraws normally                                       │
+│                                                                          │
+│  Day 31+: Claim Window                                                  │
+│         → If no appeal or appeal rejected                               │
+│         → ASP calls claimFrozenFunds(0xCOMM)                            │
+│         → Funds go to treasury                                          │
+│                                                                          │
+│  Treasury Options:                                                       │
+│         → Hold for potential legal claims                               │
+│         → Redistribute to pool users                                    │
+│         → Burn (deflationary)                                           │
+│         → Donate to charity                                             │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Sanction Effectiveness Summary
+
+| When Discovered                | Funds Recoverable | Funds Frozen           | Trail Available |
+| ------------------------------ | ----------------- | ---------------------- | --------------- |
+| Before deposit                 | N/A (blocked)     | N/A                    | ✅ Full         |
+| After deposit, before withdraw | ❌ No (to user)   | ✅ Yes (ASP exclusion) | ✅ Full to Pool |
+| After withdraw                 | ❌ No             | ❌ No                  | ✅ To Pool only |
+
+---
+
+### Future: KYC for Post-Withdraw Accountability
+
+For maximum compliance (v2+), KYC can be added at covenant signing:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    COMPLIANCE TIERS                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  TIER 1: Current (Hackathon)                                            │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ • Wallet signature (pseudonymous)                              │     │
+│  │ • Covenant signing (legal agreement)                           │     │
+│  │ • Viewing key escrow (traceable to Port)                       │     │
+│  │                                                                │     │
+│  │ Post-withdraw: Know Port identity, not real identity           │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  TIER 2: Future (KYC)                                                   │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │ • Everything from Tier 1                                       │     │
+│  │ • KYC at covenant signing (real identity verified)             │     │
+│  │                                                                │     │
+│  │ Post-withdraw: Know real-world identity                        │     │
+│  │ → Can report to authorities with name/ID                       │     │
+│  │ → Full legal recourse even after ZK withdrawal                 │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Trade-off:**
+
+- No KYC → More users, less friction, but post-withdraw is "wallet address only"
+- KYC → Fewer users, more friction, but full legal recourse post-withdraw
+
+For hackathon: Tier 1 is sufficient. KYC can be added for institutional/regulated use cases in v2.
 
 ---
 
 ## Testing Checklist
 
 ### Unit Tests
+
+**Core Pool:**
 
 - [ ] Deposit with valid commitment succeeds
 - [ ] Deposit with wrong amount fails
@@ -2121,14 +3652,55 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 - [ ] ASP root update by non-ASP fails
 - [ ] Owner can approve/revoke ASP
 
+**Compliance - Port-Only Deposits:**
+
+- [ ] Deposit from Port address succeeds
+- [ ] Deposit from non-Port address fails
+- [ ] Deposit exceeding verified balance fails
+- [ ] Verified balance updates correctly after payment
+- [ ] Multiple payments accumulate verified balance
+
+**Compliance - commitmentDepositor:**
+
+- [ ] commitmentDepositor tracked correctly on deposit
+- [ ] commitmentAmount tracked correctly on deposit
+- [ ] Can query depositor for any commitment
+
+**Compliance - Exclusion System:**
+
+- [ ] ASP can exclude commitment
+- [ ] Non-ASP cannot exclude commitment
+- [ ] Excluded commitment cannot withdraw (proof fails)
+- [ ] ASP can remove exclusion (appeal)
+- [ ] User can withdraw after exclusion removed
+
+**Compliance - Frozen Fund Recovery:**
+
+- [ ] Cannot claim frozen funds during appeal period
+- [ ] Can claim frozen funds after appeal period
+- [ ] Claimed funds go to treasury
+- [ ] Cannot claim same commitment twice
+- [ ] Treasury address can be updated by owner
+
+**Stealth Withdrawals:**
+
+- [ ] Registration with valid ephemeral key succeeds
+- [ ] Registration with invalid key length fails
+- [ ] Registration with invalid prefix fails
+- [ ] Withdrawal to registered address succeeds
+- [ ] Withdrawal to unregistered address fails
+
 ### Integration Tests
 
 - [ ] Full deposit → withdraw flow
-- [ ] Deposit from Port address
-- [ ] Withdraw to Fog wallet address
+- [ ] Deposit from Port with verified balance
+- [ ] Withdraw to registered Fog wallet
 - [ ] Multiple deposits before withdrawal
 - [ ] Withdraw with different ASPs
 - [ ] Gas cost within limits
+- [ ] Exclusion → appeal → withdrawal flow
+- [ ] Exclusion → claim frozen funds flow
+- [ ] GaleonRegistry → Pool verified balance sync
 
 ### E2E Tests
 
@@ -2138,6 +3710,9 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 - [ ] New Fog wallet created from withdrawal
 - [ ] Auto-hop triggers after withdrawal
 - [ ] Full flow: Port → Pool → Fog → Pay
+- [ ] Bad actor freeze scenario
+- [ ] Appeal and unfreeze scenario
+- [ ] Treasury claim after appeal period
 
 ---
 
@@ -2151,6 +3726,100 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 
 ---
 
+## Contract Upgradeability
+
+### Why Upgradeable Contracts
+
+| Reason                 | Explanation                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| **Privacy Pools v2**   | 0xbow launching shielded pools March 2026 - need to integrate |
+| **Bug fixes**          | ZK circuits and compliance logic may need updates             |
+| **Feature additions**  | KYC, multi-denomination, ERC20, relayers                      |
+| **Compliance updates** | Regulations will evolve                                       |
+
+### Upgrade Pattern: UUPS
+
+All core contracts should use OpenZeppelin's UUPS (Universal Upgradeable Proxy Standard):
+
+```solidity
+// Example: GaleonRegistryV1.sol
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
+contract GaleonRegistryV1 is
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    // Replace immutables with regular state
+    IERC5564Announcer public announcer;
+    IERC6538Registry public registry;
+
+    // Storage gap for future upgrades (50 slots)
+    uint256[50] private __gap;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        address _announcer,
+        address _registry,
+        address _owner
+    ) public initializer {
+        __UUPSUpgradeable_init();
+        __Ownable_init(_owner);
+        __ReentrancyGuard_init();
+
+        announcer = IERC5564Announcer(_announcer);
+        registry = IERC6538Registry(_registry);
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyOwner
+    {}
+}
+```
+
+### Contracts to Make Upgradeable
+
+| Contract                   | Priority | Migration Notes                                         |
+| -------------------------- | -------- | ------------------------------------------------------- |
+| **GaleonRegistry**         | High     | Replace `immutable` with state vars, add `initialize()` |
+| **GaleonPrivacyPool**      | High     | ZK verifier can be upgraded separately                  |
+| **GaleonCovenantRegistry** | Medium   | Future KYC integration                                  |
+
+### Storage Layout Rules
+
+1. **Never remove or reorder existing storage variables**
+2. **Always add new variables at the end**
+3. **Use storage gaps (`uint256[50] private __gap`) for future additions**
+4. **Document storage layout in comments**
+
+### Upgrade Governance
+
+For hackathon: Owner-controlled upgrades (simple)
+For production: Consider timelocks or multisig:
+
+```solidity
+// Future: TimelockController for upgrades
+ITimelockController public upgradeTimelock;
+uint256 public constant UPGRADE_DELAY = 2 days;
+
+function _authorizeUpgrade(address newImplementation) internal override {
+    require(
+        upgradeTimelock.isOperationReady(keccak256(abi.encode(newImplementation))),
+        "Upgrade not scheduled or not ready"
+    );
+}
+```
+
+---
+
 ## Dependencies
 
 ### Smart Contracts
@@ -2158,6 +3827,7 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 ```json
 {
   "@openzeppelin/contracts": "^5.0.0",
+  "@openzeppelin/contracts-upgradeable": "^5.0.0",
   "circomlibjs": "^0.1.7",
   "snarkjs": "^0.7.0"
 }
@@ -2180,29 +3850,36 @@ Galeon:  Port only → Pool → Ban list → Fog wallet
 
 ---
 
-## Timeline
+## Timeline (v1 - 0xbow Fork)
 
-| Week | Focus                 | Deliverables                        |
-| ---- | --------------------- | ----------------------------------- |
-| 1    | Contracts + Circuits  | Pool contract, ZK circuit, verifier |
-| 2    | Backend + Integration | ASP service, frontend components    |
-| 3    | Polish + Deploy       | Testing, optimization, mainnet      |
+| Phase     | Duration     | Cumulative | Deliverables                              |
+| --------- | ------------ | ---------- | ----------------------------------------- |
+| 1         | 3-4 days     | Day 4      | Fork contracts, add Galeon modifications  |
+| 2         | 2-3 days     | Day 7      | ZK circuits, browser proof generation     |
+| 3         | 2-3 days     | Day 10     | Frontend integration, deposit/withdraw UI |
+| 4         | 1 day        | Day 11     | Note management, encrypted storage        |
+| 5         | 2 days       | Day 13     | Testing, deploy to Mantle Sepolia         |
+| **Total** | **~2 weeks** |            |                                           |
 
 ---
 
-## Open Questions
+## Open Questions (Mostly Resolved)
 
-1. **Denomination**: Fixed 1 MNT or multiple tiers (0.1, 1, 10)?
-2. **Relayer**: Add relayer for gas-free withdrawals?
-3. **Multiple pools**: One pool or separate by denomination?
-4. **Note storage**: LocalStorage vs backend vs user responsibility?
-5. **ASP decentralization**: Start with Galeon-only or add others?
+1. ~~**Denomination**: Fixed 1 MNT or multiple tiers (0.1, 1, 10)?~~ → Fixed 1 MNT for v1
+2. ~~**Relayer**: Add relayer for gas-free withdrawals?~~ → Deferred to v2
+3. ~~**Multiple pools**: One pool or separate by denomination?~~ → Single pool for v1
+4. ~~**Note storage**: LocalStorage vs backend vs user responsibility?~~ → Encrypted localStorage
+5. ~~**ASP decentralization**: Start with Galeon-only or add others?~~ → Galeon-only for v1
+6. ~~**ZK vs Commit-Reveal**: Use ZK proofs or simpler approach?~~ → ZK (0xbow fork)
 
 ---
 
 ## References
 
+- [0xbow Privacy Pools](https://github.com/0xbow/privacy-pools) - Fork source
 - [Privacy Pools Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4563364) - Vitalik et al.
+- [0xbow Documentation](https://docs.privacypools.com/) - Official docs
+- [snarkjs](https://github.com/iden3/snarkjs) - ZK proof library
+- [Circom](https://docs.circom.io/) - Circuit language
 - [Tornado Cash](https://github.com/tornadocash/tornado-core) - Original implementation
-- [Semaphore](https://github.com/semaphore-protocol/semaphore) - ZK identity
 - [Poseidon Hash](https://www.poseidon-hash.info/) - ZK-friendly hash

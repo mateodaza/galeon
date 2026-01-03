@@ -1,3 +1,10 @@
+/**
+ * @deprecated This model is deprecated. Fog wallets have been replaced by Privacy Pool.
+ * See docs/FOG-SHIPWRECK-PLAN.md for the current ZK-based architecture.
+ *
+ * This file is kept for reference but is not used in the current implementation.
+ */
+
 import type { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'

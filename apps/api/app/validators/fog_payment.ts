@@ -1,3 +1,10 @@
+/**
+ * @deprecated These validators are deprecated. Fog wallets have been replaced by Privacy Pool.
+ * See docs/FOG-SHIPWRECK-PLAN.md for the current ZK-based architecture.
+ *
+ * This file is kept for reference but is not used in the current implementation.
+ */
+
 import vine from '@vinejs/vine'
 
 /**

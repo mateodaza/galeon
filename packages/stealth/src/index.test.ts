@@ -6,7 +6,6 @@ import { describe, it, expect } from 'vitest'
 import {
   deriveStealthKeys,
   derivePortKeys,
-  deriveFogKeys,
   parseStealthMetaAddress,
   formatStealthMetaAddress,
   generateStealthAddress,
@@ -62,26 +61,6 @@ describe('Key Derivation', () => {
     expect(port0.stealthMetaAddress).not.toBe(port1.stealthMetaAddress)
     expect(port0.spendingPrivateKey).not.toEqual(port1.spendingPrivateKey)
     expect(port0.viewingPrivateKey).not.toEqual(port1.viewingPrivateKey)
-  })
-
-  it('should derive independent fog keys', () => {
-    const fog0 = deriveFogKeys(TEST_SIGNATURE, 0)
-    const fog1 = deriveFogKeys(TEST_SIGNATURE, 1)
-
-    expect(fog0.stealthMetaAddress).not.toBe(fog1.stealthMetaAddress)
-    expect(fog0.spendingPrivateKey).not.toEqual(fog1.spendingPrivateKey)
-    expect(fog0.viewingPrivateKey).not.toEqual(fog1.viewingPrivateKey)
-  })
-
-  it('should derive different keys for fog vs port with same index', () => {
-    // This is the critical test for domain separation
-    const port0 = derivePortKeys(TEST_SIGNATURE, 0)
-    const fog0 = deriveFogKeys(TEST_SIGNATURE, 0)
-
-    // Same index, different domains → different keys
-    expect(fog0.stealthMetaAddress).not.toBe(port0.stealthMetaAddress)
-    expect(fog0.spendingPrivateKey).not.toEqual(port0.spendingPrivateKey)
-    expect(fog0.viewingPrivateKey).not.toEqual(port0.viewingPrivateKey)
   })
 
   it('should parse stealth meta-address', () => {
@@ -305,15 +284,6 @@ describe('Stealth Client', () => {
     const keys = client.deriveKeys(TEST_SIGNATURE)
 
     expect(keys.stealthMetaAddress).toMatch(/^st:(eth|mnt):0x/)
-  })
-
-  it('should derive fog keys via client with domain separation', () => {
-    const client = createStealthClient(5000)
-    const portKeys = client.derivePortKeys(TEST_SIGNATURE, 0)
-    const fogKeys = client.deriveFogKeys(TEST_SIGNATURE, 0)
-
-    // Same index, different domains → different keys
-    expect(fogKeys.stealthMetaAddress).not.toBe(portKeys.stealthMetaAddress)
   })
 })
 
