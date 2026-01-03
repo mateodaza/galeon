@@ -1,8 +1,11 @@
-import { createConfig } from 'ponder'
+import { createConfig, factory } from 'ponder'
+import { parseAbiItem } from 'viem'
 
 import { ERC5564AnnouncerAbi } from './abis/ERC5564Announcer'
 import { ERC6538RegistryAbi } from './abis/ERC6538Registry'
 import { GaleonRegistryAbi } from './abis/GaleonRegistry'
+import { GaleonEntrypointAbi } from './abis/GaleonEntrypoint'
+import { GaleonPrivacyPoolAbi } from './abis/GaleonPrivacyPool'
 
 // Contract addresses on Mantle Mainnet (deployed block 89365202)
 const ERC5564_ANNOUNCER = (process.env.ERC5564_ANNOUNCER_ADDRESS ||
@@ -11,6 +14,8 @@ const ERC6538_REGISTRY = (process.env.ERC6538_REGISTRY_ADDRESS ||
   '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22') as `0x${string}`
 const GALEON_REGISTRY = (process.env.GALEON_REGISTRY_ADDRESS ||
   '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D') as `0x${string}`
+const GALEON_ENTRYPOINT = (process.env.GALEON_ENTRYPOINT_ADDRESS ||
+  '0x0000000000000000000000000000000000000000') as `0x${string}`
 
 const START_BLOCK = Number(process.env.START_BLOCK || 89365202)
 
@@ -42,6 +47,26 @@ export default createConfig({
       abi: GaleonRegistryAbi,
       chain: 'mantle',
       address: GALEON_REGISTRY,
+      startBlock: START_BLOCK,
+    },
+    GaleonEntrypoint: {
+      abi: GaleonEntrypointAbi,
+      chain: 'mantle',
+      address: GALEON_ENTRYPOINT,
+      startBlock: START_BLOCK,
+    },
+    // Dynamic pool indexing: automatically discovers pools via PoolRegistered events
+    GaleonPrivacyPool: {
+      abi: GaleonPrivacyPoolAbi,
+      chain: 'mantle',
+      address: factory({
+        // The Entrypoint emits PoolRegistered when new pools are added
+        address: GALEON_ENTRYPOINT,
+        // Event signature from GaleonEntrypoint
+        event: parseAbiItem('event PoolRegistered(address _pool, address _asset, uint256 _scope)'),
+        // The parameter containing the pool address
+        parameter: '_pool',
+      }),
       startBlock: START_BLOCK,
     },
   },
