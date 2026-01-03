@@ -261,7 +261,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess: _onSuccess }: Wit
                 </p>
               </div>
 
-              {isGeneratingProof && (
+              {_isGeneratingProof && (
                 <div className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Generating proof... (this may take 10-30 seconds)
@@ -334,16 +334,16 @@ export function WithdrawModal({ open, onOpenChange, onSuccess: _onSuccess }: Wit
                 disabled={
                   (step === 'amount' && !isValidAmount) ||
                   (step === 'recipient' && !isValidRecipient) ||
-                  isGeneratingProof ||
-                  isWithdrawing
+                  _isGeneratingProof ||
+                  _isWithdrawing
                 }
               >
-                {isGeneratingProof ? (
+                {_isGeneratingProof ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Generating...
                   </>
-                ) : isWithdrawing ? (
+                ) : _isWithdrawing ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Withdrawing...

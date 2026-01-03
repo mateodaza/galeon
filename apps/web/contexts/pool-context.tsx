@@ -423,17 +423,18 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
     try {
       // Fetch deposit events from the pool
+      // Note: Event param names must match Solidity contract (with underscore prefix)
       const logs = await publicClient.getLogs({
         address: contracts.pool as Address,
         event: {
           type: 'event',
           name: 'Deposited',
           inputs: [
-            { name: 'depositor', type: 'address', indexed: true },
-            { name: 'commitment', type: 'uint256', indexed: false },
-            { name: 'label', type: 'uint256', indexed: false },
-            { name: 'value', type: 'uint256', indexed: false },
-            { name: 'precommitment', type: 'uint256', indexed: false },
+            { name: '_depositor', type: 'address', indexed: true },
+            { name: '_commitment', type: 'uint256', indexed: false },
+            { name: '_label', type: 'uint256', indexed: false },
+            { name: '_value', type: 'uint256', indexed: false },
+            { name: '_precommitmentHash', type: 'uint256', indexed: false },
           ],
         },
         fromBlock: 'earliest',
@@ -442,9 +443,9 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
       // Transform to the format expected by recoverPoolDeposits
       const depositEvents = logs.map((log) => ({
-        precommitment: log.args.precommitment as bigint,
-        value: log.args.value as bigint,
-        label: log.args.label as bigint,
+        precommitment: log.args._precommitmentHash as bigint,
+        value: log.args._value as bigint,
+        label: log.args._label as bigint,
         blockNumber: log.blockNumber,
         txHash: log.transactionHash as `0x${string}`,
       }))

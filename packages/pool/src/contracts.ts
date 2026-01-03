@@ -57,6 +57,7 @@ export const entrypointAbi = [
 
 /**
  * GaleonPrivacyPoolSimple ABI for pool operations
+ * Note: Event parameter names must match the Solidity contract exactly
  */
 export const poolAbi = [
   {
@@ -91,31 +92,31 @@ export const poolAbi = [
     type: 'event',
     name: 'Deposited',
     inputs: [
-      { name: 'depositor', type: 'address', indexed: true },
-      { name: 'commitment', type: 'uint256', indexed: false },
-      { name: 'label', type: 'uint256', indexed: false },
-      { name: 'value', type: 'uint256', indexed: false },
-      { name: 'precommitment', type: 'uint256', indexed: false },
+      { name: '_depositor', type: 'address', indexed: true },
+      { name: '_commitment', type: 'uint256', indexed: false },
+      { name: '_label', type: 'uint256', indexed: false },
+      { name: '_value', type: 'uint256', indexed: false },
+      { name: '_precommitmentHash', type: 'uint256', indexed: false },
     ],
   },
   {
     type: 'event',
     name: 'Withdrawn',
     inputs: [
-      { name: 'processooor', type: 'address', indexed: true },
-      { name: 'withdrawn', type: 'uint256', indexed: false },
-      { name: 'spentNullifier', type: 'uint256', indexed: false },
-      { name: 'newCommitment', type: 'uint256', indexed: false },
+      { name: '_processooor', type: 'address', indexed: true },
+      { name: '_value', type: 'uint256', indexed: false },
+      { name: '_spentNullifier', type: 'uint256', indexed: false },
+      { name: '_newCommitment', type: 'uint256', indexed: false },
     ],
   },
   {
     type: 'event',
     name: 'Ragequit',
     inputs: [
-      { name: 'depositor', type: 'address', indexed: true },
-      { name: 'commitment', type: 'uint256', indexed: false },
-      { name: 'label', type: 'uint256', indexed: false },
-      { name: 'value', type: 'uint256', indexed: false },
+      { name: '_ragequitter', type: 'address', indexed: true },
+      { name: '_commitment', type: 'uint256', indexed: false },
+      { name: '_label', type: 'uint256', indexed: false },
+      { name: '_value', type: 'uint256', indexed: false },
     ],
   },
 ] as const
