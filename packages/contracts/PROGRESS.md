@@ -1,7 +1,7 @@
 # Contracts (packages/contracts) Progress
 
 > Solidity smart contracts + Hardhat
-> Last updated: 2025-12-27
+> Last updated: 2026-01-03
 
 ## Setup
 
@@ -14,8 +14,7 @@
 
 - [x] ERC5564Announcer.sol
 - [x] ERC6538Registry.sol
-- [x] GaleonRegistry.sol
-- [x] GaleonTender.sol (renamed from BatchCollector)
+- [x] GaleonRegistry.sol (+ Privacy Pool integration: verifiedBalance, canDeposit, freeze)
 - [x] IERC5564Announcer.sol (interface)
 - [x] IERC6538Registry.sol (interface)
 
@@ -24,10 +23,13 @@
 - [x] ERC5564Announcer tests (17 tests)
 - [x] ERC6538Registry tests (12 tests)
 - [x] GaleonRegistry tests (39 tests)
-- [x] GaleonTender tests (22 tests)
 - [ ] Integration tests (optional)
 
-**Total: 90 tests passing**
+**Base contracts: 68 tests passing**
+
+See [Privacy Pool v1](#privacy-pool-v1-0xbow-fork) section below for additional 137 tests.
+
+**Grand Total: 205 tests passing**
 
 ## Deployment
 
@@ -41,15 +43,13 @@
 | ---------------- | -------------------------------------------- | -------- |
 | ERC5564Announcer | `0x8C04238c49e22EB687ad706bEe645698ccF41153` | ✓        |
 | ERC6538Registry  | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` | ✓        |
-| GaleonRegistry   | `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C` | ✓        |
-| GaleonTender     | `0x29D52d01947d91e241e9c7A4312F7463199e488c` | ✓        |
+| GaleonRegistry   | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` | ✓        |
 
 Explorer links:
 
 - [ERC5564Announcer](https://mantlescan.xyz/address/0x8C04238c49e22EB687ad706bEe645698ccF41153#code)
 - [ERC6538Registry](https://mantlescan.xyz/address/0xE6586103756082bf3E43D3BB73f9fE479f0BDc22#code)
-- [GaleonRegistry](https://mantlescan.xyz/address/0x85F23B63E2a40ba74cD418063c43cE19bcbB969C#code)
-- [GaleonTender](https://mantlescan.xyz/address/0x29D52d01947d91e241e9c7A4312F7463199e488c#code)
+- [GaleonRegistry](https://mantlescan.xyz/address/0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D#code)
 
 ### Mantle Sepolia (chainId: 5003)
 
@@ -60,13 +60,12 @@ Explorer links:
 - Deployed directly to Mantle Mainnet for hackathon demo
 - All contracts verified on Mantlescan
 - Using EIP-5564 scheme ID 1 (secp256k1 with view tags)
-- GaleonTender: Aggregates funds from stealth addresses and forwards to user wallets (future optimization, not used in MVP)
 
 ## Security Fixes (v2 Deployment)
 
 - **Trusted Relayer System**: ERC5564Announcer now restricts `announceFor()` to trusted relayers only, preventing announcement spoofing
-- **Reentrancy Protection**: GaleonTender uses ReentrancyGuard on forward functions
-- **SafeERC20**: GaleonTender uses `safeTransfer` for ERC-20 operations
+- **Reentrancy Protection**: GaleonRegistry uses ReentrancyGuard on payment functions
+- **SafeERC20**: GaleonRegistry uses `safeTransfer` for ERC-20 operations
 - **Pubkey Validation**: GaleonRegistry validates ephemeral public key prefix (0x02/0x03)
 - **Correct Attribution**: Announcements correctly attribute the payer via `announceFor()`
 
@@ -107,22 +106,36 @@ Explorer links:
 
 ---
 
+### Privacy Pool Deployment (Mantle Mainnet)
+
+| Contract                 | Address                                      | Type        |
+| ------------------------ | -------------------------------------------- | ----------- |
+| PoseidonT3               | `0x1130c821a709e5D414684a7605F5D1f6E7439Ff2` | Library     |
+| PoseidonT4               | `0x669b0039263C3dBF1c2c5726A378433759Fa0df1` | Library     |
+| MockVerifier             | `0x2B2A0A556C29DD43521de61ffB6fF1A78ca13940` | Placeholder |
+| GaleonEntrypoint (proxy) | `0x1767D6A8e6942fdc88cD4BFbFE6796D9D5FbaF2f` | UUPS Proxy  |
+| GaleonPrivacyPoolSimple  | `0x11021e2C1BE35AcCFE9Aa33862Cfb7e54E2036Ef` | UUPS Proxy  |
+
+**Pool SCOPE:** `3813115185232120460597786926146817949248386022022309247081941950024775602883`
+
+---
+
 ## 🚨 Operational Checklist for Production
 
 ### Pre-Deployment
 
-- [ ] Deploy ERC5564Announcer and ERC6538Registry (already deployed on mainnet)
-- [ ] Deploy GaleonRegistry with announcer/registry addresses
-- [ ] Deploy GaleonEntrypoint proxy with owner/postman addresses
-- [ ] Deploy Poseidon libraries (PoseidonT3, PoseidonT4)
-- [ ] Deploy GaleonPrivacyPoolSimple proxy linked to Poseidon libraries
+- [x] Deploy ERC5564Announcer and ERC6538Registry (already deployed on mainnet)
+- [x] Deploy GaleonRegistry with announcer/registry addresses
+- [x] Deploy GaleonEntrypoint proxy with owner/postman addresses
+- [x] Deploy Poseidon libraries (PoseidonT3, PoseidonT4)
+- [x] Deploy GaleonPrivacyPoolSimple proxy linked to Poseidon libraries
 
 ### Post-Deployment (CRITICAL)
 
-- [ ] **Call `registry.setAuthorizedPool(poolAddress, true)`** - Deposits will revert without this!
-- [ ] **Call `entrypoint.registerPool(asset, pool, minDeposit, vettingFeeBPS, maxRelayFeeBPS)`**
-- [ ] **Call `entrypoint.updateRoot(root, cid)`** - Set initial ASP root
-- [ ] Verify galeonRegistry is set on pool (deposits revert if unset)
+- [x] **Call `registry.setAuthorizedPool(poolAddress, true)`** - Deposits will revert without this!
+- [x] **Call `entrypoint.registerPool(asset, pool, minDeposit, vettingFeeBPS, maxRelayFeeBPS)`**
+- [x] **Call `entrypoint.updateRoot(root, cid)`** - Set initial ASP root
+- [x] Verify galeonRegistry is set on pool (deposits revert if unset)
 
 ### Key Addresses for Ownership
 

@@ -34,7 +34,6 @@ export const chains: Record<number, ChainConfig> = {
       announcer: PLACEHOLDER_ADDRESS, // TODO: Update after deployment
       registry: PLACEHOLDER_ADDRESS, // TODO: Update after deployment
       galeon: PLACEHOLDER_ADDRESS, // TODO: Update after deployment
-      tender: PLACEHOLDER_ADDRESS, // TODO: Update after deployment
     },
   },
 
@@ -52,8 +51,7 @@ export const chains: Record<number, ChainConfig> = {
     contracts: {
       announcer: '0x8C04238c49e22EB687ad706bEe645698ccF41153',
       registry: '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22',
-      galeon: '0x85F23B63E2a40ba74cD418063c43cE19bcbB969C',
-      tender: '0x29D52d01947d91e241e9c7A4312F7463199e488c',
+      galeon: '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D',
     },
   },
 }
@@ -203,5 +201,4 @@ export function updateContractAddresses(
   if (contracts.announcer) config.contracts.announcer = contracts.announcer
   if (contracts.registry) config.contracts.registry = contracts.registry
   if (contracts.galeon) config.contracts.galeon = contracts.galeon
-  if (contracts.tender) config.contracts.tender = contracts.tender
 }

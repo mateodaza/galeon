@@ -9,17 +9,17 @@
 
 **Goal:** Backend + stealth library + contracts deployed
 
-| Task            | Status  | Owner | Notes                                                     |
-| --------------- | ------- | ----- | --------------------------------------------------------- |
-| Turborepo setup | Done    | -     | Monorepo structure created                                |
-| Railway infra   | Done    | -     | PostgreSQL + Redis configured                             |
-| AdonisJS API    | Done    | -     | Models, SIWE auth, JWT refresh, Fog payments - 145 tests  |
-| Stealth library | Done    | -     | 30 tests, audited, documented (README.md)                 |
-| Contracts       | Done    | -     | 90 tests, audited, deployed to Mantle Mainnet, documented |
-| Ponder indexer  | Done    | -     | Event handlers, schema, REST API (direct DB access)       |
-| Port Intent     | Done    | -     | Frontend creates intent → chain tx → backend confirms     |
-| Receipt Claim   | Pending | -     | Frontend claims → API verifies via Ponder → user linked   |
-| Real-time       | Pending | -     | Transmit SSE                                              |
+| Task            | Status  | Owner | Notes                                                    |
+| --------------- | ------- | ----- | -------------------------------------------------------- |
+| Turborepo setup | Done    | -     | Monorepo structure created                               |
+| Railway infra   | Done    | -     | PostgreSQL + Redis configured                            |
+| AdonisJS API    | Done    | -     | Models, SIWE auth, JWT refresh, Fog payments - 145 tests |
+| Stealth library | Done    | -     | 34 tests, audited, documented (README.md)                |
+| Contracts       | Done    | -     | 216 tests (Privacy Pool v1), deployed to Mantle Mainnet  |
+| Ponder indexer  | Done    | -     | Event handlers, schema, REST API (direct DB access)      |
+| Port Intent     | Done    | -     | Frontend creates intent → chain tx → backend confirms    |
+| Receipt Claim   | Pending | -     | Frontend claims → API verifies via Ponder → user linked  |
+| Real-time       | Pending | -     | Transmit SSE                                             |
 
 **Milestone:** Payment on chain → Frontend claims → API verifies → User notified
 
@@ -56,7 +56,6 @@
 | --------------- | ----------- | ----- | ---------------------------------------------- |
 | Error handling  | Done        | -     | Network guard, graceful env handling           |
 | README          | Done        | -     | Root + frontend docs with contract addrs       |
-| GaleonTender    | Not Started | -     | Batch collection via tender contract           |
 | Ponder indexer  | Done        | -     | Replace event scanning with indexed data       |
 | Backend API     | Done        | -     | SIWE auth, port sync, fog payments - 145 tests |
 | Receipt claim   | Pending     | -     | Frontend claim → API verify via Ponder         |

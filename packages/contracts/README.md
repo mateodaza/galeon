@@ -15,7 +15,6 @@ Galeon implements stealth addresses for privacy-preserving payments. When a paye
 | ERC5564Announcer | EIP Standard    | May exist on other chains - check [eip5564.eth](https://etherscan.io/address/eip5564.eth) |
 | ERC6538Registry  | EIP Standard    | May exist on other chains - check [eip6538.eth](https://etherscan.io/address/eip6538.eth) |
 | GaleonRegistry   | Galeon-specific | Must deploy per chain                                                                     |
-| GaleonTender     | Galeon-specific | Must deploy per chain                                                                     |
 
 > **Note:** On chains with existing ERC-5564/6538 deployments, you can use those instead of deploying new ones. Just update the constructor addresses when deploying GaleonRegistry.
 
@@ -101,7 +100,7 @@ event StealthMetaAddressSet(
 
 Main contract for Port management and payments with receipt anchoring.
 
-**Address (Mantle):** `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C`
+**Address (Mantle):** `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D`
 
 #### Port Management
 
@@ -171,43 +170,6 @@ event ReceiptAnchored(
 
 ---
 
-### GaleonTender
-
-Aggregates funds from multiple stealth addresses and forwards to recipient wallet.
-
-**Address (Mantle):** `0x29D52d01947d91e241e9c7A4312F7463199e488c`
-
-```solidity
-// Receive native currency
-receive() external payable;
-
-// Forward aggregated native funds (owner only)
-function forwardNative(
-    address recipient,
-    uint256 stealthCount    // For tracking
-) external onlyOwner;
-
-// Forward aggregated ERC-20 tokens (owner only)
-function forwardToken(
-    address token,
-    address recipient,
-    uint256 stealthCount
-) external onlyOwner;
-```
-
-**Events:**
-
-```solidity
-event Forwarded(
-    address indexed recipient,
-    address indexed token,    // address(0) for native
-    uint256 amount,
-    uint256 stealthCount
-);
-```
-
----
-
 ## Metadata Format
 
 ### Native Payments (33 bytes)
@@ -230,12 +192,12 @@ event Forwarded(
 
 ## Security Features
 
-| Feature           | Contract                     | Purpose                        |
-| ----------------- | ---------------------------- | ------------------------------ |
-| Trusted Relayers  | ERC5564Announcer             | Prevents announcement spoofing |
-| ReentrancyGuard   | GaleonRegistry, GaleonTender | Prevents reentrancy attacks    |
-| SafeERC20         | GaleonRegistry, GaleonTender | Safe token transfers           |
-| Pubkey Validation | GaleonRegistry               | Validates 0x02/0x03 prefix     |
+| Feature           | Contract         | Purpose                        |
+| ----------------- | ---------------- | ------------------------------ |
+| Trusted Relayers  | ERC5564Announcer | Prevents announcement spoofing |
+| ReentrancyGuard   | GaleonRegistry   | Prevents reentrancy attacks    |
+| SafeERC20         | GaleonRegistry   | Safe token transfers           |
+| Pubkey Validation | GaleonRegistry   | Validates 0x02/0x03 prefix     |
 
 ---
 
@@ -247,8 +209,7 @@ event Forwarded(
 | ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |
 | ERC5564Announcer | `0x8C04238c49e22EB687ad706bEe645698ccF41153` | [View](https://mantlescan.xyz/address/0x8C04238c49e22EB687ad706bEe645698ccF41153#code) |
 | ERC6538Registry  | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` | [View](https://mantlescan.xyz/address/0xE6586103756082bf3E43D3BB73f9fE479f0BDc22#code) |
-| GaleonRegistry   | `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C` | [View](https://mantlescan.xyz/address/0x85F23B63E2a40ba74cD418063c43cE19bcbB969C#code) |
-| GaleonTender     | `0x29D52d01947d91e241e9c7A4312F7463199e488c` | [View](https://mantlescan.xyz/address/0x29D52d01947d91e241e9c7A4312F7463199e488c#code) |
+| GaleonRegistry   | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` | [View](https://mantlescan.xyz/address/0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D#code) |
 
 ### Deploy Commands
 
@@ -279,12 +240,11 @@ REPORT_GAS=true pnpm test
 
 ## Access Control
 
-| Contract         | Owner    | Can Do                              |
-| ---------------- | -------- | ----------------------------------- |
-| ERC5564Announcer | Deployer | `setTrustedRelayer()`               |
-| ERC6538Registry  | None     | Permissionless                      |
-| GaleonRegistry   | None     | Permissionless                      |
-| GaleonTender     | Deployer | `forwardNative()`, `forwardToken()` |
+| Contract         | Owner    | Can Do                                             |
+| ---------------- | -------- | -------------------------------------------------- |
+| ERC5564Announcer | Deployer | `setTrustedRelayer()`                              |
+| ERC6538Registry  | None     | Permissionless                                     |
+| GaleonRegistry   | Deployer | `setAuthorizedPool()`, `setFrozenStealthAddress()` |
 
 **Recommendation:** Transfer ownership to a multisig for production.
 
@@ -295,3 +255,31 @@ REPORT_GAS=true pnpm test
 - [EIP-5564](https://eips.ethereum.org/EIPS/eip-5564): Stealth Addresses
 - [EIP-6538](https://eips.ethereum.org/EIPS/eip-6538): Stealth Meta-Address Registry
 - Scheme ID 1: secp256k1 with view tags
+
+---
+
+## License
+
+This package is licensed under the **Apache License 2.0**. See [LICENSE](./LICENSE) for the full text.
+
+### Attribution
+
+The Privacy Pool contracts (`contracts/privacy-pool/`) are adapted from [0xbow privacy-pools-core](https://github.com/0xbow-io/privacy-pools-core) under Apache 2.0.
+
+**Galeon Modifications:**
+
+- Port-only deposits via GaleonRegistry integration
+- verifiedBalance tracking to prevent dirty sends
+- Stealth address freezing for compliance
+- UUPS upgradeability for future circuit upgrades
+- Per-proxy SCOPE computation for proof domain separation
+
+### Dependencies
+
+| Library                                                                | License | Use                        |
+| ---------------------------------------------------------------------- | ------- | -------------------------- |
+| [OpenZeppelin](https://openzeppelin.com)                               | MIT     | Smart contract standards   |
+| [ZK-Kit](https://github.com/privacy-scaling-explorations/zk-kit)       | MIT     | Merkle tree implementation |
+| [poseidon-solidity](https://github.com/chancehudson/poseidon-solidity) | MIT     | Poseidon hash function     |
+
+All dependencies are permissively licensed (MIT) and compatible with commercial use.

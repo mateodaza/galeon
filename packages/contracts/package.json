@@ -13,6 +13,9 @@
     "poc:verifier:mainnet": "hardhat run scripts/deploy-verifier-poc.ts --network mantle",
     "deploy:pool:sepolia": "hardhat run scripts/deploy-privacy-pool.ts --network mantleSepolia",
     "deploy:pool:mainnet": "hardhat run scripts/deploy-privacy-pool.ts --network mantle",
+    "deploy:pool-v2:sepolia": "hardhat run scripts/deploy-privacy-pool-v2.ts --network mantleSepolia",
+    "deploy:pool-v2:mainnet": "hardhat run scripts/deploy-privacy-pool-v2.ts --network mantle",
+    "precompiles:mainnet": "hardhat run scripts/check-precompiles.ts --network mantle",
     "clean": "hardhat clean && rm -rf typechain-types"
   },
   "dependencies": {
