@@ -14,10 +14,7 @@ test.group('Receipt Model', () => {
     const columns = Receipt.$columnsDefinitions
     assert.isTrue(columns.has('id'))
     assert.isTrue(columns.has('portId'))
-    assert.isTrue(columns.has('userId'))
     assert.isTrue(columns.has('collectionId'))
-    assert.isTrue(columns.has('fogPaymentId'))
-    assert.isTrue(columns.has('isFogPayment'))
     assert.isTrue(columns.has('receiptHash'))
     assert.isTrue(columns.has('stealthAddress'))
     assert.isTrue(columns.has('ephemeralPubKey'))
@@ -46,12 +43,6 @@ test.group('Receipt Model', () => {
     const relations = Receipt.$relationsDefinitions
     assert.isTrue(relations.has('collection'))
     assert.equal(relations.get('collection')?.type, 'belongsTo')
-  })
-
-  test('has user relationship', async ({ assert }) => {
-    const relations = Receipt.$relationsDefinitions
-    assert.isTrue(relations.has('user'))
-    assert.equal(relations.get('user')?.type, 'belongsTo')
   })
 
   test('status field accepts valid statuses', async ({ assert }) => {
@@ -102,37 +93,9 @@ test.group('Receipt Model', () => {
     receipt.collectionId = null
     receipt.tokenAddress = null
     receipt.memo = null
-    receipt.portId = null
-    receipt.userId = null
-    receipt.fogPaymentId = null
 
     assert.isNull(receipt.collectionId)
     assert.isNull(receipt.tokenAddress)
     assert.isNull(receipt.memo)
-    assert.isNull(receipt.portId)
-    assert.isNull(receipt.userId)
-    assert.isNull(receipt.fogPaymentId)
-  })
-
-  test('isFogPayment defaults to false', async ({ assert }) => {
-    const receipt = new Receipt()
-    receipt.isFogPayment = false
-    assert.isFalse(receipt.isFogPayment)
-
-    receipt.isFogPayment = true
-    assert.isTrue(receipt.isFogPayment)
-  })
-
-  test('fog payment receipts have userId instead of portId', async ({ assert }) => {
-    const receipt = new Receipt()
-    receipt.isFogPayment = true
-    receipt.portId = null
-    receipt.userId = 1
-    receipt.fogPaymentId = '550e8400-e29b-41d4-a716-446655440000'
-
-    assert.isTrue(receipt.isFogPayment)
-    assert.isNull(receipt.portId)
-    assert.equal(receipt.userId, 1)
-    assert.equal(receipt.fogPaymentId, '550e8400-e29b-41d4-a716-446655440000')
   })
 })
