@@ -23,9 +23,10 @@ export * from './types'
 export {
   deriveStealthKeys,
   derivePortKeys,
-  deriveFogKeys,
   parseStealthMetaAddress,
   formatStealthMetaAddress,
+  generateRandomPrivateKey,
+  keccak256Hash,
 } from './keys'
 
 // Re-export address functions
@@ -61,7 +62,7 @@ export {
 
 // Import for createStealthClient
 import { getChainConfig, getContracts, SCHEME_ID } from './config'
-import { deriveStealthKeys, derivePortKeys, deriveFogKeys } from './keys'
+import { deriveStealthKeys, derivePortKeys } from './keys'
 import { generateStealthAddress } from './address'
 import { scanAnnouncements } from './scan'
 import type {
@@ -117,14 +118,6 @@ export interface StealthClient {
    * @see derivePortKeys
    */
   derivePortKeys: (masterSignature: `0x${string}`, portIndex: number) => StealthKeys
-
-  /**
-   * Derive unique keys for a Fog wallet.
-   * Uses a SEPARATE domain from Ports for cryptographic isolation.
-   * Uses the client's chainPrefix.
-   * @see deriveFogKeys
-   */
-  deriveFogKeys: (masterSignature: `0x${string}`, fogIndex: number) => StealthKeys
 
   /**
    * Generate a stealth address for a payment.
@@ -188,7 +181,6 @@ export function createStealthClient(
     schemeId: SCHEME_ID,
     deriveKeys: (sig) => deriveStealthKeys(sig, chainPrefix),
     derivePortKeys: (sig, index) => derivePortKeys(sig, index, chainPrefix),
-    deriveFogKeys: (sig, index) => deriveFogKeys(sig, index, chainPrefix),
     generateAddress: generateStealthAddress,
     scan: scanAnnouncements,
   }

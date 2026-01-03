@@ -9,6 +9,10 @@
     "typecheck": "echo 'Typecheck handled by Hardhat'",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network mantleSepolia",
     "deploy:mainnet": "hardhat run scripts/deploy.ts --network mantle",
+    "poc:verifier:sepolia": "hardhat run scripts/deploy-verifier-poc.ts --network mantleSepolia",
+    "poc:verifier:mainnet": "hardhat run scripts/deploy-verifier-poc.ts --network mantle",
+    "deploy:pool:sepolia": "hardhat run scripts/deploy-privacy-pool.ts --network mantleSepolia",
+    "deploy:pool:mainnet": "hardhat run scripts/deploy-privacy-pool.ts --network mantle",
     "clean": "hardhat clean && rm -rf typechain-types"
   },
   "dependencies": {
@@ -17,6 +21,10 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.2.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "@openzeppelin/hardhat-upgrades": "^3.6.0",
+    "@zk-kit/lean-imt.sol": "^2.0.0",
+    "poseidon-solidity": "^0.0.5",
     "@types/node": "^22.10.2",
     "dotenv": "^17.2.3",
     "hardhat": "^2.28.0",

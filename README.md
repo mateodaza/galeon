@@ -10,7 +10,7 @@ Galeon enables private payments using stealth addresses. Payers send funds to on
 
 - **Private Payments**: Recipients receive funds at stealth addresses that can't be linked to their identity
 - **Port System**: Users create "Ports" - named payment endpoints with unique stealth keys
-- **Fog Mode**: Sender privacy via pre-funded stealth wallets (breaks temporal correlation)
+- **Privacy Pool**: ZK mixing for sender privacy (0xbow fork) - deposit from Port, withdraw directly to recipient
 - **Shipwreck**: Compliance reports with cryptographic proofs for auditors
 - **On-Chain Receipts**: Payment metadata is anchored on-chain for verifiable receipts
 - **Mantle L2**: Low fees and fast finality on Mantle network
@@ -76,11 +76,10 @@ pnpm test         # Run tests
 Core stealth address library implementing EIP-5564 and EIP-6538:
 
 - Key derivation from wallet signatures (`deriveStealthKeys`, `derivePortKeys`)
-- Fog wallet key derivation with domain separation (`deriveFogKeys`)
 - Stealth address generation (`generateStealthAddress`)
 - Payment preparation for EOA and stealth recipients (`prepareEOAPayment`, `prepareStealthPayment`)
 - Payment scanning and collection with view tag filtering
-- Per-port and per-fog-wallet key isolation
+- Per-port key isolation for privacy
 
 ### [@galeon/contracts](./packages/contracts)
 
@@ -120,11 +119,12 @@ Solidity smart contracts deployed on Mantle:
 2. Derive private keys for each stealth address
 3. Collect funds to your main wallet
 
-### 4. Fog Mode (Sender Privacy)
+### 4. Privacy Pool (Sender Privacy)
 
-1. Fund pre-funded stealth wallets ("fog reserve")
-2. Pay from fog wallets to break temporal correlation
-3. Generate Shipwreck compliance reports if needed
+1. Deposit funds from Port to Privacy Pool
+2. Generate ZK proof and withdraw directly to recipient
+3. ZK proof breaks all links between deposit and withdrawal
+4. Generate Shipwreck compliance reports if needed
 
 ## Environment Variables
 
@@ -157,14 +157,9 @@ SESSION_SECRET=xxx
 
 - Spending keys are never stored - derived on-demand from wallet signatures
 - Per-port key isolation prevents cross-port linkability
-- Fog wallets use separate HKDF domain from Ports (cryptographic isolation)
-- Fog wallet data encrypted in localStorage with AES-GCM
-- Frontend interacts directly with contracts (backend API planned for indexing/SIWE)
+- Privacy Pool notes encrypted in localStorage with AES-GCM
+- Frontend interacts directly with contracts (backend API for indexing/SIWE)
 - Secrets excluded from version control
-
-### Scheduled Payments (Opt-in Custody)
-
-Fog scheduled payments require **temporary custody** of fog wallet spending keys by the backend. This is an opt-in feature with explicit consent: when scheduling a payment, the frontend encrypts the fog wallet's private key with the backend's ECIES public key and stores it server-side. The backend executes the payment at the scheduled time and immediately deletes the key material. Users who prefer full self-custody can use instant fog payments instead.
 
 ## Contributing
 

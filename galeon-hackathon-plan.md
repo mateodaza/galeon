@@ -234,19 +234,71 @@ We deploy **our own copies** of ERC-5564 and ERC-6538 contracts plus our custom 
 │                           │ calls                                        │
 │                           ▼                                              │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │  GaleonRegistry (Galeon-specific)                                │    │
+│  │  GaleonRegistryV1 (UUPS Upgradeable)                            │    │
 │  │  Address: Deployed per chain (updated after deployment)          │    │
 │  │                                                                  │    │
 │  │  FEATURES:                                                       │    │
+│  │  • Covenant storage (signCovenant, hasValidCovenant)             │    │
 │  │  • Port registration (links portId → stealthMetaAddress)         │    │
 │  │  • Single-tx payment (transfer + announce in one call)           │    │
 │  │  • Receipt hash anchoring (on-chain proof of payment)            │    │
-│  │  • Native MNT/ETH and ERC-20 support                             │    │
-│  │  • Batch operations for collection                               │    │
+│  │  • verifiedBalance tracking (for Privacy Pool)                   │    │
+│  │  • consumeVerifiedBalance (called by Privacy Pool)               │    │
+│  │  • Fee collection (portCreationFee, paymentFeeBps)               │    │
 │  │                                                                  │    │
 │  │  CALLS:                                                          │    │
 │  │  • announcer.announce() - on every payment                       │    │
 │  │  • registry.registerKeys() - on Port creation                    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                           │                                              │
+│                           │ verifies deposits                            │
+│                           ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  GaleonPrivacyPool (0xbow Fork, UUPS Upgradeable)                │    │
+│  │  Address: Deployed per chain (updated after deployment)          │    │
+│  │                                                                  │    │
+│  │  FEATURES:                                                       │    │
+│  │  • Port-only deposits (isValidPortAddress check)                 │    │
+│  │  • Amount-limited deposits (verifiedBalance check)               │    │
+│  │  • commitmentDepositor tracking (freeze capability)              │    │
+│  │  • ZK proof verification (Groth16, Poseidon, BN254)              │    │
+│  │  • ASP exclusion system (valid/excluded sets)                    │    │
+│  │  • Appeal mechanism (30-day period)                              │    │
+│  │  • Stealth-only withdrawals (registered addresses)               │    │
+│  │  • Swappable verifier (upgradeVerifier() for circuit upgrades)   │    │
+│  │  • Relayer support (future)                                      │    │
+│  │                                                                  │    │
+│  │  CALLS:                                                          │    │
+│  │  • galeonRegistry.consumeVerifiedBalance() - on deposit          │    │
+│  │  • verifier.verifyProof() - on withdrawal                        │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                           │                                              │
+│                           │ checks ASP                                   │
+│                           ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  GaleonASP (UUPS Upgradeable) - YOU = MAIN ASP                   │    │
+│  │  Address: Deployed per chain (updated after deployment)          │    │
+│  │                                                                  │    │
+│  │  FEATURES:                                                       │    │
+│  │  • Maintain valid/excluded address sets                          │    │
+│  │  • Add/remove addresses from blocklist                           │    │
+│  │  • Multi-sig controlled for production                           │    │
+│  │  • Upgradeable for compliance rule changes                       │    │
+│  │                                                                  │    │
+│  │  WHY UPGRADEABLE:                                                │    │
+│  │  • Compliance requirements change over time                      │    │
+│  │  • Blocklist logic may need updates                              │    │
+│  │  • Integration with external compliance oracles (future)         │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  UPGRADEABILITY STRATEGY (All UUPS):                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Contract            │ Upgradeable │ Why                        │    │
+│  │  ────────────────────┼─────────────┼────────────────────────────│    │
+│  │  GaleonRegistry      │ Yes (UUPS)  │ Add features, bug fixes    │    │
+│  │  GaleonPrivacyPool   │ Yes (UUPS)  │ Circuit swaps, bug fixes   │    │
+│  │  GaleonASP           │ Yes (UUPS)  │ Compliance rule updates    │    │
+│  │  Verifier            │ No          │ Swappable via Pool         │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -272,6 +324,8 @@ export interface ChainConfig {
     registry: `0x${string}`
     galeon: `0x${string}`
     tender: `0x${string}`
+    privacyPool: `0x${string}` // GaleonPrivacyPool (0xbow fork)
+    verifier: `0x${string}` // Groth16 verifier
   }
 }
 
@@ -1599,29 +1653,106 @@ main().catch(console.error)
 
 **Milestone:** Full flow: Setup → Create Port → Share Link → Pay → Instant Detection → Collect
 
-### Phase 3: Fog Mode + Shipwreck
+### Phase 3: Privacy Pools + Private Send
 
-**Goal:** Sender privacy with compliance accountability
+**Goal:** Maximum privacy with ZK mixing + compliant private payments
 
-| Task               | Description                                                                  |
-| ------------------ | ---------------------------------------------------------------------------- |
-| Fog Key Derivation | `deriveFogKeys()` with separate HKDF domain from Ports ✅                    |
-| EOA Payment        | `prepareEOAPayment()` for regular wallet recipients (sender privacy only) ✅ |
-| Stealth Payment    | `prepareStealthPayment()` for full sender + recipient privacy ✅             |
-| Fog Reserve        | Pre-funded stealth wallets for sender privacy                                |
-| Fog Session        | Wallet-signature encryption for localStorage persistence                     |
-| Fog Payment        | Pay from fog wallet (instant, no temporal correlation)                       |
-| Shipwreck Reports  | Compliance reports with cryptographic proofs                                 |
-| Shipwreck Export   | JSON export for auditors (MVP scope)                                         |
+**SIMPLIFIED MODEL:** Privacy Pool IS the mixer. No multi-hop needed.
 
-**Deferred to post-hackathon:** Fog Delegation (backend-scheduled payments), PDF export
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PRIVATE SEND FLOW (SIMPLIFIED)                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  OLD (unnecessarily complex):                                            │
+│  Port → Fund Entry → Hop → Hop → Hop → Pay                              │
+│         └── hops to break graph ──────────┘                              │
+│                                                                          │
+│  NEW (Pool handles mixing):                                              │
+│  Port → Pool Deposit → ZK Withdraw → Pay                                │
+│         └── ZK proof breaks link ────────┘                               │
+│                                                                          │
+│  The Pool IS the mixer. Hops are redundant.                              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-**Milestone:** Full privacy flow: Fund Reserve → Pay from Fog → Generate Compliance Report (JSON)
+**Private Send = "Pay from Pool Withdrawal":**
 
-**Detailed Specs:**
+1. User has funds in Pool (deposited from Port)
+2. User wants to pay someone privately
+3. Generate fresh stealth address for self ("Fog Wallet")
+4. Withdraw from Pool → fresh stealth (ZK proof, no link to deposit)
+5. Pay recipient from fresh stealth address
 
-- [Fog Mode Spec](docs/PRIVATE-SEND-SPEC.md)
-- [Implementation Plan](docs/FOG-SHIPWRECK-PLAN.md)
+No Entry/Hop/Exit wallet complexity. Just:
+
+- **Pool balance** (deposited from Ports)
+- **Fog Wallet** (one-time stealth address per withdrawal)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PRIVACY POOLS FLOW                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. Port receives payment (tracked by GaleonRegistry)                    │
+│     └── verifiedBalance[stealthAddress] += amount                        │
+│                                                                          │
+│  2. Stealth address deposits to Pool                                     │
+│     └── Only "clean" funds (verifiedBalance check)                       │
+│     └── commitment = Poseidon(nullifier, secret)                         │
+│     └── commitmentDepositor[commitment] = msg.sender                     │
+│                                                                          │
+│  3. Wait for anonymity set to grow                                       │
+│     └── Pool size = number of deposits                                   │
+│     └── Larger pool = better privacy                                     │
+│                                                                          │
+│  4. Withdraw with ZK proof                                               │
+│     └── Prove: I know secret for some commitment in the tree             │
+│     └── WITHOUT revealing which commitment                               │
+│     └── To: fresh stealth address (no link to deposit)                   │
+│                                                                          │
+│  5. Compliance capability preserved                                      │
+│     └── Galeon can exclude commitments (freeze)                          │
+│     └── Galeon can link commitment → depositor                           │
+│     └── Galeon CANNOT link withdrawal → deposit (ZK protected)           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+| Task                       | Description                                                   | Status  |
+| -------------------------- | ------------------------------------------------------------- | ------- |
+| **Fork 0xbow Contracts**   | Clone privacy-pools-core, adapt for Galeon                    | Pending |
+| **GaleonRegistry v2**      | Add verifiedBalance, consumeVerifiedBalance, covenant storage | Pending |
+| **Port-Only Deposits**     | Enforce isValidPortAddress + amount-limited                   | Pending |
+| **commitmentDepositor**    | Track depositor per commitment for freeze capability          | Pending |
+| **ASP Exclusion System**   | Valid/excluded sets (0xbow pattern)                           | Pending |
+| **Appeal Mechanism**       | 30-day appeal period before treasury claim                    | Pending |
+| **ZK Circuit Integration** | snarkjs in browser, proof generation                          | Pending |
+| **Deposit UI**             | Port → Pool deposit modal with note management                | Pending |
+| **Withdraw UI**            | ZK proof generation, stealth address registration             | Pending |
+| **Note Management**        | Encrypted localStorage for nullifier/secret                   | Pending |
+
+**Compliance Architecture:**
+
+| Galeon CAN                                 | Galeon CANNOT                    |
+| ------------------------------------------ | -------------------------------- |
+| See all Port payments (viewing key escrow) | Spend user funds                 |
+| Link commitment → depositor                | Link withdrawal → deposit        |
+| Exclude commitments (freeze)               | See withdrawal destination       |
+| Generate compliance reports                | Modify Merkle tree after deposit |
+
+**Revenue Model (Production):**
+
+| Stream               | Hackathon | Production |
+| -------------------- | --------- | ---------- |
+| Pool Withdrawal Fee  | 0%        | 0.3%       |
+| Port Creation Fee    | 0 MNT     | 0.01 MNT   |
+| Frozen Fund Recovery | N/A       | Treasury   |
+
+**Detailed Spec:** [Privacy Pools Spec](docs/PRIVACY_POOLS_SPEC.md)
+
+**Milestone:** Full ZK flow: Port Payment → Pool Deposit → ZK Withdraw → Stealth Payment (no link)
 
 ---
 
@@ -1901,20 +2032,26 @@ These are acknowledged trade-offs acceptable for hackathon scope:
 
 ## Key Decisions Summary
 
-| Decision            | Choice                                         | Rationale                                  |
-| ------------------- | ---------------------------------------------- | ------------------------------------------ |
-| Privacy model       | One stealth meta-address per Port              | Cryptographic isolation                    |
-| Terminology         | Port, Collect                                  | Nautical theme (Galeon)                    |
-| Port types          | Permanent, Recurring, One-time, Burner         | Flexibility for all use cases              |
-| User modes          | Vendor (receive) + User (send)                 | Different analytics needs                  |
-| Contract deployment | Own EIP-5564/6538 copies + GaleonRegistry      | Canonical not on Mantle, simple deployment |
-| Chain support       | Mantle Sepolia (hackathon) + Arbitrum (Sippy)  | Future extensibility                       |
-| Collection gas      | Relayer pays (5/day limit)                     | Simple UX, abuse prevention                |
-| Key security        | Viewing encrypted in DB, spending never stored | Server compromise = safe                   |
-| Webhook reliability | Reconciliation job every 5 min                 | Catch missed events                        |
-| SIWE nonces         | Redis with 5 min TTL, deleted on use           | Replay protection                          |
-| Batch overflow      | Multi-tx with progress UI, max 50 addresses    | Handle large collections                   |
-| Token support       | Native MNT + USDT, USDC, USDe                  | Main Mantle liquidity tokens               |
+| Decision              | Choice                                         | Rationale                                          |
+| --------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| Privacy model         | One stealth meta-address per Port              | Cryptographic isolation                            |
+| Terminology           | Port, Collect                                  | Nautical theme (Galeon)                            |
+| Port types            | Permanent, Recurring, One-time, Burner         | Flexibility for all use cases                      |
+| User modes            | Vendor (receive) + User (send)                 | Different analytics needs                          |
+| Contract deployment   | Own EIP-5564/6538 copies + GaleonRegistry      | Canonical not on Mantle, simple deployment         |
+| Chain support         | Mantle Sepolia (hackathon) + Arbitrum (Sippy)  | Future extensibility                               |
+| Collection gas        | Relayer pays (5/day limit)                     | Simple UX, abuse prevention                        |
+| Key security          | Viewing encrypted in DB, spending never stored | Server compromise = safe                           |
+| Webhook reliability   | Reconciliation job every 5 min                 | Catch missed events                                |
+| SIWE nonces           | Redis with 5 min TTL, deleted on use           | Replay protection                                  |
+| Batch overflow        | Multi-tx with progress UI, max 50 addresses    | Handle large collections                           |
+| Token support         | Native MNT + USDT, USDC, USDe                  | Main Mantle liquidity tokens                       |
+| **Privacy Pools**     | Fork 0xbow (Groth16, Poseidon, BN254)          | Production-tested, Vitalik-backed                  |
+| **Compliance**        | Port-only deposits + viewing key escrow        | Clean anonymity set + audit capability             |
+| **Freeze capability** | commitmentDepositor + ASP exclusion            | Freeze authority without surveillance              |
+| **Covenant**          | Integrated in GaleonRegistry (not separate)    | Simpler architecture, lower gas                    |
+| **Upgradeability**    | UUPS pattern for all core contracts            | Future-proof, circuit swaps, long-term maintenance |
+| **Revenue**           | 0% hackathon, 0.3% withdrawal fee production   | Growth-first, then sustainable                     |
 
 ---
 
@@ -1987,19 +2124,72 @@ Sending directly from a wallet **doesn't work** because no Announcement would be
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Other Future Enhancements
+### Privacy UX Improvements (Hackathon Polish)
 
-| Enhancement             | Description                                              | Complexity |
-| ----------------------- | -------------------------------------------------------- | ---------- |
-| **ERC-20 Token UI**     | UI for USDT/USDC payments (contract already supports)    | Low        |
-| **ENS/MNS Integration** | Resolve `galeon.mnt` to Port stealth meta-address        | Medium     |
-| **Recurring Payments**  | Schedule automatic payments to a Port                    | High       |
-| **Payment Requests**    | Vendor sends payment request link with pre-filled amount | Low        |
-| **Multi-sig Ports**     | Require multiple signatures to collect                   | High       |
-| **Port Delegation**     | Share viewing key without spending key (accountants)     | Medium     |
-| **Fiat On-ramp**        | Pay to Port directly with credit card via partner        | High       |
-| **Mobile App**          | Native iOS/Android with biometric key protection         | High       |
+| Feature                   | Description                                                | Priority |
+| ------------------------- | ---------------------------------------------------------- | -------- |
+| **Anonymity Set Display** | Show pool size prominently: "Your withdrawal is 1 of N"    | P0       |
+| **Timing Warnings**       | "Wait for more deposits before withdrawing" recommendation | P0       |
+| **Amount Warnings**       | "Unique amounts reduce privacy" if amount is unusual       | P1       |
+| **Collection Flow**       | Disable "Collect to main wallet" - force through Pool      | P1       |
+| **Recipient Education**   | Clear warnings about not sending to exchanges              | P1       |
+
+### Post-Hackathon Roadmap
+
+#### Near-term (P1)
+
+| Enhancement              | Description                                           | Complexity |
+| ------------------------ | ----------------------------------------------------- | ---------- |
+| **ENS/DNS Integration**  | `alice.galeon.eth` → Port meta-address (CCIP-Read)    | Medium     |
+| **Gas Sponsorship**      | ERC-4337 paymaster for zero-friction onboarding       | Medium     |
+| **PDF Shipwreck Export** | Professional compliance reports for auditors          | Low        |
+| **ERC-20 Token UI**      | UI for USDT/USDC payments (contract already supports) | Low        |
+
+#### Medium-term (P2)
+
+| Enhancement              | Description                                           | Complexity |
+| ------------------------ | ----------------------------------------------------- | ---------- |
+| **Multiple ASP Support** | User chooses ASP by jurisdiction, prevents censorship | High       |
+| **Session Key Security** | Web Worker isolation for encrypted note storage       | Medium     |
+| **Hardware Wallet**      | Ledger/Trezor support for signing                     | Medium     |
+| **Payment Requests**     | Invoicing with pre-filled amount links                | Low        |
+| **Note Recovery UX**     | Social recovery, clear backup prompts                 | Medium     |
+
+#### Long-term (P3)
+
+| Enhancement             | Description                                      | Complexity |
+| ----------------------- | ------------------------------------------------ | ---------- |
+| **Multi-chain Pool**    | Bridge funds through different L2s               | High       |
+| **Pool Auto-rotation**  | Automatic re-deposits for long-term privacy      | High       |
+| **Multi-sig Ports**     | Require multiple signatures to collect           | High       |
+| **Port Delegation**     | Share viewing key without spending (accountants) | Medium     |
+| **Mobile App**          | Native iOS/Android with biometric protection     | High       |
+| **Fiat On-ramp**        | Pay to Port with credit card via partner         | High       |
+| **Cross-chain Stealth** | Same meta-address works across all chains        | High       |
+
+### Security Analysis Summary
+
+Devil's advocate review identified these attack vectors and mitigations:
+
+| Attack                    | Severity | Mitigation                                  |
+| ------------------------- | -------- | ------------------------------------------- |
+| **Timing correlation**    | High     | UX warnings, minimum delay recommendations  |
+| **Unique amounts**        | High     | UX warning (no forced rounding)             |
+| **Small anonymity set**   | High     | Seed pool with ~20 deposits, show pool size |
+| **Gas source tracing**    | Medium   | ERC-4337 paymaster (post-hackathon)         |
+| **Collection patterns**   | Medium   | Force collection through Pool in UI         |
+| **Recipient hygiene**     | High     | Education, warnings about exchange deposits |
+| **RPC surveillance**      | Low      | Future: multi-RPC, self-host option         |
+| **Session key in memory** | Medium   | Future: Web Worker isolation                |
+
+**What Galeon gets right:**
+
+- Port-only deposits (no dirty money in pool)
+- No intermediate fog wallet (direct payment)
+- Covenant signing (pre-vetted deposits)
+- Shipwreck voluntary compliance
+- UUPS upgradeable contracts
 
 ---
 
-_Last updated: December 29, 2025_
+_Last updated: January 2, 2026_

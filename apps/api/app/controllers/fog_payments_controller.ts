@@ -1,3 +1,10 @@
+/**
+ * @deprecated This controller is deprecated. Fog wallets have been replaced by Privacy Pool.
+ * See docs/FOG-SHIPWRECK-PLAN.md for the current ZK-based architecture.
+ *
+ * This file is kept for reference but is not used in the current implementation.
+ */
+
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import FogPayment from '#models/fog_payment'

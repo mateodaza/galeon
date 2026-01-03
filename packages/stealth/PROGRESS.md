@@ -44,13 +44,6 @@
 - [x] parseStealthMetaAddress returns chainPrefix
 - [x] formatStealthMetaAddress accepts optional chainPrefix
 
-## Fog Mode Support (Phase 3)
-
-- [x] deriveFogKeys(masterSig, fogIndex, chainPrefix?) - Fog wallet key derivation
-- [x] Separate HKDF domain (galeon-fog-keys-v1) from Ports for cryptographic isolation
-- [x] Client integration: client.deriveFogKeys()
-- [x] Tests for domain separation (fog keys !== port keys at same index)
-
 ## EOA Payment Support (Phase 3)
 
 - [x] prepareEOAPayment(address) - For paying regular EOA wallets
@@ -64,14 +57,14 @@
 
 - [x] Property-based tests (fast-check) - 12 tests
 - [ ] EIP-5564 test vectors
-- [x] Key derivation tests (5 tests)
+- [x] Key derivation tests (3 tests)
 - [x] Address generation tests (3 tests)
 - [x] Scanning tests (4 tests)
 - [x] Configuration tests (3 tests)
-- [x] Client tests (3 tests, including fog keys)
+- [x] Client tests (2 tests)
 - [x] EOA payment tests (4 tests)
 
-**Total: 37 tests passing** (25 unit + 12 property-based)
+**Total: 34 tests passing** (22 unit + 12 property-based)
 
 ## Documentation
 
@@ -84,7 +77,6 @@
 
 - `deriveStealthKeys(signature, chainPrefix?)` - Derive stealth keys from wallet signature (default: 'mnt')
 - `derivePortKeys(masterSig, portIndex, chainPrefix?)` - Derive unique keys per Port
-- `deriveFogKeys(masterSig, fogIndex, chainPrefix?)` - Derive unique keys per Fog wallet (separate domain)
 - `parseStealthMetaAddress(addr)` - Parse meta-address to public keys + chainPrefix
 - `formatStealthMetaAddress(spend, view, chainPrefix?)` - Format public keys to meta-address
 
@@ -108,7 +100,6 @@
 - `createStealthClient(chainId)` - Create chain-specific client with all methods
   - `client.deriveKeys(sig)` - Derive stealth keys
   - `client.derivePortKeys(sig, index)` - Derive Port keys
-  - `client.deriveFogKeys(sig, index)` - Derive Fog wallet keys
   - `client.generateAddress(metaAddr)` - Generate stealth address
   - `client.scan(announcements, spend, view)` - Scan for payments
 

@@ -1,4 +1,4 @@
-# Fog Mode + Shipwreck Implementation Plan
+# Privacy Pool + Shipwreck Implementation Plan
 
 > Sender privacy with compliance accountability
 > Target: Hackathon submission (Jan 15, 2026)
@@ -9,89 +9,91 @@
 
 Two new features for Galeon:
 
-1. **Fog Mode** - Pay from pre-funded stealth wallets for sender privacy
+1. **Privacy Pool** - ZK mixing for sender privacy (0xbow fork)
 2. **Shipwreck** - Generate compliance reports with cryptographic proof
+
+**Architecture (Pool-Only Model):**
+
+Privacy Pool handles ALL mixing via ZK proofs. No intermediate "fog wallets" needed:
+
+- **Flow:** Port → Pool (deposit) → Recipient (withdraw with ZK proof)
+- **Variable amounts** - Deposit any amount, withdraw same amount
+- **Direct payment** - Withdraw goes directly to recipient (no intermediate address)
+
+```
+┌──────────┐     ┌──────────┐     ┌──────────────┐
+│  Port    │────▶│  Pool    │────▶│  Recipient   │
+│ (funds)  │     │ (notes)  │     │  (payment)   │
+└──────────┘     └──────────┘     └──────────────┘
+     │                │                   │
+     │  Deposit       │  ZK proof         │  Direct
+     │  any amount    │  breaks link      │  withdrawal
+```
+
+**Why NO intermediate fog/stealth wallet:**
+
+- Pre-withdrawing to a "private balance" creates linkable identity
+- Pool withdrawal should go directly to payment recipient
+- ZK proof already breaks all links - no need for extra step
 
 **Hackathon Scope:**
 
-- Client-side fog for instant payments
-- **Backend delegation for scheduled payments**
-- JSON export only (no PDF generation)
-- Mainnet only (5003 testnet not functional for fog)
+- ZK circuits for deposit/withdraw proofs
+- Note management (encrypted in localStorage)
+- Direct withdrawal to recipient addresses
+- JSON export only for Shipwreck (no PDF generation)
 
 Both leverage existing infrastructure:
 
-- Frontend: React hooks, stealth library, wagmi
-- Contracts: No changes needed (existing GaleonRegistry works)
-- Backend: Fog sessions + delegation for scheduled payments
+- Frontend: React hooks, stealth library, wagmi, snarkjs
+- Contracts: GaleonPrivacyPool (0xbow fork) + GaleonRegistry
+- Backend: Note backup/sync (optional)
 
 ---
 
 ## Security & Trust Model
 
-### Key Derivation Separation
+### Note Management (Pool Deposits)
 
-Fog wallets use a **separate derivation domain** from Ports to prevent collision and linkability:
-
-```typescript
-// Port keys (existing)
-derivePortKeys(masterSignature, portIndex, chainPrefix)
-// Domain: "galeon-port-keys-v1"
-
-// Fog keys (new - separate domain)
-deriveFogKeys(masterSignature, fogIndex, chainPrefix)
-// Domain: "galeon-fog-keys-v1"
-```
-
-This ensures:
-
-- Port index 0 and Fog index 0 produce different keys
-- Analyzing port keys reveals nothing about fog keys
-- Clear separation for audit/compliance
-
-### Encryption at Rest
-
-Fog wallet data is encrypted in localStorage using AES-GCM:
+Pool notes are encrypted in localStorage using AES-GCM:
 
 ```typescript
-interface EncryptedFogStore {
-  // Per-wallet encryption (each has unique IV)
-  wallets: Array<{
+interface PoolNote {
+  id: string // UUID for UI
+  commitment: `0x${string}` // hash(nullifier, secret, amount) - in Merkle tree
+  nullifier: `0x${string}` // Private - needed to withdraw
+  secret: `0x${string}` // Private - needed to withdraw
+  amount: bigint // Variable amount deposited
+  leafIndex: number // Position in Merkle tree
+  depositedAt: number // Timestamp
+  depositTxHash: `0x${string}` // Reference
+  sourcePortName?: string // Optional: "From Freelance port" (UX only)
+  spent: boolean // Already withdrawn?
+  spentTxHash?: `0x${string}` // Withdrawal tx if spent
+}
+
+interface EncryptedNoteStore {
+  notes: Array<{
     iv: string // 12-byte IV, base64
-    ciphertext: string // AES-GCM encrypted data, base64
+    ciphertext: string // AES-GCM encrypted PoolNote, base64
     tag: string // 16-byte auth tag, base64
   }>
-
-  // Version for migration
   version: 1
 }
-
-// What's encrypted per wallet:
-interface FogWalletData {
-  fogIndex: number
-  stealthAddress: `0x${string}`
-  fundedAt: number
-  fundingTxHash: `0x${string}`
-  // NOTE: No private keys stored!
-  // Keys are derived on-demand from masterSignature + fogIndex
-}
 ```
 
-**Critical: No private keys are stored.** Fog wallet private keys are derived on-demand:
+**Critical: Notes contain withdrawal secrets.** They must be:
 
-```typescript
-// When user needs to spend from fog wallet:
-const fogKeys = deriveFogKeys(masterSignature, fogIndex)
-const privateKey = fogKeys.spendingPrivateKey
-// Use immediately, never persist
-```
+- Encrypted at rest (AES-GCM with session key)
+- Backed up by user (export functionality)
+- Recoverable via chain scanning (expensive but possible)
 
 ### Session Key Derivation
 
 ```typescript
-const SESSION_MESSAGE = `Galeon Fog Session v1
+const SESSION_MESSAGE = `Galeon Privacy Pool v1
 
-Sign to unlock your fog reserve.
+Sign to access your pool notes.
 This does NOT authorize any transactions.
 
 Chain: Mantle (5000)`
@@ -110,38 +112,33 @@ const sessionKey = await crypto.subtle.importKey(
 
 ### Recovery Story
 
-If localStorage is cleared or session key is lost:
+If localStorage is cleared or notes are lost:
 
-1. **Funds are NOT lost** - User still controls spending keys via master signature
+1. **Funds are NOT immediately lost** - Notes can be recovered
 2. **Recovery flow:**
-   - User signs master key derivation message (existing setup flow)
-   - App scans chain for announcements to fog addresses
-   - Fog wallet indices 0-99 are scanned (deriveFogKeys with each index)
-   - Any addresses with balance are recovered to fog reserve
-
-### Gas Reserve Requirements
-
-Each fog wallet needs sufficient MNT for gas:
-
-| Operation       | Estimated Gas | MNT Cost (@0.02 gwei) |
-| --------------- | ------------- | --------------------- |
-| Native transfer | ~21,000       | ~0.0004 MNT           |
-| payNative call  | ~85,000       | ~0.0017 MNT           |
-| Buffer (2x)     | -             | ~0.004 MNT            |
-
-**Minimum fog wallet funding: 0.01 MNT + payment amount**
+   - User signs session message to derive encryption key
+   - If backup exists: Import encrypted backup file
+   - If no backup: Scan chain for deposits to user's Port addresses
+   - Expensive but possible to reconstruct notes from chain data
 
 ### Trust Assumptions
 
-| Component            | Trust Level       | Notes                                      |
-| -------------------- | ----------------- | ------------------------------------------ |
-| Browser localStorage | Low               | Encrypted, no keys stored                  |
-| Session key (memory) | Medium            | Cleared on lock/tab close                  |
-| Master signature     | High              | Required to derive any keys                |
-| RPC provider         | Medium            | Can see addresses, not link to user        |
-| Backend fog session  | Temporary custody | Encrypted keys held for scheduled payments |
+| Component            | Trust Level | Notes                                      |
+| -------------------- | ----------- | ------------------------------------------ |
+| Browser localStorage | Low         | Encrypted notes, secrets protected         |
+| Session key (memory) | Medium      | Cleared on lock/tab close                  |
+| Master signature     | High        | Required to derive session encryption key  |
+| RPC provider         | Medium      | Can see Pool contract calls, not note data |
+| Pool contract        | High        | Holds funds, verifies ZK proofs            |
 
-### Backend Custody for Scheduled Payments
+### ~~Backend Custody for Scheduled Payments~~ - DEPRECATED
+
+> ⚠️ **DEPRECATED:** This section describes the old "fog wallet" scheduled payments design.
+> The Privacy Pool architecture (above) replaces this with client-side ZK proofs - no backend custody needed.
+> Keys always stay in the browser.
+
+<details>
+<summary>Archived fog delegation design (click to expand)</summary>
 
 > **⚠️ Opt-in Trade-off:** Scheduled payments require temporary key custody by the backend.
 
@@ -181,26 +178,41 @@ When users create a scheduled payment:
 
 For instant payments (client-only), keys never leave the browser.
 
+</details>
+
 ---
 
-## Feature 1: Fog Mode (Fog Reserve)
+## Feature 1: Privacy Pool
 
-> ⚠️ **Mainnet Only:** Fog Mode is only available on Mantle Mainnet (5000). Testnet (5003) is not supported because fog wallets require real economic activity to provide meaningful privacy.
+> ⚠️ **Mainnet Only:** Privacy Pool is only available on Mantle Mainnet (5000). Testnet (5003) is not supported because meaningful privacy requires real economic activity.
 
 ### Concept
 
-Users pre-fund stealth "fog wallets" during normal activity. Later, they pay from these wallets, breaking the temporal correlation between funding and payment.
+Privacy Pool provides ZK mixing for private payments. No intermediate addresses needed:
 
 ```
-Day 1: Alice funds Fog A, B, C (looks like normal payments)
-Day 7: Alice pays Coffee Shop from Fog B (no link to Day 1)
+Flow:
+1. Deposit funds to Privacy Pool (from Port) → get note
+2. When paying: Withdraw directly to recipient with ZK proof
+3. ZK proof proves "I own a deposit" without revealing which one
+
+Key insight:
+- NO intermediate "fog wallet" or "private balance"
+- Withdraw goes DIRECTLY to payment recipient
+- Variable amounts (deposit any amount, withdraw same amount)
 ```
 
-### Architecture (MVP - Client Only)
+**Why No Intermediate Address:**
+
+- Pre-withdrawing to a "private balance" creates linkable identity
+- ZK proof already breaks all links - extra hop is unnecessary
+- Direct withdrawal = simpler + better privacy
+
+### Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  FOG MODE ARCHITECTURE (MVP)                    │
+│                  PRIVACY POOL ARCHITECTURE                       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  FRONTEND (Browser)                         BLOCKCHAIN          │
@@ -212,114 +224,60 @@ Day 7: Alice pays Coffee Shop from Fog B (no link to Day 1)
 │  └────────┬─────────┘                                          │
 │           │                                                     │
 │  ┌────────▼─────────┐                                          │
-│  │ Encrypted        │                                          │
-│  │ localStorage     │  fogIndex, address, fundedAt             │
-│  │ (AES-GCM)        │  (NO private keys stored)                │
+│  │ Encrypted Notes  │  commitment, nullifier, secret,          │
+│  │ localStorage     │  amount, leafIndex, spent                │
+│  │ (AES-GCM)        │                                          │
 │  └────────┬─────────┘                                          │
 │           │                                                     │
 │  ┌────────▼─────────────────────────────┐                      │
-│  │         useFogReserve Hook           │                      │
+│  │         usePrivacyPool Hook          │                      │
 │  │                                      │                      │
-│  │  unlock()     → Sign session msg     │                      │
-│  │  createFog()  → deriveFogKeys(index) │                      │
-│  │  fundFog()    → Transfer MNT    ─────┼──► Mantle (5000)     │
-│  │  payFromFog() → Derive key, sign ────┼──► GaleonRegistry    │
+│  │  unlock()   → Sign session msg       │                      │
+│  │  deposit()  → Port → Pool ───────────┼──► PrivacyPool.sol   │
+│  │  withdraw() → ZK proof → recipient ──┼──► Direct to payee   │
+│  │  getNotes() → List unspent notes     │                      │
 │  │                                      │                      │
 │  └──────────────────────────────────────┘                      │
 │                                                                 │
-│  For scheduled payments, fog keys are encrypted to backend     │
-│  and a ProcessFogPayment job executes at the scheduled time.   │
+│  ZK proof generation happens in browser (snarkjs web worker)   │
+│  Proof: "I know secrets for a commitment in the Merkle tree"   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Database Schema (Scheduled Payments)
+### Database Schema (Note Backup - Optional)
 
 ```sql
--- Migration: fog_sessions table
--- Stores encrypted fog keys for users who delegate to backend
-CREATE TABLE fog_sessions (
+-- Migration: pool_note_backups table
+-- Optional server-side encrypted backup of user notes
+CREATE TABLE pool_note_backups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-  -- Fog keys encrypted with backend's public key
-  fog_keys_encrypted TEXT NOT NULL,  -- Encrypted with FOG_ENCRYPTION_PUBLIC_KEY
-  fog_keys_nonce TEXT NOT NULL,
+  -- Notes encrypted with user's session key (server can't decrypt)
+  encrypted_notes TEXT NOT NULL,
+  encryption_nonce TEXT NOT NULL,
 
-  -- Session state
-  active BOOLEAN DEFAULT TRUE,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  -- Metadata (not sensitive)
+  note_count INTEGER NOT NULL,
+  last_updated TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_fog_sessions_user_id ON fog_sessions(user_id);
-CREATE INDEX idx_fog_sessions_active_expires ON fog_sessions(active, expires_at);
-
--- Migration: fog_delegations table
--- Individual scheduled payment authorizations
-CREATE TABLE fog_delegations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id INTEGER NOT NULL REFERENCES users(id),
-  fog_session_id UUID NOT NULL REFERENCES fog_sessions(id) ON DELETE CASCADE,
-
-  -- Fog wallet info
-  fog_address VARCHAR(42) NOT NULL,
-  fog_index INTEGER NOT NULL,
-
-  -- Payment details (from signed authorization)
-  recipient VARCHAR(42) NOT NULL,
-  recipient_ephemeral_pub_key VARCHAR(68) NOT NULL,
-  recipient_view_tag VARCHAR(4) NOT NULL,
-  receipt_hash VARCHAR(66) NOT NULL,  -- Must match computeReceiptHash() schema
-  amount DECIMAL(78, 0) NOT NULL,
-
-  -- Time bounds
-  send_at TIMESTAMP NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-
-  -- User's signed authorization
-  user_signature VARCHAR(132) NOT NULL,
-  delegation_message TEXT NOT NULL,
-
-  -- Execution status
-  status VARCHAR(20) DEFAULT 'pending',
-  tx_hash VARCHAR(66),
-  executed_at TIMESTAMP,
-  error_message TEXT,
-
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_fog_delegations_user_id ON fog_delegations(user_id);
-CREATE INDEX idx_fog_delegations_session_id ON fog_delegations(fog_session_id);
-CREATE INDEX idx_fog_delegations_status ON fog_delegations(status);
-CREATE INDEX idx_fog_delegations_send_at ON fog_delegations(send_at) WHERE status = 'pending';
+CREATE UNIQUE INDEX idx_pool_note_backups_user_id ON pool_note_backups(user_id);
 ```
 
-**Relationship:**
+**Key point:** Server stores encrypted notes but CANNOT decrypt them. Only the user with their session key can decrypt. This is purely for backup/sync across devices.
 
-- `fog_sessions` stores the user's encrypted fog keys (one active session per user)
-- `fog_delegations` stores individual payment authorizations that reference a session
-- When a session expires, all associated delegations are cancelled
-
-### API Endpoints (Scheduled Payments)
+### API Endpoints (Note Backup)
 
 ```typescript
 // Routes in apps/api/start/routes.ts
 router
   .group(() => {
-    // Fog session management
-    router.get('/fog/public-key', [FogController, 'getPublicKey'])
-    router.post('/fog/session', [FogController, 'createSession'])
-    router.delete('/fog/session', [FogController, 'endSession'])
-
-    // Scheduled payment delegations
-    router.post('/fog/delegate', [FogController, 'createDelegation'])
-    router.get('/fog/delegations', [FogController, 'listDelegations'])
-    router.delete('/fog/delegations/:id', [FogController, 'cancelDelegation'])
-    router.get('/fog/delegations/:id', [FogController, 'getDelegation'])
+    // Note backup (optional - encrypted, server can't read)
+    router.post('/pool/notes/backup', [PoolController, 'backupNotes'])
+    router.get('/pool/notes/backup', [PoolController, 'getBackup'])
   })
   .prefix('/api/v1')
   .use(middleware.auth())
@@ -327,107 +285,103 @@ router
 
 ### Frontend Implementation
 
-#### New Files (MVP)
+#### New Files
 
 ```
 apps/web/
 ├── hooks/
-│   ├── use-fog-reserve.ts      # Main fog reserve hook
-│   └── use-fog-session.ts      # Session key management
+│   ├── use-privacy-pool.ts     # Main pool hook
+│   ├── use-pool-deposit.ts     # Deposit from Port
+│   ├── use-pool-withdraw.ts    # ZK proof + withdraw
+│   └── use-pool-session.ts     # Session key management
+├── contexts/
+│   └── pool-context.tsx        # Note state management
 ├── components/
-│   ├── fog/
-│   │   ├── FogReservePanel.tsx    # Reserve overview
-│   │   ├── FogWalletCard.tsx      # Individual wallet display
-│   │   ├── FogFundModal.tsx       # Fund new fog wallet
-│   │   ├── FogPaymentFlow.tsx     # Pay from fog
-│   │   └── FogUnlockPrompt.tsx    # Sign to unlock session
+│   └── pool/
+│       ├── PoolDashboard.tsx      # Pool overview
+│       ├── DepositModal.tsx       # Deposit from Ports
+│       ├── WithdrawModal.tsx      # Pay with ZK proof
+│       ├── NotesList.tsx          # Display notes
+│       └── UnlockPrompt.tsx       # Sign to unlock session
 ├── lib/
-│   └── fog-crypto.ts           # AES-GCM encryption utilities
+│   ├── pool-crypto.ts          # AES-GCM encryption
+│   └── zk-prover.ts            # snarkjs integration
 └── app/
-    └── fog/
-        └── page.tsx            # /fog - Fog Reserve management
+    └── pool/
+        └── page.tsx            # /pool - Privacy Pool dashboard
 ```
 
-#### Hook: useFogReserve
+#### Types
 
 ```typescript
-// apps/web/hooks/use-fog-reserve.ts
+// apps/web/types/pool.ts
 
-interface FogWallet {
-  id: string // Unique ID (fogIndex as string)
-  fogIndex: number // Derivation index
-  stealthAddress: `0x${string}` // Derived address
-  balance: bigint // Current balance (fetched)
-  fundedAt: number // Timestamp when funded
-  fundingTxHash: `0x${string}` // Funding transaction
-  status: 'ready' | 'spent' | 'delegated' // delegated = scheduled payment pending
-  activeDelegationId?: string // If delegated, the delegation ID
+interface PoolNote {
+  id: string // UUID
+  commitment: `0x${string}` // hash(nullifier, secret, amount)
+  nullifier: `0x${string}` // Private - needed to withdraw
+  secret: `0x${string}` // Private - needed to withdraw
+  amount: bigint // Variable amount
+  leafIndex: number // Position in Merkle tree
+  depositedAt: number // Timestamp
+  depositTxHash: `0x${string}` // Reference
+  sourcePortName?: string // Optional UX metadata
+  spent: boolean // Already withdrawn?
+  spentTxHash?: `0x${string}` // If spent
 }
 
-interface UseFogReserveReturn {
+interface UsePrivacyPoolReturn {
   // State
-  fogWallets: FogWallet[]
+  notes: PoolNote[]
+  unspentNotes: PoolNote[]
   totalBalance: bigint
   isUnlocked: boolean
   isLoading: boolean
   error: string | null
 
   // Session actions
-  unlock: () => Promise<void> // Sign to decrypt localStorage
-  lock: () => void // Clear session key
+  unlock: () => Promise<void> // Sign to decrypt notes
+  lock: () => void // Clear session
 
-  // Fog wallet actions
-  createFogWallet: () => Promise<FogWallet>
-  fundFogWallet: (fogIndex: number, amount: bigint) => Promise<`0x${string}`>
-  refreshBalances: () => Promise<void>
-
-  // Instant payment
-  payFromFog: (
-    fogIndex: number,
-    recipientMetaAddress: string, // st:mnt:... format
+  // Pool actions
+  deposit: (
+    portAddress: `0x${string}`, // Port stealth address to deposit from
     amount: bigint,
-    memo: string
+    sourcePortName?: string // Optional: for UX tracking
   ) => Promise<`0x${string}`> // Returns tx hash
 
-  // Scheduled payment (via backend delegation)
-  schedulePayment: (params: {
-    fogIndex: number
-    recipientMetaAddress: string
-    amount: bigint
-    memo: string
-    sendAt: Date // When to execute
-    expiresAt: Date // Deadline for execution
-  }) => Promise<string> // Returns delegation ID
-
-  listScheduledPayments: () => Promise<FogDelegation[]>
-  cancelScheduledPayment: (delegationId: string) => Promise<void>
+  withdraw: (
+    noteId: string, // Which note to spend
+    recipientAddress: `0x${string}`, // Where to send funds
+    amount: bigint // Must match note amount
+  ) => Promise<`0x${string}`> // Returns tx hash (generates ZK proof internally)
 
   // Recovery
-  recoverFogWallets: () => Promise<FogWallet[]> // Scan chain for lost wallets
+  recoverNotes: () => Promise<PoolNote[]> // Scan chain for deposits
 }
 
-export function useFogReserve(): UseFogReserveReturn {
+export function usePrivacyPool(): UsePrivacyPoolReturn {
   // Implementation uses:
-  // - useFogSession() for AES encryption key
-  // - localStorage for encrypted fog metadata (no keys!)
-  // - deriveFogKeys() from @galeon/stealth for on-demand key derivation
+  // - usePoolSession() for AES encryption key
+  // - localStorage for encrypted notes (no private keys!)
+  // - snarkjs for ZK proof generation
   // - wagmi for chain interactions
 }
 ```
 
-#### Hook: useFogSession
+#### Hook: usePoolSession
 
 ```typescript
-// apps/web/hooks/use-fog-session.ts
+// apps/web/hooks/use-pool-session.ts
 
-const SESSION_MESSAGE = `Galeon Fog Session v1
+const SESSION_MESSAGE = `Galeon Privacy Pool v1
 
-Sign to unlock your fog reserve.
+Sign to access your pool notes.
 This does NOT authorize any transactions.
 
 Chain: Mantle (5000)`
 
-interface UseFogSessionReturn {
+interface UsePoolSessionReturn {
   sessionKey: CryptoKey | null
   isUnlocked: boolean
 
@@ -435,7 +389,7 @@ interface UseFogSessionReturn {
   lock: () => void
 }
 
-export function useFogSession(): UseFogSessionReturn {
+export function usePoolSession(): UsePoolSessionReturn {
   const { data: walletClient } = useWalletClient()
   const [sessionKey, setSessionKey] = useState<CryptoKey | null>(null)
 
@@ -477,7 +431,7 @@ export function useFogSession(): UseFogSessionReturn {
 
 ### Concept
 
-Users can generate cryptographically-signed reports proving ownership and usage of fog wallets. This enables:
+Users can generate cryptographically-signed reports proving ownership and usage of Privacy Pool deposits. This enables:
 
 - Regulatory compliance on request
 - Tax reporting
@@ -497,9 +451,9 @@ Users can generate cryptographically-signed reports proving ownership and usage 
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  Shipwreck Report Generator                              │  │
 │  │                                                          │  │
-│  │  1. Select fog wallets to disclose                       │  │
+│  │  1. Select Pool deposits to disclose                     │  │
 │  │  2. Select date range                                    │  │
-│  │  3. Generate derivation proofs                           │  │
+│  │  3. Generate proof of ownership (note disclosure)        │  │
 │  │  4. User signs attestation                               │  │
 │  │  5. Export JSON (PDF future enhancement)                 │  │
 │  └──────────────────────────────────────────────────────────┘  │
@@ -525,42 +479,34 @@ interface ShipwreckReport {
     to: number
   }
 
-  // Disclosed fog wallets
-  fogWallets: Array<{
-    fogIndex: number
-    stealthAddress: `0x${string}`
+  // Disclosed pool deposits
+  poolDeposits: Array<{
+    noteId: string
+    commitment: `0x${string}`
 
-    // Derivation proof (auditor can verify)
-    derivationProof: {
-      masterPublicKey: `0x${string}` // User's stealth spending pubkey
-      fogIndex: number
-      expectedAddress: `0x${string}` // Derived address (should match)
-    }
-
-    // Funding transaction
-    funding: {
+    // Deposit info
+    deposit: {
       txHash: `0x${string}`
-      from: `0x${string}` // User's main wallet
+      fromPort: `0x${string}` // Source Port stealth address
       amount: string
       timestamp: number
     }
 
-    // Outgoing payments from this fog wallet
-    payments: Array<{
+    // Withdrawal info (if spent)
+    withdrawal?: {
       txHash: `0x${string}`
-      to: `0x${string}` // Recipient stealth address
+      to: `0x${string}` // Recipient address
       amount: string
       timestamp: number
-      memo?: string
-    }>
+    }
   }>
 
   // Summary
   summary: {
-    totalFogWallets: number
-    totalFunded: string
-    totalSpent: string
-    totalPayments: number
+    totalDeposits: number
+    totalDeposited: string
+    totalWithdrawn: string
+    totalWithdrawals: number
   }
 
   // Cryptographic attestation
@@ -583,7 +529,7 @@ apps/web/
 ├── components/
 │   ├── shipwreck/
 │   │   ├── ShipwreckWizard.tsx    # Step-by-step report creation
-│   │   ├── FogWalletSelector.tsx  # Select wallets to disclose
+│   │   ├── NoteSelector.tsx       # Select pool notes to disclose
 │   │   ├── DateRangePicker.tsx    # Select time range
 │   │   ├── ReportPreview.tsx      # Preview before signing
 │   │   └── ReportExport.tsx       # JSON export (MVP)
@@ -606,7 +552,7 @@ interface UseShipwreckReturn {
 
   // Actions
   generateReport: (options: {
-    fogIndices: number[]
+    noteIds: string[] // Pool notes to disclose
     dateRange: { from: Date; to: Date }
   }) => Promise<ShipwreckReport>
 
@@ -628,29 +574,29 @@ interface UseShipwreckReturn {
 
 ## Implementation Timeline
 
-### Week 1: Fog Mode Core (Dec 29 - Jan 4)
+### Week 1: Privacy Pool Core (Dec 29 - Jan 4)
 
-| Day        | Task                       | Files                                              |
-| ---------- | -------------------------- | -------------------------------------------------- |
-| **Dec 29** | deriveFogKeys + fog-crypto | `packages/stealth`, `fog-crypto.ts`                |
-| **Dec 30** | Session management         | `use-fog-session.ts`                               |
-| **Dec 31** | Fog wallet creation        | `use-fog-reserve.ts` (create, fund)                |
-| **Jan 1**  | Encrypted localStorage     | AES-GCM persistence                                |
-| **Jan 2**  | Instant fog payment        | `use-fog-reserve.ts` (payFromFog)                  |
-| **Jan 3**  | UI components              | `FogReservePanel`, `FogWalletCard`, `FogFundModal` |
-| **Jan 4**  | E2E testing + recovery     | create → fund → pay → recover                      |
+| Day        | Task                        | Files                                            |
+| ---------- | --------------------------- | ------------------------------------------------ |
+| **Dec 29** | Pool contracts (0xbow fork) | `packages/contracts/privacy-pool/`               |
+| **Dec 30** | Session management          | `use-pool-session.ts`                            |
+| **Dec 31** | Deposit from Port           | `use-privacy-pool.ts` (deposit)                  |
+| **Jan 1**  | Encrypted note storage      | AES-GCM persistence                              |
+| **Jan 2**  | ZK proof + withdraw         | `use-privacy-pool.ts` (withdraw with snarkjs)    |
+| **Jan 3**  | UI components               | `PoolDashboard`, `DepositModal`, `WithdrawModal` |
+| **Jan 4**  | E2E testing + recovery      | deposit → withdraw → recover notes               |
 
-### Week 2: Scheduled Payments + Shipwreck (Jan 5 - Jan 11)
+### Week 2: Shipwreck (Jan 5 - Jan 11)
 
-| Day        | Task                        | Files                                                  |
-| ---------- | --------------------------- | ------------------------------------------------------ |
-| **Jan 5**  | Backend fog session + API   | `FogController`, `fog_sessions` migration              |
-| **Jan 6**  | Fog delegation + job        | `fog_delegations` migration, `ProcessFogPayment` job   |
-| **Jan 7**  | Frontend scheduled payments | `schedulePayment`, `listScheduledPayments` in hook     |
-| **Jan 8**  | Shipwreck report structure  | `use-shipwreck.ts` (generate)                          |
-| **Jan 9**  | Derivation proofs + signing | On-chain verification, attestation                     |
-| **Jan 10** | Shipwreck UI + JSON export  | `ShipwreckWizard`, `ReportPreview`, `ReportExport.tsx` |
-| **Jan 11** | Integration testing         | Full fog → schedule → shipwreck flow                   |
+| Day        | Task                       | Files                                                  |
+| ---------- | -------------------------- | ------------------------------------------------------ |
+| **Jan 5**  | Shipwreck report structure | `use-shipwreck.ts` (generate)                          |
+| **Jan 6**  | Attestation + signing      | Cryptographic proof of ownership                       |
+| **Jan 7**  | Shipwreck UI + JSON export | `ShipwreckWizard`, `ReportPreview`, `ReportExport.tsx` |
+| **Jan 8**  | Integration testing        | Full pool → withdraw → shipwreck flow                  |
+| **Jan 9**  | Bug fixes, error handling  |                                                        |
+| **Jan 10** | UX polish, loading states  |                                                        |
+| **Jan 11** | Buffer                     |                                                        |
 
 ### Week 3: Polish + Submission (Jan 12 - Jan 15)
 
@@ -663,7 +609,14 @@ interface UseShipwreckReturn {
 
 ---
 
-## Backend Implementation Details (Scheduled Payments)
+## ~~Backend Implementation Details (Scheduled Payments)~~ - DEPRECATED
+
+> ⚠️ **DEPRECATED:** This section describes the old "fog wallet" scheduled payments backend implementation.
+> The Privacy Pool architecture uses client-side ZK proofs instead - no backend execution needed.
+> See the Privacy Pool section above for the current implementation.
+
+<details>
+<summary>Archived backend fog implementation (click to expand)</summary>
 
 ### FogController
 
@@ -989,39 +942,28 @@ openssl ec -in fog_private.pem -pubout -out fog_public.pem
 openssl ec -in fog_private.pem -text -noout
 ```
 
+</details>
+
 ---
 
 ## Testing Checklist
 
-### Fog Mode (Client-Side)
+### Privacy Pool (Client-Side)
 
-- [ ] `deriveFogKeys` produces different keys than `derivePortKeys` for same index
-- [ ] Create fog wallet (client-side derivation)
-- [ ] Fund fog wallet from main wallet
-- [ ] Encrypt/decrypt localStorage with session key (AES-GCM)
-- [ ] Per-wallet IV prevents ciphertext comparison
-- [ ] Instant payment from fog reserve
-- [ ] Recovery scan finds fog wallets with balance
+- [ ] Deposit from Port creates commitment in Merkle tree
+- [ ] Note encrypted in localStorage with session key (AES-GCM)
+- [ ] Per-note IV prevents ciphertext comparison
+- [ ] ZK proof generation works in browser
+- [ ] Withdraw sends funds directly to recipient
+- [ ] Double-spend (same nullifier) fails on-chain
+- [ ] Recovery scan finds unspent deposits
 - [ ] Session lock clears key from memory
 - [ ] Mainnet (5000) only - no testnet
 
-### Scheduled Payments (Backend)
-
-- [ ] Create fog session (upload encrypted keys to backend)
-- [ ] Create delegation with time bounds
-- [ ] Funding validation before execution (fog wallet has balance)
-- [ ] Backend executes payment at sendAt time
-- [ ] Delegation expires if not executed by expiresAt
-- [ ] Cancel pending delegation
-- [ ] User signature verification before execution
-- [ ] SSE notification on payment execution
-- [ ] Audit logging of all delegation operations
-- [ ] Session expiry cascades to pending delegations
-
 ### Shipwreck
 
-- [ ] Select fog wallets for report
-- [ ] Generate derivation proofs (match on-chain)
+- [ ] Select pool notes for report
+- [ ] Link deposits to withdrawals
 - [ ] Sign attestation
 - [ ] Export JSON (with proper formatting)
 - [ ] Verify report (independent verification)
@@ -1031,14 +973,13 @@ openssl ec -in fog_private.pem -text -noout
 
 ## Success Metrics for Hackathon
 
-| Feature            | Demo-Ready Criteria                                      |
-| ------------------ | -------------------------------------------------------- |
-| Fog Reserve        | User can fund 3 fog wallets, pay from one                |
-| Scheduled Payments | User can schedule a payment for future execution         |
-| Fog Recovery       | User can recover fog wallets after clearing localStorage |
-| Shipwreck          | Generate and verify a compliance report (JSON)           |
-| UX                 | Clear flow, no confusing errors                          |
-| Security           | Encryption works, no keys stored, signatures verify      |
+| Feature       | Demo-Ready Criteria                                 |
+| ------------- | --------------------------------------------------- |
+| Privacy Pool  | User can deposit to pool, withdraw with ZK proof    |
+| Note Recovery | User can recover notes after clearing localStorage  |
+| Shipwreck     | Generate and verify a compliance report (JSON)      |
+| UX            | Clear flow, no confusing errors                     |
+| Security      | Encryption works, no keys stored, signatures verify |
 
 ---
 
@@ -1046,10 +987,10 @@ openssl ec -in fog_private.pem -text -noout
 
 | Risk                 | Mitigation                                        |
 | -------------------- | ------------------------------------------------- |
-| localStorage cleared | Recovery flow scans chain for fog wallet balances |
+| localStorage cleared | Recovery flow scans chain for Pool deposit events |
 | Session key lost     | User re-signs to derive new key, same result      |
 | RPC provider down    | Fallback to public Mantle RPC                     |
-| Gas insufficient     | UI warns if fog wallet balance < 0.01 MNT         |
+| Note lost            | Backup/export notes to file, scan chain events    |
 
 ---
 
@@ -1058,18 +999,34 @@ openssl ec -in fog_private.pem -text -noout
 ### Near-term (P1)
 
 1. **PDF export for Shipwreck** - Professional compliance reports
+2. **ENS/DNS Integration** - Human-readable payment addresses
+   - `fkey.eth`-style subdomain system (like Fluidkey)
+   - `alice.galeon.eth` → resolves to Port stealth meta-address
+   - EIP-3668 (CCIP-Read) for off-chain resolution
+   - Lower barrier to entry for non-crypto users
+3. **Gas Sponsorship (ERC-4337 Paymaster)** - Zero-friction onboarding
+   - Sponsor first N transactions for new users
+   - Paymaster pays gas, deducts from payment amount
+   - Eliminates "need MNT for gas" friction
+   - Critical for mainstream adoption
 
 ### Medium-term (P2)
 
-3. **Multi-chain fog wallets** - Bridge funds through different L2s
-4. **ERC-4337 paymaster** - Gas sponsorship for fog wallets
-5. **Hardware wallet support** - Ledger/Trezor for signing
-6. **Payment requests** - Invoicing and recurring payments
+4. **Multiple ASP Support** - Decentralized compliance
+   - Allow users to choose between multiple Association Set Providers
+   - Different ASPs may have different compliance standards
+   - User selects ASP based on jurisdiction/requirements
+   - Prevents single point of censorship
+   - ASP marketplace with reputation scoring
+5. **Multi-chain Privacy Pool** - Bridge funds through different L2s
+6. **Hardware wallet support** - Ledger/Trezor for signing
+7. **Payment requests** - Invoicing and recurring payments
 
 ### Long-term (P3)
 
-7. **Institutional features** - Multi-sig fog wallets, approval workflows
-8. **Privacy metrics** - Show anonymity set size, timing recommendations
-9. **Fog wallet rotation** - Automatic re-funding of depleted wallets
+8. **Institutional features** - Multi-sig pool management, approval workflows
+9. **Privacy metrics** - Show anonymity set size, timing recommendations
+10. **Pool auto-rotation** - Automatic re-deposits for long-term privacy
+11. **Cross-chain stealth addresses** - Same meta-address works across chains
 
 > **Note:** ERC-20 token support is already implemented at the contract level (`GaleonRegistry.payToken()`) with USDT, USDC, and USDe configured. The UI integration for token payments is a future enhancement.

@@ -26,7 +26,7 @@ const CONTRACTS = {
 
 - Ponder indexes blockchain events
 - Backend stores port viewing keys (encrypted) + links events to users
-- **Backend fog sessions + scheduled payments (fog delegation)**
+- **Privacy Pool deposits tracked** (Port → Pool flow)
 - Shipwreck reports are **client-generated** (JSON export)
 - Collection recording is **client-reported** (optional backend tracking)
 
@@ -35,43 +35,26 @@ const CONTRACTS = {
 - Backend-generated Shipwreck reports
 - PDF export (MVP is JSON only)
 
+> **Note:** The original "fog wallet" scheduled payments design has been replaced with the Privacy Pool architecture. See [FOG-SHIPWRECK-PLAN.md](./FOG-SHIPWRECK-PLAN.md) for the current approach using ZK proofs instead of backend-executed payments.
+
 ### Core Principles
 
 1. **Ponder is public** - Anyone can query indexed blockchain events
 2. **Backend is private** - Links events to users, stores **port** viewing keys, handles sessions
 3. **Direct DB access** - Backend connects directly to Ponder's Postgres database (no webhooks)
 4. **Session-based keys** - Port viewing keys encrypted with session-derived key
-5. **Fog delegation is opt-in custody** - When users delegate fog keys to backend, they grant temporary custody for scheduled payments (see Trust Model below)
+5. **Pool-based privacy** - Privacy Pool uses ZK proofs for sender privacy (no backend custody)
 
-### Trust Model for Fog Delegation
+### Trust Model
 
-> **⚠️ Important:** Scheduled payments require the backend to hold encrypted fog keys temporarily. This is an explicit trade-off for convenience.
+| Component               | Trust Level  | Notes                               |
+| ----------------------- | ------------ | ----------------------------------- |
+| Port operations         | Self-custody | Keys never leave browser            |
+| Privacy Pool deposit    | Self-custody | User signs transaction directly     |
+| Privacy Pool withdrawal | Self-custody | ZK proof generated in browser       |
+| Backend (Ponder sync)   | Read-only    | Only indexes public blockchain data |
 
-| Component                 | Trust Level       | Notes                            |
-| ------------------------- | ----------------- | -------------------------------- |
-| Client-side fog (instant) | Self-custody      | Keys never leave browser         |
-| Backend fog session       | Temporary custody | Encrypted keys held until expiry |
-| Delegation execution      | Backend executes  | User pre-signs authorization     |
-
-**Safeguards:**
-
-- **Time-bound**: Fog sessions expire (default: 7 days, max: 30 days)
-- **Per-delegation limits**: Max amount per delegation (configurable, e.g., 100 MNT)
-- **Revocation**: Users can cancel delegations or end sessions at any time
-- **Audit logging**: All delegation operations logged for compliance
-- **Separate signing key**: ProcessFogPayment job uses dedicated key, not main backend key
-- **Opt-in only**: UI clearly shows "Backend will hold your fog keys temporarily"
-
-**User consent flow:**
-
-```
-1. User clicks "Schedule Payment"
-2. UI shows: "This will share your fog wallet keys with Galeon's backend
-   for 7 days. The backend will execute your payment at the scheduled time.
-   You can cancel anytime before execution."
-3. User signs consent message
-4. Keys encrypted to backend's public key and uploaded
-```
+> **Privacy Pool vs Old Fog Design:** The old "fog wallet" approach required backend custody for scheduled payments. The new Privacy Pool architecture keeps all keys client-side - the backend only indexes public events for UI convenience.
 
 ---
 
@@ -109,7 +92,7 @@ const CONTRACTS = {
 │  PostgreSQL Database (separate)                                             │
 │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌─────────────┐  │
 │  │ users         │  │ ports         │  │ receipts      │  │ sessions    │  │
-│  │ (wallet auth) │  │ (user-linked) │  │ (enriched)    │  │ (fog keys)  │  │
+│  │ (wallet auth) │  │ (user-linked) │  │ (enriched)    │  │ (auth)      │  │
 │  └───────────────┘  └───────────────┘  └───────────────┘  └─────────────┘  │
 │                                                                             │
 │  REST API (authenticated)                                                   │
@@ -121,7 +104,7 @@ const CONTRACTS = {
 │                           FRONTEND (Next.js)                                │
 │  - Collection: scans payments using viewing key                             │
 │  - Payment: generates stealth addresses, signs transactions                 │
-│  - Session: derives fog keys from wallet signature                          │
+│  - Pool: deposits to Privacy Pool, generates ZK proofs for withdrawal       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -292,7 +275,7 @@ Backend stores user-linked data and enriched receipts.
 ```typescript
 // apps/api/database/migrations/*_users.ts (existing table)
 // Already has: id, wallet_address, created_at, updated_at
-// Note: Fog keys are NOT stored in backend for MVP - they stay client-side in encrypted localStorage
+// Note: All keys stay client-side - backend only indexes public blockchain data
 
 // Note: JWT refresh tokens already stored in jwt_refresh_tokens table via AdonisJS auth
 
@@ -343,7 +326,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary()
       table.uuid('port_id').nullable().references('ports.id').onDelete('SET NULL')
       table.uuid('collection_id').nullable().references('collections.id').onDelete('SET NULL')
-      table.integer('user_id').nullable().references('users.id').onDelete('SET NULL') // For fog payments
+      table.integer('user_id').nullable().references('users.id').onDelete('SET NULL') // For pool withdrawals
 
       // Chain data (from Ponder)
       table.string('receipt_hash').notNullable().unique() // bytes32 from ReceiptAnchored
@@ -360,7 +343,7 @@ export default class extends BaseSchema {
 
       // User metadata (not on chain)
       table.text('memo').nullable() // Decrypted memo if available
-      table.boolean('is_fog_payment').defaultTo(false) // Fog mode indicator
+      table.boolean('is_pool_withdrawal').defaultTo(false) // Privacy Pool withdrawal indicator
 
       // Status
       table.enum('status', ['pending', 'confirmed', 'collected']).defaultTo('pending')
@@ -527,7 +510,12 @@ async verify({ request, response, auth }: HttpContext) {
 }
 ```
 
-### Fog Keys Storage (Scheduled Payments - MVP)
+### ~~Fog Keys Storage (Scheduled Payments)~~ - DEPRECATED
+
+> ⚠️ **DEPRECATED:** This section describes the old "fog wallet" scheduled payments design which has been replaced by the Privacy Pool architecture. The backend no longer stores or executes fog payments. See [FOG-SHIPWRECK-PLAN.md](./FOG-SHIPWRECK-PLAN.md) for the current ZK-based approach.
+
+<details>
+<summary>Archived fog payments design (click to expand)</summary>
 
 Backend fog key storage enables **scheduled payments**. Each scheduled payment gets its own isolated fog session with encrypted keys specific to that payment.
 
@@ -703,6 +691,8 @@ async validateFunding(fogPayment: FogPayment): Promise<{ valid: boolean; reason?
 - `expired` - Passed `expiresAt` without execution
 - `cancelled` - User cancelled before execution
 
+</details>
+
 ### Viewing Key Encryption (Frontend)
 
 ```typescript
@@ -774,36 +764,30 @@ async function decryptViewingKey(
 
 ---
 
-## Fog Payment Identification
+## Pool Withdrawal Identification
 
-Backend tracks fog payments for scheduled payment execution and Shipwreck reports.
+Backend tracks Privacy Pool withdrawals for Shipwreck compliance reports.
 
 ### On-Chain Identification
 
 ```solidity
-// In metadata (after viewTag):
-// - receiptHash (32 bytes)
-// - For fog payments: payer == fog wallet address (not user's main wallet)
+// Pool withdrawals emit events from the PrivacyPool contract
+// The nullifier hash is public (prevents double-spend)
+// The recipient stealth address is visible
+// But the link to the deposit is cryptographically hidden (ZK proof)
 ```
 
 ### Backend Identification
 
 ```typescript
-// When processing fog payments, the fog wallet address is known
-// We track which addresses are fog wallets via the fog_payments table
+// Privacy Pool withdrawals are identified by the contract address
+// Backend indexes PrivacyPool.Withdrawal events from Ponder
 
-// Check if a payer address is a fog wallet
-async function isFogPayment(payerAddress: string): Promise<{ isFog: boolean; userId?: number }> {
-  const fogPayment = await FogPayment.query()
-    .where('fogAddress', payerAddress.toLowerCase())
-    .where('status', 'executed')
-    .first()
-
-  if (fogPayment) {
-    return { isFog: true, userId: fogPayment.userId }
-  }
-
-  return { isFog: false }
+// Check if a payment came from Privacy Pool
+async function isPoolWithdrawal(txHash: string): Promise<boolean> {
+  // Check if tx interacted with PrivacyPool contract
+  const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` })
+  return receipt.to?.toLowerCase() === PRIVACY_POOL_ADDRESS.toLowerCase()
 }
 ```
 
@@ -811,12 +795,12 @@ async function isFogPayment(payerAddress: string): Promise<{ isFog: boolean; use
 
 ```typescript
 // Backend: When creating receipt from Ponder sync
-const fogInfo = await isFogPayment(announcement.caller)
+const isPoolWithdrawal = await isPoolWithdrawal(announcement.transactionHash)
 
 const receipt = await Receipt.create({
   // ... other fields
-  isFogPayment: fogInfo.isFog,
-  userId: fogInfo.userId, // Link fog payment to user who scheduled it
+  isPoolWithdrawal,
+  // Note: For pool withdrawals, we don't know the original depositor (by design)
 })
 ```
 
@@ -825,7 +809,6 @@ const receipt = await Receipt.create({
 ## Receipt Hash Schema Alignment
 
 > **CRITICAL:** The receipt hash computation must be consistent across all implementations.
-> See [PRIVATE-SEND-SPEC.md](PRIVATE-SEND-SPEC.md) for the authoritative schema.
 
 ### Receipt Hash Computation
 
@@ -835,12 +818,12 @@ import { keccak256, encodePacked } from 'viem'
 function computeReceiptHash(
   memo: string,
   amount: bigint, // in wei
-  portId?: `0x${string}` // Optional but recommended for Fog mode
+  portId?: `0x${string}` // Optional but recommended
 ): `0x${string}` {
   const memoOrDefault = memo || 'Galeon Payment'
 
   if (portId) {
-    // With portId (recommended for Fog mode payments)
+    // With portId (recommended)
     return keccak256(
       encodePacked(['string', 'uint256', 'bytes32'], [memoOrDefault, amount, portId])
     )
@@ -1082,7 +1065,12 @@ POST   /api/v1/auth/refresh       Refresh access token
 POST   /api/v1/auth/logout        End session
 ```
 
-### Fog (Scheduled Payments)
+### ~~Fog (Scheduled Payments)~~ - DEPRECATED
+
+> ⚠️ **DEPRECATED:** Fog payment endpoints have been removed. Use Privacy Pool for sender privacy instead.
+
+<details>
+<summary>Archived fog endpoints (click to expand)</summary>
 
 ```
 GET    /api/v1/fog/public-key          Get backend's encryption public key
@@ -1198,6 +1186,8 @@ async clearEncryptedKeys(fogPayment: FogPayment) {
 - Keys are cleared immediately after execution (win or lose)
 - Ponder will later index the resulting Announcement event (independent verification)
 
+</details>
+
 ---
 
 ## Privacy Considerations
@@ -1218,15 +1208,14 @@ async clearEncryptedKeys(fogPayment: FogPayment) {
 - Viewing keys (encrypted with session key)
 - Port names and metadata
 - Memo contents (if decrypted)
-- Fog wallet associations
 - Collection history
 
 ### Privacy Techniques
 
 1. **Viewing Key Encryption**: Only frontend can decrypt (session key derived from wallet signature)
-2. **Session-Linked Fog Keys**: Fog payments linked to session, not directly to user
-3. **No On-Chain User IDs**: Ports identified by bytes32, not user addresses
-4. **Stealth Addresses**: Recipients invisible on-chain
+2. **No On-Chain User IDs**: Ports identified by bytes32, not user addresses
+3. **Stealth Addresses**: Recipients invisible on-chain
+4. **Privacy Pool**: ZK proofs break deposit-withdrawal links (client-side only)
 
 ---
 
@@ -1240,7 +1229,7 @@ Shipwreck provides compliance reports with cryptographic proofs. Backend data en
 | ------------------ | ----------------------------------------- | -------------------------------- |
 | Payment receipts   | `receipts` table                          | Proof of payments received       |
 | Collection history | `collections` table                       | Proof of fund movement           |
-| Fog payments       | `receipts.is_fog_payment`                 | Identify sender-private payments |
+| Pool withdrawals   | `receipts.is_pool_withdrawal`             | Identify sender-private payments |
 | Port ownership     | `ports` table                             | Link receipts to vendor          |
 | Tx hashes          | `receipts.tx_hash`, `collections.tx_hash` | On-chain verification            |
 
@@ -1273,7 +1262,7 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
           .reduce((sum, c) => sum + BigInt(c.totalAmount), 0n).toString(),
         receiptCount: receipts.length,
         collectionCount: collections.length,
-        fogPaymentCount: receipts.filter(r => r.isFogPayment).length,
+        poolWithdrawalCount: receipts.filter(r => r.isPoolWithdrawal).length,
       },
       receipts: receipts.map(r => ({
         receiptHash: r.receiptHash,
@@ -1282,7 +1271,7 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
         txHash: r.txHash,
         blockNumber: r.blockNumber,
         status: r.status,
-        isFogPayment: r.isFogPayment,
+        isPoolWithdrawal: r.isPoolWithdrawal,
         collectedAt: r.collectedAt,
         collectionTxHash: r.collection?.txHash,
       })),
@@ -1310,15 +1299,11 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
 - [ ] Sync job for new receipts
 - [ ] Match receipts to ports
 
-### Phase 2: Fog Payments (Scheduled Payments)
+### Phase 2: Pool Events Indexing
 
-- [ ] `fog_payments` table migration
-- [ ] FogPayment model
-- [ ] FogController with CRUD endpoints
-- [ ] ProcessFogPayment job (queued execution)
-- [ ] CryptoService for key encryption/decryption
-- [ ] RelayerService for payment execution
-- [ ] Fog payment identification in sync
+- [ ] Add PrivacyPool events to Ponder schema (Deposit, Withdrawal)
+- [ ] Index pool deposits and withdrawals
+- [ ] Track pool withdrawal flag on receipts (`is_pool_withdrawal`)
 
 ### Phase 3: Collection Recording
 
@@ -1330,11 +1315,11 @@ async shipwreckReport({ request, response, auth }: HttpContext) {
 
 - [ ] SSE setup with Transmit
 - [ ] Payment notification on new receipt
-- [ ] Fog payment execution notification
+- [ ] Pool deposit/withdrawal notifications
 - [ ] Active session check before notify
 
-### Phase 5: Shipwreck Data (Optional Backend)
+### Phase 5: Shipwreck Data
 
 - [ ] Shipwreck data endpoint (receipts + collections for date range)
-- [ ] Include fog payment metadata
+- [ ] Include pool withdrawal metadata
 - [ ] Client-generated reports use this data

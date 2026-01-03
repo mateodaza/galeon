@@ -1,3 +1,11 @@
+/**
+ * @deprecated This migration is deprecated. Fog wallets have been replaced by Privacy Pool.
+ * See docs/FOG-SHIPWRECK-PLAN.md for the current ZK-based architecture.
+ *
+ * This migration is kept but should NOT be run in new deployments.
+ * The fog_payments table is no longer used.
+ */
+
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {

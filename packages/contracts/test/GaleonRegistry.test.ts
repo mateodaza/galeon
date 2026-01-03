@@ -199,12 +199,17 @@ describe('GaleonRegistry', function () {
     describe('payNative()', function () {
       const paymentAmount = ethers.parseEther('1.0')
 
+      beforeEach(async function () {
+        // Register a port before making payments (required now)
+        await galeon.connect(vendor).registerPort(portId, portName, stealthMetaAddress)
+      })
+
       it('Should transfer native currency to stealth address', async function () {
         const stealthBalanceBefore = await ethers.provider.getBalance(stealthAddress)
 
         await galeon
           .connect(payer)
-          .payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+          .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
             value: paymentAmount,
           })
 
@@ -212,29 +217,49 @@ describe('GaleonRegistry', function () {
         expect(stealthBalanceAfter - stealthBalanceBefore).to.equal(paymentAmount)
       })
 
-      it('Should emit Announcement event with payer as caller (not registry)', async function () {
-        const expectedMetadata = viewTag + receiptHash.slice(2)
+      it('Should mark stealth address as valid for Privacy Pool', async function () {
+        expect(await galeon.isPortStealthAddress(stealthAddress)).to.be.false
 
-        // Critical fix: announceFor now attributes the actual payer, not GaleonRegistry
-        await expect(
-          galeon.connect(payer).payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+        await galeon
+          .connect(payer)
+          .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
             value: paymentAmount,
           })
+
+        expect(await galeon.isPortStealthAddress(stealthAddress)).to.be.true
+      })
+
+      it('Should track which Port received the payment', async function () {
+        expect(await galeon.stealthAddressToPort(stealthAddress)).to.equal(ethers.ZeroHash)
+
+        await galeon
+          .connect(payer)
+          .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+            value: paymentAmount,
+          })
+
+        expect(await galeon.stealthAddressToPort(stealthAddress)).to.equal(portId)
+      })
+
+      it('Should emit Announcement event with payer as caller and portId in metadata', async function () {
+        // Metadata format: viewTag (1) + receiptHash (32) + portId (32)
+        const expectedMetadata = viewTag + receiptHash.slice(2) + portId.slice(2)
+
+        await expect(
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+              value: paymentAmount,
+            })
         )
           .to.emit(announcer, 'Announcement')
-          .withArgs(
-            SCHEME_ID,
-            stealthAddress,
-            payer.address, // Now correctly attributed to payer
-            ephemeralPubKey,
-            expectedMetadata
-          )
+          .withArgs(SCHEME_ID, stealthAddress, payer.address, ephemeralPubKey, expectedMetadata)
       })
 
       it('Should emit ReceiptAnchored event', async function () {
         const tx = await galeon
           .connect(payer)
-          .payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+          .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
             value: paymentAmount,
           })
         const receipt = await tx.wait()
@@ -250,11 +275,37 @@ describe('GaleonRegistry', function () {
         )
       })
 
+      it('Should reject inactive Port', async function () {
+        await galeon.connect(vendor).deactivatePort(portId)
+
+        await expect(
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+              value: paymentAmount,
+            })
+        ).to.be.revertedWith('Port not active')
+      })
+
+      it('Should reject non-existent Port', async function () {
+        const unknownPortId = ethers.keccak256(ethers.toUtf8Bytes('unknown-port'))
+
+        await expect(
+          galeon
+            .connect(payer)
+            .payNative(unknownPortId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+              value: paymentAmount,
+            })
+        ).to.be.revertedWith('Port not active')
+      })
+
       it('Should reject zero value', async function () {
         await expect(
-          galeon.connect(payer).payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
-            value: 0,
-          })
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+              value: 0,
+            })
         ).to.be.revertedWith('No value sent')
       })
 
@@ -262,7 +313,7 @@ describe('GaleonRegistry', function () {
         await expect(
           galeon
             .connect(payer)
-            .payNative(ethers.ZeroAddress, ephemeralPubKey, viewTag, receiptHash, {
+            .payNative(portId, ethers.ZeroAddress, ephemeralPubKey, viewTag, receiptHash, {
               value: paymentAmount,
             })
         ).to.be.revertedWith('Invalid stealth address')
@@ -274,7 +325,7 @@ describe('GaleonRegistry', function () {
         await expect(
           galeon
             .connect(payer)
-            .payNative(stealthAddress, invalidEphemeralKey, viewTag, receiptHash, {
+            .payNative(portId, stealthAddress, invalidEphemeralKey, viewTag, receiptHash, {
               value: paymentAmount,
             })
         ).to.be.revertedWith('Invalid ephemeral key length')
@@ -286,9 +337,11 @@ describe('GaleonRegistry', function () {
           '0x04' + '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 
         await expect(
-          galeon.connect(payer).payNative(stealthAddress, invalidPrefixKey, viewTag, receiptHash, {
-            value: paymentAmount,
-          })
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, invalidPrefixKey, viewTag, receiptHash, {
+              value: paymentAmount,
+            })
         ).to.be.revertedWith('Invalid pubkey prefix')
       })
 
@@ -298,28 +351,35 @@ describe('GaleonRegistry', function () {
           '0x03' + '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 
         await expect(
-          galeon.connect(payer).payNative(stealthAddress, validPrefixKey, viewTag, receiptHash, {
-            value: paymentAmount,
-          })
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, validPrefixKey, viewTag, receiptHash, {
+              value: paymentAmount,
+            })
         ).to.not.be.reverted
       })
 
       it('Should work with different payment amounts', async function () {
         const smallPayment = ethers.parseEther('0.001')
         const largePayment = ethers.parseEther('100')
+        const stealthAddress2 = '0x2234567890123456789012345678901234567890'
 
         // Small payment
         await expect(
-          galeon.connect(payer).payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
-            value: smallPayment,
-          })
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+              value: smallPayment,
+            })
         ).to.not.be.reverted
 
-        // Large payment
+        // Large payment (to different address to avoid overwriting)
         await expect(
-          galeon.connect(payer).payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
-            value: largePayment,
-          })
+          galeon
+            .connect(payer)
+            .payNative(portId, stealthAddress2, ephemeralPubKey, viewTag, receiptHash, {
+              value: largePayment,
+            })
         ).to.not.be.reverted
       })
     })
@@ -330,6 +390,9 @@ describe('GaleonRegistry', function () {
       const tokenAmount = 1000000n // 1 USDT (6 decimals)
 
       beforeEach(async function () {
+        // Register a port before making payments (required now)
+        await galeon.connect(vendor).registerPort(portId, portName, stealthMetaAddress)
+
         // Mint tokens to payer
         await mockToken.mint(payer.address, tokenAmount * 10n)
 
@@ -343,6 +406,7 @@ describe('GaleonRegistry', function () {
         await galeon
           .connect(payer)
           .payToken(
+            portId,
             await mockToken.getAddress(),
             stealthAddress,
             tokenAmount,
@@ -355,13 +419,49 @@ describe('GaleonRegistry', function () {
         expect(stealthBalanceAfter - stealthBalanceBefore).to.equal(tokenAmount)
       })
 
+      it('Should mark stealth address as valid for Privacy Pool', async function () {
+        expect(await galeon.isPortStealthAddress(stealthAddress)).to.be.false
+
+        await galeon
+          .connect(payer)
+          .payToken(
+            portId,
+            await mockToken.getAddress(),
+            stealthAddress,
+            tokenAmount,
+            ephemeralPubKey,
+            viewTag,
+            receiptHash
+          )
+
+        expect(await galeon.isPortStealthAddress(stealthAddress)).to.be.true
+      })
+
+      it('Should track which Port received the payment', async function () {
+        expect(await galeon.stealthAddressToPort(stealthAddress)).to.equal(ethers.ZeroHash)
+
+        await galeon
+          .connect(payer)
+          .payToken(
+            portId,
+            await mockToken.getAddress(),
+            stealthAddress,
+            tokenAmount,
+            ephemeralPubKey,
+            viewTag,
+            receiptHash
+          )
+
+        expect(await galeon.stealthAddressToPort(stealthAddress)).to.equal(portId)
+      })
+
       it('Should emit Announcement event with token info in metadata', async function () {
         const tokenAddress = await mockToken.getAddress()
 
-        // Metadata format: viewTag (1) + receiptHash (32) + token (20) + amount (32)
         const tx = await galeon
           .connect(payer)
           .payToken(
+            portId,
             tokenAddress,
             stealthAddress,
             tokenAmount,
@@ -380,6 +480,7 @@ describe('GaleonRegistry', function () {
         const tx = await galeon
           .connect(payer)
           .payToken(
+            portId,
             tokenAddress,
             stealthAddress,
             tokenAmount,
@@ -402,11 +503,30 @@ describe('GaleonRegistry', function () {
           )
       })
 
+      it('Should reject inactive Port', async function () {
+        await galeon.connect(vendor).deactivatePort(portId)
+
+        await expect(
+          galeon
+            .connect(payer)
+            .payToken(
+              portId,
+              await mockToken.getAddress(),
+              stealthAddress,
+              tokenAmount,
+              ephemeralPubKey,
+              viewTag,
+              receiptHash
+            )
+        ).to.be.revertedWith('Port not active')
+      })
+
       it('Should reject zero amount', async function () {
         await expect(
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               stealthAddress,
               0,
@@ -422,6 +542,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               ethers.ZeroAddress,
               tokenAmount,
@@ -437,6 +558,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               ethers.ZeroAddress,
               stealthAddress,
               tokenAmount,
@@ -454,6 +576,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               stealthAddress,
               tokenAmount,
@@ -472,6 +595,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               stealthAddress,
               tokenAmount,
@@ -489,6 +613,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               stealthAddress,
               hugeAmount,
@@ -507,6 +632,7 @@ describe('GaleonRegistry', function () {
           galeon
             .connect(payer)
             .payToken(
+              portId,
               await mockToken.getAddress(),
               stealthAddress,
               tokenAmount,
@@ -521,14 +647,19 @@ describe('GaleonRegistry', function () {
 
   describe('Reentrancy Protection', function () {
     it('payNative should be protected by nonReentrant', async function () {
+      // Register port first
+      await galeon.connect(vendor).registerPort(portId, portName, stealthMetaAddress)
+
       // The nonReentrant modifier is applied, so reentrancy attacks should fail
       // This is a basic smoke test - comprehensive reentrancy testing would need a malicious contract
       const paymentAmount = ethers.parseEther('1.0')
 
       await expect(
-        galeon.connect(payer).payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
-          value: paymentAmount,
-        })
+        galeon
+          .connect(payer)
+          .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+            value: paymentAmount,
+          })
       ).to.not.be.reverted
     })
   })
@@ -543,18 +674,24 @@ describe('GaleonRegistry', function () {
     })
 
     it('Should have reasonable gas for native payment', async function () {
+      // Register port first
+      await galeon.connect(vendor).registerPort(portId, portName, stealthMetaAddress)
+
       const tx = await galeon
         .connect(payer)
-        .payNative(stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
+        .payNative(portId, stealthAddress, ephemeralPubKey, viewTag, receiptHash, {
           value: ethers.parseEther('1.0'),
         })
       const receipt = await tx.wait()
 
-      // Native payment should cost less than 150k gas
-      expect(receipt?.gasUsed).to.be.lessThan(150000n)
+      // Native payment should cost less than 200k gas (added storage writes for portId tracking)
+      expect(receipt?.gasUsed).to.be.lessThan(200000n)
     })
 
     it('Should have reasonable gas for token payment', async function () {
+      // Register port first
+      await galeon.connect(vendor).registerPort(portId, portName, stealthMetaAddress)
+
       // Setup
       await mockToken.mint(payer.address, 1000000n)
       await mockToken.connect(payer).approve(await galeon.getAddress(), 1000000n)
@@ -562,6 +699,7 @@ describe('GaleonRegistry', function () {
       const tx = await galeon
         .connect(payer)
         .payToken(
+          portId,
           await mockToken.getAddress(),
           stealthAddress,
           1000000n,
@@ -571,8 +709,8 @@ describe('GaleonRegistry', function () {
         )
       const receipt = await tx.wait()
 
-      // Token payment should cost less than 200k gas
-      expect(receipt?.gasUsed).to.be.lessThan(200000n)
+      // Token payment should cost less than 250k gas (added storage writes for portId tracking)
+      expect(receipt?.gasUsed).to.be.lessThan(250000n)
     })
   })
 })
