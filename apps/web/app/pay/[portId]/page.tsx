@@ -57,7 +57,7 @@ export default function PayPage({ params }: PayPageProps) {
     setPaymentError(null)
 
     try {
-      await payNative(metaAddress, amount, memo)
+      await payNative(metaAddress, amount, memo, portId as `0x${string}`)
     } catch (error) {
       console.error('Payment failed:', error)
       setPaymentError(error instanceof Error ? error.message : 'Payment failed')
