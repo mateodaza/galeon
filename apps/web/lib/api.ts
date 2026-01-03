@@ -372,3 +372,98 @@ export const portsApi = {
 
   delete: (id: string) => api.delete<{ message: string }>(`/api/v1/ports/${id}`),
 }
+
+// ============================================================
+// Announcement Types (from Ponder indexer via backend)
+// ============================================================
+
+export interface AnnouncementResponse {
+  id: string
+  schemeId: string
+  stealthAddress: string
+  caller: string
+  ephemeralPubKey: string
+  metadata: string
+  viewTag: number
+  receiptHash: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Announcements API (public - no auth required)
+// ============================================================
+
+export interface AnnouncementsListResponse {
+  data: AnnouncementResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+export const announcementsApi = {
+  /**
+   * Fetch a single page of announcements from the backend.
+   * @param params - Optional filters and pagination (viewTag, stealthAddress, chainId, limit, offset)
+   */
+  listPage: async (params?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<AnnouncementsListResponse> => {
+    const query = new URLSearchParams()
+    if (params?.viewTag !== undefined) query.set('viewTag', String(params.viewTag))
+    if (params?.stealthAddress) query.set('stealthAddress', params.stealthAddress)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.offset) query.set('offset', String(params.offset))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/announcements${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Announcements API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Fetch all announcements by paginating through all pages.
+   * @param params - Optional filters (viewTag, stealthAddress, chainId)
+   * @param pageSize - Results per page (default 500, max 1000)
+   */
+  list: async (params?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number // kept for backward compat, now pageSize
+  }): Promise<AnnouncementResponse[]> => {
+    const pageSize = Math.min(params?.limit ?? 500, 1000)
+    const allAnnouncements: AnnouncementResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await announcementsApi.listPage({
+        viewTag: params?.viewTag,
+        stealthAddress: params?.stealthAddress,
+        chainId: params?.chainId,
+        limit: pageSize,
+        offset,
+      })
+
+      allAnnouncements.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allAnnouncements
+  },
+}

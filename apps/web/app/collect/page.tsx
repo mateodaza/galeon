@@ -9,7 +9,7 @@
  */
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { isAddress } from 'viem'
 import { Loader2, ExternalLink, AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -35,9 +35,19 @@ export default function CollectPage() {
     collectTxHashes,
     scan,
     collectAll,
+    hasKeys,
   } = useCollection()
 
   const [useCustomRecipient, setUseCustomRecipient] = useState(false)
+  const hasScanned = useRef(false)
+
+  // Auto-scan on page load when keys are available
+  useEffect(() => {
+    if (hasKeys && !hasScanned.current && !isScanning) {
+      hasScanned.current = true
+      scan()
+    }
+  }, [hasKeys, isScanning, scan])
   const [customRecipient, setCustomRecipient] = useState('')
 
   const isValidRecipient = !useCustomRecipient || isAddress(customRecipient)
@@ -106,39 +116,19 @@ export default function CollectPage() {
     <AppShell requireAuth requireKeys>
       <PageHeader
         title="Collect Funds"
-        description="Scan your Ports for pending payments and withdraw to your wallet."
+        description="View pending payments and withdraw to your wallet."
       />
 
-      {/* Scan section */}
-      <Card className="mt-8">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-foreground text-lg font-semibold">Scan for Payments</h2>
-              <p className="text-muted-foreground text-sm">
-                Check all your Ports for uncollected payments
-              </p>
-            </div>
-            <Button variant="secondary" onClick={scan} disabled={isScanning}>
-              {isScanning ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                'Scan Now'
-              )}
-            </Button>
-          </div>
-
-          {/* Scan error */}
-          {scanError && (
-            <div className="bg-destructive/10 text-destructive mt-4 rounded-lg p-3 text-sm">
+      {/* Scan error */}
+      {scanError && (
+        <Card className="border-destructive/50 mt-8">
+          <CardContent className="pt-6">
+            <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
               {scanError}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results section */}
       <Card className="mt-6">
@@ -153,7 +143,7 @@ export default function CollectPage() {
                   <p>Scanning announcements...</p>
                 </div>
               ) : (
-                <p>No pending payments found. Click &quot;Scan Now&quot; to check.</p>
+                <p>No pending payments found.</p>
               )}
             </div>
           ) : payments.length === 0 && dustPayments.length > 0 ? (

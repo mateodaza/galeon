@@ -1,7 +1,7 @@
 # Galeon - Development Progress
 
 > Global tracker synced with app/package progress files.
-> Last updated: 2025-12-31
+> Last updated: 2026-01-03
 
 ## Current Phase: 2 - Frontend + Full Flow
 
@@ -52,18 +52,26 @@
 
 **Goal:** Production-ready for hackathon demo
 
-| Task            | Status      | Owner | Notes                                          |
-| --------------- | ----------- | ----- | ---------------------------------------------- |
-| Error handling  | Done        | -     | Network guard, graceful env handling           |
-| README          | Done        | -     | Root + frontend docs with contract addrs       |
-| Ponder indexer  | Done        | -     | Replace event scanning with indexed data       |
-| Backend API     | Done        | -     | SIWE auth, port sync, fog payments - 145 tests |
-| Receipt claim   | Pending     | -     | Frontend claim → API verify via Ponder         |
-| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                          |
-| Evidence bundle | Not Started | -     | Screenshots, video                             |
-| Submission      | Not Started | -     | Hackathon write-up                             |
+| Task            | Status      | Owner | Notes                                                 |
+| --------------- | ----------- | ----- | ----------------------------------------------------- |
+| Error handling  | Done        | -     | Network guard, graceful env handling                  |
+| README          | Done        | -     | Root + frontend docs with contract addrs              |
+| Ponder indexer  | Done        | -     | Replace event scanning with indexed data + pagination |
+| Backend API     | Done        | -     | SIWE auth, port sync, fog payments - 145 tests        |
+| Receipt claim   | Pending     | -     | Frontend claim → API verify via Ponder                |
+| Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                                 |
+| Evidence bundle | Not Started | -     | Screenshots, video                                    |
+| Submission      | Not Started | -     | Hackathon write-up                                    |
 
 **Deadline:** January 15, 2026
+
+---
+
+## Known Limitations / Future Improvements
+
+| Issue                      | Status      | Notes                                                                                                                                                                                                                                                               |
+| -------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Port labels are public** | Known Issue | Port names (e.g., "Freelance", "Donations") are stored on-chain and visible to anyone. To make them private, we'd need to store only a hash on-chain and keep the actual name encrypted in the backend/client. Users should be informed of this privacy limitation. |
 
 ---
 

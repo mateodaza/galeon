@@ -142,16 +142,16 @@ ponder.on('GaleonRegistry:StealthAddressFrozen', async ({ event, context }) => {
 let aspRootIndex = 0
 
 ponder.on('GaleonEntrypoint:RootUpdated', async ({ event, context }) => {
-  const { root, ipfsCID, timestamp } = event.args
+  const { _root, _ipfsCID, _timestamp } = event.args
 
   // Convert uint256 to hex string
-  const rootHex = `0x${root.toString(16).padStart(64, '0')}` as `0x${string}`
+  const rootHex = `0x${_root.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.aspRoots).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     root: rootHex,
-    ipfsCID,
-    timestamp,
+    ipfsCID: _ipfsCID,
+    timestamp: _timestamp,
     rootIndex: aspRootIndex++,
     blockNumber: event.block.number,
     blockTimestamp: event.block.timestamp,
@@ -162,13 +162,13 @@ ponder.on('GaleonEntrypoint:RootUpdated', async ({ event, context }) => {
 })
 
 ponder.on('GaleonEntrypoint:PoolRegistered', async ({ event, context }) => {
-  const { pool, asset, scope } = event.args
+  const { _pool, _asset, _scope } = event.args
 
-  const scopeHex = `0x${scope.toString(16).padStart(64, '0')}` as `0x${string}`
+  const scopeHex = `0x${_scope.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.pools).values({
-    id: pool.toLowerCase() as `0x${string}`,
-    asset: asset.toLowerCase() as `0x${string}`,
+    id: _pool.toLowerCase() as `0x${string}`,
+    asset: _asset.toLowerCase() as `0x${string}`,
     scope: scopeHex,
     minimumDepositAmount: 0n,
     vettingFeeBPS: 0,
@@ -183,34 +183,34 @@ ponder.on('GaleonEntrypoint:PoolRegistered', async ({ event, context }) => {
 })
 
 ponder.on('GaleonEntrypoint:PoolRemoved', async ({ event, context }) => {
-  const { pool } = event.args
+  const { _pool } = event.args
 
-  await context.db.update(schema.pools, { id: pool.toLowerCase() as `0x${string}` }).set({
+  await context.db.update(schema.pools, { id: _pool.toLowerCase() as `0x${string}` }).set({
     active: false,
   })
 })
 
 ponder.on('GaleonEntrypoint:PoolConfigurationUpdated', async ({ event, context }) => {
-  const { pool, newMinimumDepositAmount, newVettingFeeBPS, newMaxRelayFeeBPS } = event.args
+  const { _pool, _newMinimumDepositAmount, _newVettingFeeBPS, _newMaxRelayFeeBPS } = event.args
 
-  await context.db.update(schema.pools, { id: pool.toLowerCase() as `0x${string}` }).set({
-    minimumDepositAmount: newMinimumDepositAmount,
-    vettingFeeBPS: Number(newVettingFeeBPS),
-    maxRelayFeeBPS: Number(newMaxRelayFeeBPS),
+  await context.db.update(schema.pools, { id: _pool.toLowerCase() as `0x${string}` }).set({
+    minimumDepositAmount: _newMinimumDepositAmount,
+    vettingFeeBPS: Number(_newVettingFeeBPS),
+    maxRelayFeeBPS: Number(_newMaxRelayFeeBPS),
   })
 })
 
 ponder.on('GaleonEntrypoint:PoolWindDown', async ({ event, context }) => {
-  const { pool } = event.args
+  const { _pool } = event.args
 
-  await context.db.update(schema.pools, { id: pool.toLowerCase() as `0x${string}` }).set({
+  await context.db.update(schema.pools, { id: _pool.toLowerCase() as `0x${string}` }).set({
     dead: true,
     active: false,
   })
 })
 
 ponder.on('GaleonEntrypoint:WithdrawalRelayed', async ({ event, context }) => {
-  const { relayer, recipient, asset, feeAmount } = event.args
+  const { _relayer, _recipient, _asset, _feeAmount } = event.args
 
   // This event is emitted alongside Withdrawn - we update the withdrawal record
   // The Withdrawn event should be processed first, creating the base record
@@ -219,10 +219,10 @@ ponder.on('GaleonEntrypoint:WithdrawalRelayed', async ({ event, context }) => {
 
   try {
     await context.db.update(schema.poolWithdrawals, { id: withdrawalId }).set({
-      relayer: relayer.toLowerCase() as `0x${string}`,
-      recipient: recipient.toLowerCase() as `0x${string}`,
-      asset: asset.toLowerCase() as `0x${string}`,
-      feeAmount,
+      relayer: _relayer.toLowerCase() as `0x${string}`,
+      recipient: _recipient.toLowerCase() as `0x${string}`,
+      asset: _asset.toLowerCase() as `0x${string}`,
+      feeAmount: _feeAmount,
     })
   } catch {
     // If the withdrawal wasn't found, the events may be in different order
@@ -234,20 +234,20 @@ ponder.on('GaleonEntrypoint:WithdrawalRelayed', async ({ event, context }) => {
 // GaleonPrivacyPool Events (dynamically discovered via factory pattern)
 // ============================================================
 ponder.on('GaleonPrivacyPool:Deposited', async ({ event, context }) => {
-  const { depositor, commitment, label, value, precommitmentHash } = event.args
+  const { _depositor, _commitment, _label, _value, _precommitmentHash } = event.args
 
-  const commitmentHex = `0x${commitment.toString(16).padStart(64, '0')}` as `0x${string}`
-  const labelHex = `0x${label.toString(16).padStart(64, '0')}` as `0x${string}`
+  const commitmentHex = `0x${_commitment.toString(16).padStart(64, '0')}` as `0x${string}`
+  const labelHex = `0x${_label.toString(16).padStart(64, '0')}` as `0x${string}`
   const precommitmentHashHex =
-    `0x${precommitmentHash.toString(16).padStart(64, '0')}` as `0x${string}`
+    `0x${_precommitmentHash.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.poolDeposits).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     pool: event.log.address.toLowerCase() as `0x${string}`,
-    depositor: depositor.toLowerCase() as `0x${string}`,
+    depositor: _depositor.toLowerCase() as `0x${string}`,
     commitment: commitmentHex,
     label: labelHex,
-    value,
+    value: _value,
     precommitmentHash: precommitmentHashHex,
     blockNumber: event.block.number,
     blockTimestamp: event.block.timestamp,
@@ -258,16 +258,16 @@ ponder.on('GaleonPrivacyPool:Deposited', async ({ event, context }) => {
 })
 
 ponder.on('GaleonPrivacyPool:Withdrawn', async ({ event, context }) => {
-  const { processooor, value, spentNullifier, newCommitment } = event.args
+  const { _processooor, _value, _spentNullifier, _newCommitment } = event.args
 
-  const nullifierHex = `0x${spentNullifier.toString(16).padStart(64, '0')}` as `0x${string}`
-  const newCommitmentHex = `0x${newCommitment.toString(16).padStart(64, '0')}` as `0x${string}`
+  const nullifierHex = `0x${_spentNullifier.toString(16).padStart(64, '0')}` as `0x${string}`
+  const newCommitmentHex = `0x${_newCommitment.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.poolWithdrawals).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     pool: event.log.address.toLowerCase() as `0x${string}`,
-    processooor: processooor.toLowerCase() as `0x${string}`,
-    value,
+    processooor: _processooor.toLowerCase() as `0x${string}`,
+    value: _value,
     spentNullifier: nullifierHex,
     newCommitment: newCommitmentHex,
     blockNumber: event.block.number,
@@ -279,18 +279,18 @@ ponder.on('GaleonPrivacyPool:Withdrawn', async ({ event, context }) => {
 })
 
 ponder.on('GaleonPrivacyPool:Ragequit', async ({ event, context }) => {
-  const { ragequitter, commitment, label, value } = event.args
+  const { _ragequitter, _commitment, _label, _value } = event.args
 
-  const commitmentHex = `0x${commitment.toString(16).padStart(64, '0')}` as `0x${string}`
-  const labelHex = `0x${label.toString(16).padStart(64, '0')}` as `0x${string}`
+  const commitmentHex = `0x${_commitment.toString(16).padStart(64, '0')}` as `0x${string}`
+  const labelHex = `0x${_label.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.poolRagequits).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     pool: event.log.address.toLowerCase() as `0x${string}`,
-    ragequitter: ragequitter.toLowerCase() as `0x${string}`,
+    ragequitter: _ragequitter.toLowerCase() as `0x${string}`,
     commitment: commitmentHex,
     label: labelHex,
-    value,
+    value: _value,
     blockNumber: event.block.number,
     blockTimestamp: event.block.timestamp,
     transactionHash: event.transaction.hash,
@@ -325,15 +325,15 @@ ponder.on('GaleonPrivacyPool:DepositorBlocklistUpdated', async ({ event, context
 })
 
 ponder.on('GaleonPrivacyPool:LeafInserted', async ({ event, context }) => {
-  const { index, leaf, root } = event.args
+  const { _index, _leaf, _root } = event.args
 
-  const leafHex = `0x${leaf.toString(16).padStart(64, '0')}` as `0x${string}`
-  const rootHex = `0x${root.toString(16).padStart(64, '0')}` as `0x${string}`
+  const leafHex = `0x${_leaf.toString(16).padStart(64, '0')}` as `0x${string}`
+  const rootHex = `0x${_root.toString(16).padStart(64, '0')}` as `0x${string}`
 
   await context.db.insert(schema.merkleLeaves).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     pool: event.log.address.toLowerCase() as `0x${string}`,
-    leafIndex: index,
+    leafIndex: _index,
     leaf: leafHex,
     root: rootHex,
     blockNumber: event.block.number,

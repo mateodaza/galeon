@@ -17,10 +17,19 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
-import { formatEther, parseEther, type Hex } from 'viem'
-import { CONTRACTS } from '@/lib/contracts'
+import { formatEther, parseEther, type Hex, keccak256, stringToBytes } from 'viem'
 import { useStealthContext } from '@/contexts/stealth-context'
-import { scanAnnouncements, type Announcement } from '@galeon/stealth'
+import { scanAnnouncements, derivePortKeys, type Announcement } from '@galeon/stealth'
+import { announcementsApi, portsApi } from '@/lib/api'
+
+/**
+ * Convert UUID to a deterministic 32-bit number for key derivation.
+ * Uses first 4 bytes of keccak256 hash.
+ */
+function uuidToPortIndex(uuid: string): number {
+  const hash = keccak256(stringToBytes(uuid))
+  return parseInt(hash.slice(2, 10), 16)
+}
 
 /**
  * Minimum balance required to collect a payment on Mantle.
@@ -48,7 +57,7 @@ export function useCollection() {
   const { address, chainId } = useAccount()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  const { keys } = useStealthContext()
+  const { keys, masterSignature } = useStealthContext()
 
   const [payments, setPayments] = useState<CollectablePayment[]>([])
   const [dustPayments, setDustPayments] = useState<CollectablePayment[]>([])
@@ -58,17 +67,11 @@ export function useCollection() {
   const [collectError, setCollectError] = useState<string | null>(null)
   const [collectTxHashes, setCollectTxHashes] = useState<`0x${string}`[]>([])
 
-  const contractAddress = useMemo(() => {
-    if (!chainId) return null
-    const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    return contracts?.announcer ?? null
-  }, [chainId])
-
   /**
    * Scan for payments belonging to the user.
    */
   const scan = useCallback(async () => {
-    if (!publicClient || !keys || !contractAddress) {
+    if (!publicClient || !keys || !masterSignature) {
       setScanError('Missing required context')
       return
     }
@@ -77,60 +80,41 @@ export function useCollection() {
     setScanError(null)
 
     try {
-      // ============================================================
-      // TODO [BACKEND_SWAP]: Replace getLogs with:
-      // const res = await fetch(`/api/announcements?chainId=${chainId}`)
-      // const logs = await res.json()
-      // Keep the scanAnnouncements() call - it needs private keys
-      // ============================================================
-
-      // Start from deployment block (first block before all Galeon contracts)
-      // Using Alchemy RPC allows reading full block range without 50k limit
-      const deploymentBlock = 89365202n
-
-      // Fetch Announcement events
-      const logs = await publicClient.getLogs({
-        address: contractAddress,
-        event: {
-          type: 'event',
-          name: 'Announcement',
-          inputs: [
-            { name: 'schemeId', type: 'uint256', indexed: true },
-            { name: 'stealthAddress', type: 'address', indexed: true },
-            { name: 'caller', type: 'address', indexed: true },
-            { name: 'ephemeralPubKey', type: 'bytes', indexed: false },
-            { name: 'metadata', type: 'bytes', indexed: false },
-          ],
-        },
-        fromBlock: deploymentBlock,
-        toBlock: 'latest',
+      // Fetch all announcements from backend (auto-paginates)
+      const apiAnnouncements = await announcementsApi.list({
+        chainId: chainId ?? 5000, // Default to Mantle mainnet
       })
 
-      // Convert logs to Announcement format
-      const announcements: Announcement[] = logs.map((log) => {
-        const args = log.args as {
-          schemeId: bigint
-          stealthAddress: `0x${string}`
-          caller: `0x${string}`
-          ephemeralPubKey: `0x${string}`
-          metadata: `0x${string}`
-        }
+      // Fetch user's Ports to get Port-specific keys
+      const portsResponse = await portsApi.list({ limit: 100 })
+      const userPorts = portsResponse.data
 
-        return {
-          stealthAddress: args.stealthAddress,
-          ephemeralPubKey: hexToBytes(args.ephemeralPubKey),
-          metadata: hexToBytes(args.metadata),
-          txHash: log.transactionHash!,
-          blockNumber: log.blockNumber!,
-        }
-      })
+      // Convert API response to Announcement format for scanning
+      const announcements: Announcement[] = apiAnnouncements.map((ann) => ({
+        stealthAddress: ann.stealthAddress as `0x${string}`,
+        ephemeralPubKey: hexToBytes(ann.ephemeralPubKey as `0x${string}`),
+        metadata: hexToBytes(ann.metadata as `0x${string}`),
+        txHash: ann.transactionHash as `0x${string}`,
+        blockNumber: BigInt(ann.blockNumber),
+      }))
 
-      // Scan for payments belonging to us
-      const scannedPayments = scanAnnouncements(
-        announcements,
-        keys.spendingPrivateKey,
-        keys.viewingPrivateKey
-      )
+      // Scan for payments across ALL user Ports
+      // Each Port has its own derived keys, so we scan with each Port's keys
+      const allScannedPayments: ReturnType<typeof scanAnnouncements> = []
+
+      for (const port of userPorts) {
+        const portIndex = uuidToPortIndex(port.id)
+        const portKeys = derivePortKeys(masterSignature, portIndex)
+
+        const portPayments = scanAnnouncements(
+          announcements,
+          portKeys.spendingPrivateKey,
+          portKeys.viewingPrivateKey
+        )
+        allScannedPayments.push(...portPayments)
+      }
+
+      const scannedPayments = allScannedPayments
 
       // Get balances for each payment and separate into collectable vs dust
       const collectablePayments: CollectablePayment[] = []
@@ -171,12 +155,12 @@ export function useCollection() {
       setPayments(collectablePayments)
       setDustPayments(dustPaymentsList)
     } catch (error) {
-      console.error('Scan failed:', error)
+      console.error('[useCollection] Scan failed:', error)
       setScanError(error instanceof Error ? error.message : 'Scan failed')
     } finally {
       setIsScanning(false)
     }
-  }, [publicClient, keys, contractAddress])
+  }, [publicClient, keys, masterSignature, chainId])
 
   /**
    * Collect all pending payments to a recipient address.
@@ -201,7 +185,6 @@ export function useCollection() {
         // For each payment, create a transaction from the stealth address
         for (let i = 0; i < payments.length; i++) {
           const payment = payments[i]
-          console.log(`\n--- Processing payment ${i + 1}/${payments.length} ---`)
           // Create a wallet from the stealth private key
           const { privateKeyToAccount } = await import('viem/accounts')
           const stealthAccount = privateKeyToAccount(
@@ -233,43 +216,15 @@ export function useCollection() {
           const currentBalance = await stealthPublicClient.getBalance({
             address: payment.stealthAddress,
           })
-          console.log('Current on-chain balance:', formatEther(currentBalance), 'MNT')
 
           // Check if already collected (balance is now 0 or very low)
           if (currentBalance < parseEther('0.0001')) {
-            console.log(`Skipping ${payment.stealthAddress}: already collected or empty`)
             setCollectError('Already collected or balance too low')
-            continue
-          }
-
-          // Get current nonce for the transaction
-          const nonce = await stealthPublicClient.getTransactionCount({
-            address: payment.stealthAddress,
-          })
-          console.log('Current nonce:', nonce)
-
-          // Reserve small amount for gas (Mantle gas is very cheap ~0.02 gwei)
-          const gasReserve = parseEther('0.00005')
-          const amountToSend = currentBalance - gasReserve
-
-          console.log('Collection details:', {
-            from: payment.stealthAddress,
-            to: toAddress,
-            balance: formatEther(currentBalance),
-            amountToSend: formatEther(amountToSend),
-            gasReserve: formatEther(gasReserve),
-            nonce,
-          })
-
-          if (amountToSend <= 0n) {
-            console.log(`Skipping ${payment.stealthAddress}: balance too low for gas`)
-            setCollectError(`Balance too low (${formatEther(currentBalance)} MNT)`)
             continue
           }
 
           // Get gas price for legacy transaction
           const gasPrice = await stealthPublicClient.getGasPrice()
-          console.log('Gas price:', gasPrice.toString(), 'wei')
 
           // Send as legacy transaction with high gas limit for Mantle L2
           // Mantle requires ~58.5M gas for L1 data costs (verified from successful tx)
@@ -278,12 +233,9 @@ export function useCollection() {
           const estimatedGasUsed = 60000000n // ~60M actually used (58.5M + buffer)
           const estimatedGasCost = estimatedGasUsed * gasPrice
 
-          console.log('Estimated gas cost:', formatEther(estimatedGasCost), 'MNT')
-
           // Minimum balance: gas cost + something to send
           const minBalance = estimatedGasCost + parseEther('0.0001')
           if (currentBalance < minBalance) {
-            console.log(`Skipping ${payment.stealthAddress}: balance too low for Mantle L1 gas`)
             setCollectError(
               `Balance too low. Mantle L1 gas costs ~${formatEther(estimatedGasCost)} MNT. Have: ${formatEther(currentBalance)} MNT, Need: ~${formatEther(minBalance)} MNT`
             )
@@ -293,7 +245,6 @@ export function useCollection() {
           // Send balance minus estimated gas (excess gas refunded by network)
           const properAmountToSend = currentBalance - estimatedGasCost
 
-          console.log('Sending legacy transaction with high gas limit...')
           const hash = await stealthWalletClient.sendTransaction({
             to: toAddress,
             value: properAmountToSend,
@@ -301,7 +252,6 @@ export function useCollection() {
             gasPrice,
             type: 'legacy',
           })
-          console.log('Transaction sent:', hash)
 
           collectedHashes.push(hash)
           collectedAddresses.push(payment.stealthAddress)
@@ -349,7 +299,7 @@ export function useCollection() {
     collectTxHashes,
     scan,
     collectAll,
-    hasKeys: !!keys,
+    hasKeys: !!keys && !!masterSignature,
   }
 }
 

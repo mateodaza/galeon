@@ -1,7 +1,7 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2026-01-03 (Removed fog payments feature)
+> Last updated: 2026-01-03
 
 ## Setup
 
@@ -92,28 +92,29 @@
 
 ## API Endpoints (RESTful)
 
-| Resource    | Method | Path                              | Auth      | Description                  |
-| ----------- | ------ | --------------------------------- | --------- | ---------------------------- |
-| Health      | GET    | `/`                               | Public    | Health check                 |
-| Auth        | GET    | `/api/v1/auth/nonce`              | Public    | Get SIWE nonce               |
-| Auth        | POST   | `/api/v1/auth/verify`             | Public    | Login (access + refresh JWT) |
-| Auth        | POST   | `/api/v1/auth/refresh`            | Public    | Refresh access token         |
-| Auth        | POST   | `/api/v1/auth/logout`             | JWT       | Logout (blacklist + revoke)  |
-| Ports       | GET    | `/api/v1/ports`                   | JWT       | List ports                   |
-| Ports       | POST   | `/api/v1/ports`                   | JWT       | Create port                  |
-| Ports       | GET    | `/api/v1/ports/:id`               | JWT       | Get port                     |
-| Ports       | PATCH  | `/api/v1/ports/:id`               | JWT       | Update port                  |
-| Ports       | DELETE | `/api/v1/ports/:id`               | JWT       | Archive port                 |
-| Receipts    | GET    | `/api/v1/receipts`                | JWT       | List receipts                |
-| Receipts    | POST   | `/api/v1/receipts`                | JWT       | Create pending receipt       |
-| Receipts    | GET    | `/api/v1/receipts/stats`          | JWT       | Receipt statistics           |
-| Receipts    | GET    | `/api/v1/receipts/:id`            | JWT       | Get receipt                  |
-| Collections | GET    | `/api/v1/collections`             | JWT       | List collections             |
-| Collections | POST   | `/api/v1/collections`             | JWT       | Initiate collection          |
-| Collections | GET    | `/api/v1/collections/:id`         | JWT       | Get collection               |
-| Collections | POST   | `/api/v1/collections/:id/execute` | JWT       | Execute collection           |
-| Webhooks    | POST   | `/api/v1/webhooks/alchemy`        | Webhook\* | Alchemy events               |
-| Webhooks    | POST   | `/api/v1/webhooks/manual`         | Webhook\* | Manual announcement          |
+| Resource      | Method | Path                              | Auth      | Description                    |
+| ------------- | ------ | --------------------------------- | --------- | ------------------------------ |
+| Health        | GET    | `/`                               | Public    | Health check                   |
+| Announcements | GET    | `/api/v1/announcements`           | Public    | List announcements (paginated) |
+| Auth          | GET    | `/api/v1/auth/nonce`              | Public    | Get SIWE nonce                 |
+| Auth          | POST   | `/api/v1/auth/verify`             | Public    | Login (access + refresh JWT)   |
+| Auth          | POST   | `/api/v1/auth/refresh`            | Public    | Refresh access token           |
+| Auth          | POST   | `/api/v1/auth/logout`             | JWT       | Logout (blacklist + revoke)    |
+| Ports         | GET    | `/api/v1/ports`                   | JWT       | List ports                     |
+| Ports         | POST   | `/api/v1/ports`                   | JWT       | Create port                    |
+| Ports         | GET    | `/api/v1/ports/:id`               | JWT       | Get port                       |
+| Ports         | PATCH  | `/api/v1/ports/:id`               | JWT       | Update port                    |
+| Ports         | DELETE | `/api/v1/ports/:id`               | JWT       | Archive port                   |
+| Receipts      | GET    | `/api/v1/receipts`                | JWT       | List receipts                  |
+| Receipts      | POST   | `/api/v1/receipts`                | JWT       | Create pending receipt         |
+| Receipts      | GET    | `/api/v1/receipts/stats`          | JWT       | Receipt statistics             |
+| Receipts      | GET    | `/api/v1/receipts/:id`            | JWT       | Get receipt                    |
+| Collections   | GET    | `/api/v1/collections`             | JWT       | List collections               |
+| Collections   | POST   | `/api/v1/collections`             | JWT       | Initiate collection            |
+| Collections   | GET    | `/api/v1/collections/:id`         | JWT       | Get collection                 |
+| Collections   | POST   | `/api/v1/collections/:id/execute` | JWT       | Execute collection             |
+| Webhooks      | POST   | `/api/v1/webhooks/alchemy`        | Webhook\* | Alchemy events                 |
+| Webhooks      | POST   | `/api/v1/webhooks/manual`         | Webhook\* | Manual announcement            |
 
 \*Webhook auth middleware pending
 
@@ -148,6 +149,14 @@
 - [ ] Notify user when receipt rejected
 
 **Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
+
+## Announcements API (2026-01-03)
+
+- [x] `GET /api/v1/announcements` - Public endpoint for payment scanning
+- [x] Pagination support (limit/offset with max 1000, default 500)
+- [x] Query filters: `viewTag`, `stealthAddress`, `chainId`
+- [x] Returns `{ data, hasMore, limit, offset }` for frontend auto-pagination
+- [x] AnnouncementsController with PonderService integration
 
 ## Port Creation Intent Pattern (2025-12-31)
 

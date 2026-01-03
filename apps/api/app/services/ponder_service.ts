@@ -58,8 +58,58 @@ export interface PonderReceiptAnchored {
 export default class PonderService {
   private connection = 'ponder'
 
+  /** Maximum allowed limit for announcements query */
+  static readonly MAX_ANNOUNCEMENTS_LIMIT = 1000
+
+  /** Default limit for announcements query */
+  static readonly DEFAULT_ANNOUNCEMENTS_LIMIT = 500
+
+  /**
+   * List all announcements with optional filters and pagination
+   * Used by frontend to scan for payments
+   */
+  async listAnnouncements(options?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderAnnouncement[]; hasMore: boolean }> {
+    // Enforce max limit
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_ANNOUNCEMENTS_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_ANNOUNCEMENTS_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db
+      .connection(this.connection)
+      .from('announcements')
+      .orderBy('block_number', 'desc')
+
+    if (options?.viewTag !== undefined) {
+      query.where('view_tag', options.viewTag)
+    }
+    if (options?.stealthAddress) {
+      query.where('stealth_address', options.stealthAddress.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    // Request one extra to check if there are more results
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapAnnouncement(row))
+
+    return { data, hasMore }
+  }
+
   /**
    * Find announcement by transaction hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findAnnouncementByTxHash(
     txHash: string,
@@ -68,10 +118,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('announcements')
-      .where('transactionHash', txHash.toLowerCase())
+      .where('transaction_hash', txHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -80,6 +130,7 @@ export default class PonderService {
 
   /**
    * Find announcement by receipt hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findAnnouncementByReceiptHash(
     receiptHash: string,
@@ -88,10 +139,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('announcements')
-      .where('receiptHash', receiptHash.toLowerCase())
+      .where('receipt_hash', receiptHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -100,6 +151,7 @@ export default class PonderService {
 
   /**
    * Find receipt anchored by transaction hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findReceiptAnchoredByTxHash(
     txHash: string,
@@ -108,10 +160,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('receipts_anchored')
-      .where('transactionHash', txHash.toLowerCase())
+      .where('transaction_hash', txHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -120,6 +172,7 @@ export default class PonderService {
 
   /**
    * Find receipt anchored by receipt hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findReceiptAnchoredByReceiptHash(
     receiptHash: string,
@@ -128,10 +181,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('receipts_anchored')
-      .where('receiptHash', receiptHash.toLowerCase())
+      .where('receipt_hash', receiptHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -199,41 +252,43 @@ export default class PonderService {
 
   /**
    * Map database row to PonderAnnouncement interface
+   * Note: Ponder DB uses snake_case column names
    */
   private mapAnnouncement(row: Record<string, unknown>): PonderAnnouncement {
     return {
       id: String(row.id),
-      schemeId: String(row.schemeId),
-      stealthAddress: String(row.stealthAddress),
+      schemeId: String(row.scheme_id),
+      stealthAddress: String(row.stealth_address),
       caller: String(row.caller),
-      ephemeralPubKey: String(row.ephemeralPubKey),
+      ephemeralPubKey: String(row.ephemeral_pub_key),
       metadata: String(row.metadata),
-      viewTag: Number(row.viewTag),
-      receiptHash: row.receiptHash ? String(row.receiptHash) : null,
-      blockNumber: String(row.blockNumber),
-      blockTimestamp: String(row.blockTimestamp),
-      transactionHash: String(row.transactionHash),
-      logIndex: Number(row.logIndex),
-      chainId: Number(row.chainId),
+      viewTag: Number(row.view_tag),
+      receiptHash: row.receipt_hash ? String(row.receipt_hash) : null,
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
     }
   }
 
   /**
    * Map database row to PonderReceiptAnchored interface
+   * Note: Ponder DB uses snake_case column names
    */
   private mapReceiptAnchored(row: Record<string, unknown>): PonderReceiptAnchored {
     return {
       id: String(row.id),
-      stealthAddress: String(row.stealthAddress),
-      receiptHash: String(row.receiptHash),
+      stealthAddress: String(row.stealth_address),
+      receiptHash: String(row.receipt_hash),
       payer: String(row.payer),
       amount: String(row.amount),
       token: String(row.token),
       timestamp: String(row.timestamp),
-      blockNumber: String(row.blockNumber),
-      transactionHash: String(row.transactionHash),
-      logIndex: Number(row.logIndex),
-      chainId: Number(row.chainId),
+      blockNumber: String(row.block_number),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
     }
   }
 }
