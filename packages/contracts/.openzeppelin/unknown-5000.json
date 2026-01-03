@@ -20,6 +20,16 @@
       "address": "0x11021e2C1BE35AcCFE9Aa33862Cfb7e54E2036Ef",
       "txHash": "0x93549bc68f5cdc2a7425739e58cc35f7fcde3c22d62c24995beba83c1cfec16a",
       "kind": "uups"
+    },
+    {
+      "address": "0x54BA91d29f84B8bAd161880798877e59f2999f7a",
+      "txHash": "0x2c16ea6584be379de48c2a534d5a5f69afe16bfbe63f07a8eccdbcdcc3e9edaf",
+      "kind": "uups"
+    },
+    {
+      "address": "0x3260c8d8cc654B0897cd93cdf0662Fa679656b36",
+      "txHash": "0x45a1d99dbf9ca6fe64827dd862bbc2a5219180296ad5896cd0855ba39c542bea",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -279,6 +289,267 @@
     "a3dedd8541d914223d5d457ef63658bf288385c0ad69e5e2a66f58366ccfd10c": {
       "address": "0xA706D2A7dbe87E0A671E2904edA495072077016e",
       "txHash": "0x3c6a7408dbd1c5caf765797bc7fa2a31b27878cab9b5238dae7fb6b28c110178",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "SCOPE",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:52"
+          },
+          {
+            "label": "ENTRYPOINT",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_contract(IGaleonEntrypoint)4723",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:59"
+          },
+          {
+            "label": "WITHDRAWAL_VERIFIER",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_contract(IVerifier)5136",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:62"
+          },
+          {
+            "label": "RAGEQUIT_VERIFIER",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_contract(IVerifier)5136",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:65"
+          },
+          {
+            "label": "nonce",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:68"
+          },
+          {
+            "label": "dead",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_bool",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:71"
+          },
+          {
+            "label": "roots",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:74"
+          },
+          {
+            "label": "currentRootIndex",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_uint32",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:77"
+          },
+          {
+            "label": "_merkleTree",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_struct(LeanIMTData)2099_storage",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:81"
+          },
+          {
+            "label": "nullifierHashes",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:84"
+          },
+          {
+            "label": "depositors",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "GaleonState",
+            "src": "contracts/privacy-pool/GaleonState.sol:87"
+          },
+          {
+            "label": "galeonRegistry",
+            "offset": 0,
+            "slot": "14",
+            "type": "t_contract(IGaleonRegistry)4944",
+            "contract": "GaleonPrivacyPool",
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:45"
+          },
+          {
+            "label": "circuitVersion",
+            "offset": 0,
+            "slot": "15",
+            "type": "t_uint256",
+            "contract": "GaleonPrivacyPool",
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:50"
+          },
+          {
+            "label": "blockedDepositors",
+            "offset": 0,
+            "slot": "16",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "GaleonPrivacyPool",
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:54"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_contract(IGaleonEntrypoint)4723": {
+            "label": "contract IGaleonEntrypoint",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IGaleonRegistry)4944": {
+            "label": "contract IGaleonRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IVerifier)5136": {
+            "label": "contract IVerifier",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_address)": {
+            "label": "mapping(uint256 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LeanIMTData)2099_storage": {
+            "label": "struct LeanIMTData",
+            "members": [
+              {
+                "label": "size",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "depth",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "sideNodes",
+                "type": "t_mapping(t_uint256,t_uint256)",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "leaves",
+                "type": "t_mapping(t_uint256,t_uint256)",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint32": {
+            "label": "uint32",
+            "numberOfBytes": "4"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "9f0fe082a05fc2055c8596639cfa46c255a441eee67c674300c94e891df9b527": {
+      "address": "0x4549F8313Dc760Ea979fa885a94f77950fbcbce5",
+      "txHash": "0x5786d5f8e2f4dce96fee4a40acd62760fc175322dbf66ca8873744d3193cf831",
       "layout": {
         "solcVersion": "0.8.24",
         "storage": [

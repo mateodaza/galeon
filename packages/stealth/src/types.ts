@@ -76,3 +76,17 @@ export interface TokenConfig {
   symbol: string
   decimals: number
 }
+
+/**
+ * Privacy Pool master keys.
+ *
+ * These are derived deterministically from a wallet signature and used
+ * to generate deposit/withdrawal nullifiers and secrets. The actual
+ * precommitments are computed using Poseidon hash in the frontend SDK.
+ */
+export interface PoolKeys {
+  /** Master key for deriving deposit/withdrawal nullifiers */
+  masterNullifier: Uint8Array
+  /** Master key for deriving deposit/withdrawal secrets */
+  masterSecret: Uint8Array
+}

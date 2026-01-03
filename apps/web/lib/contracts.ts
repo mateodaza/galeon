@@ -74,11 +74,12 @@ export const galeonRegistryAbi = [
     outputs: [{ type: 'bool' }],
     stateMutability: 'view',
   },
-  // Native payments
+  // Native payments (portId required for verified balance tracking)
   {
     type: 'function',
     name: 'payNative',
     inputs: [
+      { name: 'portId', type: 'bytes32' },
       { name: 'stealthAddress', type: 'address' },
       { name: 'ephemeralPubKey', type: 'bytes' },
       { name: 'viewTag', type: 'bytes1' },
@@ -87,11 +88,12 @@ export const galeonRegistryAbi = [
     outputs: [],
     stateMutability: 'payable',
   },
-  // Token payments
+  // Token payments (portId required for verified balance tracking)
   {
     type: 'function',
     name: 'payToken',
     inputs: [
+      { name: 'portId', type: 'bytes32' },
       { name: 'token', type: 'address' },
       { name: 'stealthAddress', type: 'address' },
       { name: 'amount', type: 'uint256' },

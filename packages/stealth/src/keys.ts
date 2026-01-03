@@ -10,7 +10,7 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { bytesToHex, hexToBytes } from './utils'
-import type { StealthKeys, StealthChainPrefix, StealthMetaAddress } from './types'
+import type { StealthKeys, StealthChainPrefix, StealthMetaAddress, PoolKeys } from './types'
 
 /** Default chain prefix for stealth meta-addresses */
 const DEFAULT_PREFIX: StealthChainPrefix = 'mnt'
@@ -22,6 +22,8 @@ const CURVE_ORDER = secp256k1.Point.Fn.ORDER
 const DOMAIN_SPENDING = 'galeon-stealth-spending-v1'
 const DOMAIN_VIEWING = 'galeon-stealth-viewing-v1'
 const DOMAIN_PORT = 'galeon-port-derivation-v1'
+const DOMAIN_POOL_NULLIFIER = 'galeon-pool-nullifier-v1'
+const DOMAIN_POOL_SECRET = 'galeon-pool-secret-v1'
 
 /**
  * Default non-zero salt for HKDF derivation.
@@ -269,4 +271,52 @@ export function generateRandomPrivateKey(): Uint8Array {
 export function keccak256Hash(data: Uint8Array | `0x${string}`): Uint8Array {
   const bytes = typeof data === 'string' ? hexToBytes(data.slice(2)) : data
   return keccak_256(bytes)
+}
+
+// ============================================================
+// Privacy Pool Key Derivation
+// ============================================================
+
+/**
+ * Derive Privacy Pool master keys from a wallet signature.
+ *
+ * These master keys are used to deterministically generate nullifiers
+ * and secrets for pool deposits and withdrawals. With these keys,
+ * a user can recover all their pool deposits by scanning chain events.
+ *
+ * @param signature - Wallet signature of the derivation message (0x-prefixed hex)
+ * @returns Pool master keys (masterNullifier, masterSecret)
+ *
+ * @example
+ * ```ts
+ * const sig = await wallet.signMessage(DERIVATION_MESSAGE)
+ * const poolKeys = derivePoolKeys(sig)
+ *
+ * // Use with Poseidon in frontend to generate deposit precommitment:
+ * // nullifier = poseidon([poolKeys.masterNullifier, scope, depositIndex])
+ * // secret = poseidon([poolKeys.masterSecret, scope, depositIndex])
+ * // precommitment = poseidon([nullifier, secret])
+ * ```
+ */
+export function derivePoolKeys(signature: `0x${string}`): PoolKeys {
+  // Validate signature format
+  if (!signature.startsWith('0x') || signature.length < 4) {
+    throw new Error('Invalid signature: must be 0x-prefixed hex')
+  }
+
+  const sigBytes = hexToBytes(signature.slice(2))
+  if (sigBytes.length < 64) {
+    throw new Error('Invalid signature: too short (minimum 64 bytes)')
+  }
+
+  // Derive master nullifier key with domain separation
+  const masterNullifier = derivePrivateKey(sigBytes, DOMAIN_POOL_NULLIFIER)
+
+  // Derive master secret key with domain separation
+  const masterSecret = derivePrivateKey(sigBytes, DOMAIN_POOL_SECRET)
+
+  return {
+    masterNullifier,
+    masterSecret,
+  }
 }

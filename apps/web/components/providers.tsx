@@ -21,6 +21,7 @@ import { wagmiAdapter, projectId, isWalletConfigured } from '@/lib/wagmi'
 import { mantle, mantleSepolia } from '@/lib/chains'
 import { AuthProvider } from '@/contexts/auth-context'
 import { StealthProvider } from '@/contexts/stealth-context'
+import { PoolProvider } from '@/contexts/pool-context'
 import { NetworkGuard } from '@/components/network-guard'
 
 /**
@@ -82,8 +83,10 @@ export function Providers({ children, initialState }: ProvidersProps) {
         <LazyMotion features={domAnimation} strict>
           <AuthProvider>
             <StealthProvider>
-              <NetworkGuard />
-              {children}
+              <PoolProvider>
+                <NetworkGuard />
+                {children}
+              </PoolProvider>
             </StealthProvider>
           </AuthProvider>
         </LazyMotion>

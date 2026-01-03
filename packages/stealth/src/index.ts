@@ -23,6 +23,7 @@ export * from './types'
 export {
   deriveStealthKeys,
   derivePortKeys,
+  derivePoolKeys,
   parseStealthMetaAddress,
   formatStealthMetaAddress,
   generateRandomPrivateKey,

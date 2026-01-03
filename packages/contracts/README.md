@@ -214,12 +214,26 @@ event ReceiptAnchored(
 ### Deploy Commands
 
 ```bash
-# Deploy to Mantle Mainnet
+# Deploy stealth contracts to Mantle Mainnet (already done)
 npx hardhat run scripts/deploy.ts --network mantle
+
+# Deploy Privacy Pool to Mantle Mainnet
+npx hardhat run scripts/deploy-pool.ts --network mantle
 
 # Verify contracts
 npx hardhat verify --network mantle <address>
 ```
+
+### Privacy Pool (Chain ID: 5000)
+
+| Contract                | Address                                      | Verified                                                                          |
+| ----------------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| PoseidonT3              | `0xAE4c25FF221d3aa361B39DA242357fa04420215D` | [View](https://mantlescan.xyz/address/0xAE4c25FF221d3aa361B39DA242357fa04420215D) |
+| PoseidonT4              | `0x95Ed84fE7A51ba9680D217aAf2EB6ED3E1977e45` | [View](https://mantlescan.xyz/address/0x95Ed84fE7A51ba9680D217aAf2EB6ED3E1977e45) |
+| WithdrawalVerifier      | `0x7529e3ec251A648A873F53d9969c1C05a44029A1` | [View](https://mantlescan.xyz/address/0x7529e3ec251A648A873F53d9969c1C05a44029A1) |
+| RagequitVerifier        | `0xFDb199E0aC8eC430541438aa6E63101F8C205D76` | [View](https://mantlescan.xyz/address/0xFDb199E0aC8eC430541438aa6E63101F8C205D76) |
+| GaleonEntrypoint        | `0x54BA91d29f84B8bAd161880798877e59f2999f7a` | [View](https://mantlescan.xyz/address/0x54BA91d29f84B8bAd161880798877e59f2999f7a) |
+| GaleonPrivacyPoolSimple | `0x3260c8d8cc654B0897cd93cdf0662Fa679656b36` | [View](https://mantlescan.xyz/address/0x3260c8d8cc654B0897cd93cdf0662Fa679656b36) |
 
 ---
 

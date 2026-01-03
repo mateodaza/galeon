@@ -1,0 +1,53 @@
+{
+  "name": "@galeon/pool",
+  "version": "0.0.1",
+  "description": "Privacy Pool SDK for Galeon - ZK commitments and recovery",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@galeon/stealth": "workspace:*",
+    "@zk-kit/lean-imt": "2.2.4",
+    "maci-crypto": "2.5.0",
+    "snarkjs": "0.7.5"
+  },
+  "devDependencies": {
+    "@types/snarkjs": "0.7.9",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0"
+  },
+  "keywords": [
+    "privacy",
+    "pool",
+    "zk",
+    "poseidon",
+    "galeon"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mateodaza/galeon"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false
+}

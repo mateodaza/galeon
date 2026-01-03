@@ -92,11 +92,12 @@ async function main() {
   console.log(`    },`)
   console.log(`  },`)
 
+  const networkName = chainId === 5000 ? 'mantle' : 'mantleSepolia'
   console.log(`\n🔍 Verify contracts:`)
-  console.log(`  npx hardhat verify --network mantle ${announcerAddr}`)
-  console.log(`  npx hardhat verify --network mantle ${registryAddr}`)
+  console.log(`  npx hardhat verify --network ${networkName} ${announcerAddr}`)
+  console.log(`  npx hardhat verify --network ${networkName} ${registryAddr}`)
   console.log(
-    `  npx hardhat verify --network mantle ${galeonAddr} ${announcerAddr} ${registryAddr}`
+    `  npx hardhat verify --network ${networkName} ${galeonAddr} ${announcerAddr} ${registryAddr}`
   )
 }
 

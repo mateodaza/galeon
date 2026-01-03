@@ -89,10 +89,14 @@ export function usePayNative() {
       stealthMetaAddress: string,
       amountInEth: string,
       memo: string,
-      portId?: `0x${string}`
+      portId: `0x${string}`
     ): Promise<`0x${string}`> => {
       if (!contractAddress) {
         throw new Error('Contract not available on this chain')
+      }
+
+      if (!portId) {
+        throw new Error('Port ID is required for payments')
       }
 
       // Generate stealth address from meta-address
@@ -103,17 +107,12 @@ export function usePayNative() {
       // Parse amount to wei
       const value = parseEther(amountInEth)
 
-      // Create receipt hash from memo + amount + optional portId
+      // Create receipt hash from memo + amount + portId
       // This enables verification that a specific payment was made with specific parameters
       // Note: timestamp is added by the contract at transaction time
-      const receiptHash = portId
-        ? keccak256(
-            encodePacked(
-              ['string', 'uint256', 'bytes32'],
-              [memo || 'Galeon Payment', value, portId]
-            )
-          )
-        : keccak256(encodePacked(['string', 'uint256'], [memo || 'Galeon Payment', value]))
+      const receiptHash = keccak256(
+        encodePacked(['string', 'uint256', 'bytes32'], [memo || 'Galeon Payment', value, portId])
+      )
 
       // Convert ephemeral public key to bytes
       const ephemeralPubKeyHex = toHex(ephemeralPublicKey)
@@ -125,7 +124,7 @@ export function usePayNative() {
         address: contractAddress,
         abi: galeonRegistryAbi,
         functionName: 'payNative',
-        args: [stealthAddress, ephemeralPubKeyHex, viewTagBytes, receiptHash],
+        args: [portId, stealthAddress, ephemeralPubKeyHex, viewTagBytes, receiptHash],
         value,
       })
 
