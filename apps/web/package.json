@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@galeon/config": "workspace:*",
     "@galeon/eslint-config": "workspace:*",
     "@galeon/pool": "workspace:*",
     "@galeon/stealth": "workspace:*",

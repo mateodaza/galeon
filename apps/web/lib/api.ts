@@ -467,3 +467,132 @@ export const announcementsApi = {
     return allAnnouncements
   },
 }
+
+// ============================================================
+// Pool Deposit Types (from Ponder indexer via backend)
+// ============================================================
+
+export interface PoolDepositResponse {
+  id: string
+  pool: string
+  depositor: string
+  commitment: string
+  label: string
+  value: string
+  precommitmentHash: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Pool Deposits API (public - no auth required)
+// ============================================================
+
+export interface PoolDepositsListResponse {
+  data: PoolDepositResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+export const poolDepositsApi = {
+  /**
+   * Fetch a single page of pool deposits from the backend.
+   * @param params - Optional filters and pagination (pool, chainId, limit, offset)
+   */
+  listPage: async (params?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<PoolDepositsListResponse> => {
+    const query = new URLSearchParams()
+    if (params?.pool) query.set('pool', params.pool)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.offset) query.set('offset', String(params.offset))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/deposits${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Deposits API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Fetch all pool deposits by paginating through all pages.
+   * @param params - Optional filters (pool, chainId)
+   * @param pageSize - Results per page (default 500, max 1000)
+   */
+  list: async (params?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+  }): Promise<PoolDepositResponse[]> => {
+    const pageSize = Math.min(params?.limit ?? 500, 1000)
+    const allDeposits: PoolDepositResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await poolDepositsApi.listPage({
+        pool: params?.pool,
+        chainId: params?.chainId,
+        limit: pageSize,
+        offset,
+      })
+
+      allDeposits.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allDeposits
+  },
+}
+
+// ============================================================
+// Registry Types (verified balance data via backend)
+// ============================================================
+
+export interface VerifiedBalanceInfo {
+  stealthAddress: string
+  verifiedBalance: string
+  canDeposit: boolean
+}
+
+export interface VerifiedBalancesResponse {
+  data: VerifiedBalanceInfo[]
+}
+
+// ============================================================
+// Registry API (protected - requires auth)
+// ============================================================
+
+export const registryApi = {
+  /**
+   * Fetch verified balances for multiple stealth addresses.
+   * @param addresses - Array of stealth addresses to check
+   * @param chainId - Chain ID (optional, default: 5000 for Mantle)
+   * @param asset - Asset address (optional, default: native token)
+   */
+  getVerifiedBalances: async (
+    addresses: string[],
+    chainId?: number,
+    asset?: string
+  ): Promise<VerifiedBalanceInfo[]> => {
+    const result = await api.post<VerifiedBalancesResponse>('/api/v1/registry/verified-balances', {
+      addresses,
+      chainId,
+      asset,
+    })
+    return result.data
+  },
+}

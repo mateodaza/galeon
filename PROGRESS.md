@@ -58,6 +58,7 @@
 | README          | Done        | -     | Root + frontend docs with contract addrs              |
 | Ponder indexer  | Done        | -     | Replace event scanning with indexed data + pagination |
 | Backend API     | Done        | -     | SIWE auth, port sync, fog payments - 145 tests        |
+| Wallet state    | Done        | -     | Address-keyed remounting, pool recovery race fix      |
 | Receipt claim   | Pending     | -     | Frontend claim → API verify via Ponder                |
 | Smoke tests     | Not Started | -     | E2E on Mantle Sepolia                                 |
 | Evidence bundle | Not Started | -     | Screenshots, video                                    |

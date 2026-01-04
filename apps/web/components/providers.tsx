@@ -10,9 +10,14 @@
  * - Auth context (SIWE + JWT)
  * - Stealth keys context
  * - Motion (animations)
+ *
+ * Uses address-keyed remounting to automatically reset all auth/stealth/pool
+ * state when the wallet changes. This is the cleanest way to handle wallet
+ * switching without complex ref-based state tracking.
  */
 
 import { type ReactNode } from 'react'
+import { useAccount } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiProvider, type State } from 'wagmi'
@@ -71,6 +76,30 @@ interface ProvidersProps {
 }
 
 /**
+ * Inner providers that are keyed by wallet address.
+ * When address changes, React remounts these with fresh state.
+ * This eliminates all the complex ref-based state tracking.
+ */
+function AddressKeyedProviders({ children }: { children: ReactNode }) {
+  const { address } = useAccount()
+
+  // Use address as key - when it changes, all children remount with fresh state
+  // Use 'disconnected' as key when no wallet is connected
+  const key = address ?? 'disconnected'
+
+  return (
+    <AuthProvider key={key}>
+      <StealthProvider>
+        <PoolProvider>
+          <NetworkGuard />
+          {children}
+        </PoolProvider>
+      </StealthProvider>
+    </AuthProvider>
+  )
+}
+
+/**
  * Providers component that wraps the application.
  *
  * @param children - Child components to wrap
@@ -81,14 +110,7 @@ export function Providers({ children, initialState }: ProvidersProps) {
     <WagmiProvider config={wagmiAdapter.wagmiConfig} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
         <LazyMotion features={domAnimation} strict>
-          <AuthProvider>
-            <StealthProvider>
-              <PoolProvider>
-                <NetworkGuard />
-                {children}
-              </PoolProvider>
-            </StealthProvider>
-          </AuthProvider>
+          <AddressKeyedProviders>{children}</AddressKeyedProviders>
         </LazyMotion>
       </QueryClientProvider>
     </WagmiProvider>

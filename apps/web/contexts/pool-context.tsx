@@ -9,7 +9,15 @@
  * Flow: wallet signature → pool master keys → commitments → deposits
  */
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { useSignMessage, useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { type Address } from 'viem'
 import {
@@ -22,9 +30,13 @@ import {
   poolAbi,
   type PoolContracts,
 } from '@galeon/pool'
+import { poolDepositsApi } from '@/lib/api'
 
 /** Storage key prefix */
 const STORAGE_KEY = 'galeon-pool-session'
+
+/** Block number when pool contracts were deployed on Mantle mainnet */
+const _POOL_DEPLOYMENT_BLOCK = 75_000_000n
 
 /** Session duration: 7 days in milliseconds */
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000
@@ -188,6 +200,12 @@ export function PoolProvider({ children }: PoolProviderProps) {
   const [error, setError] = useState<string | null>(null)
   const [isDepositing, setIsDepositing] = useState(false)
   const [isRecovering, setIsRecovering] = useState(false)
+  // Track previous address for account switch detection
+  const previousAddressRef = useRef<string | undefined>(undefined)
+  // Flag to signal that recovery is needed - starts true to trigger on mount after session restore
+  const [needsRecovery, setNeedsRecovery] = useState(true)
+  // Ref to prevent concurrent recovery (doesn't trigger re-renders)
+  const isRecoveringRef = useRef(false)
 
   // Get contract addresses for current chain
   const contracts =
@@ -206,6 +224,9 @@ export function PoolProvider({ children }: PoolProviderProps) {
       const { masterNullifier: mn, masterSecret: ms } = derivePoolMasterKeys(signature)
       setMasterNullifier(mn)
       setMasterSecret(ms)
+      // Clear deposits and signal that recovery is needed
+      setDeposits([])
+      setNeedsRecovery(true)
 
       if (address) {
         saveSession(address, signature)
@@ -245,19 +266,42 @@ export function PoolProvider({ children }: PoolProviderProps) {
   }, [publicClient, contracts])
 
   /**
-   * Restore session on mount
+   * Restore session on mount and handle address changes
+   * Clears old state first, then restores for new address
    */
   useEffect(() => {
+    // Detect account switch and clear old state first
+    const addressChanged =
+      previousAddressRef.current &&
+      address &&
+      previousAddressRef.current.toLowerCase() !== address.toLowerCase()
+
+    if (addressChanged) {
+      console.log('[Pool] Account switched, clearing pool state')
+      // Clear old state before restoring for new address
+      setMasterNullifier(null)
+      setMasterSecret(null)
+      setDeposits([])
+      setError(null)
+      setIsRecovering(false)
+      setNeedsRecovery(false) // Will be set to true when new keys are derived
+    }
+
+    // Update tracking ref
+    previousAddressRef.current = address
+
     if (!address) {
       setIsRestoring(false)
       return
     }
 
+    // Try to restore session for current address
     const session = loadSession(address)
 
     if (session) {
       try {
         deriveKeysFromSignature(session.masterSignature)
+        console.log('[Pool] Session restored successfully')
       } catch (err) {
         console.error('[Pool] Failed to restore session:', err)
         clearSession(address)
@@ -278,6 +322,123 @@ export function PoolProvider({ children }: PoolProviderProps) {
       setPoolScope(null)
     }
   }, [isConnected])
+
+  /**
+   * Auto-recover deposits when pool keys become available
+   */
+  useEffect(() => {
+    // Only run when recovery is explicitly needed
+    if (!needsRecovery) return
+    // Don't run if already recovering (use ref to avoid re-render loops)
+    if (isRecoveringRef.current) return
+    // Wait for all required dependencies
+    if (isRestoring) return
+    if (!address) return
+    if (!masterNullifier || !masterSecret) return
+    if (!poolScope) return
+    if (!publicClient) return
+    if (!contracts || contracts.pool === '0x0000000000000000000000000000000000000000') return
+    // Skip if already have deposits (recovery already completed)
+    if (deposits.length > 0) {
+      setNeedsRecovery(false)
+      return
+    }
+
+    console.log('[Pool] Starting auto-recovery for', address.slice(0, 10) + '...')
+    // Mark as recovering (ref for immediate check, state for UI)
+    isRecoveringRef.current = true
+    setIsRecovering(true)
+
+    // Track cancellation for wallet switch during async recovery
+    let cancelled = false
+
+    const doRecover = async () => {
+      try {
+        // Use backend API (much faster than direct RPC getLogs)
+        const apiDeposits = await poolDepositsApi.list({
+          pool: contracts.pool,
+          chainId: chainId ?? 5000,
+        })
+
+        // Check if wallet switched during fetch - discard stale results
+        if (cancelled) {
+          console.log('[Pool] Recovery cancelled (wallet switch), discarding results')
+          return
+        }
+
+        // Convert API response to format expected by recoverPoolDeposits
+        // API returns hex strings, we need bigints
+        const depositEvents = apiDeposits.map((d) => ({
+          precommitment: BigInt(d.precommitmentHash),
+          value: BigInt(d.value),
+          label: BigInt(d.label),
+          blockNumber: BigInt(d.blockNumber),
+          txHash: d.transactionHash as `0x${string}`,
+        }))
+
+        const recovered = await recoverPoolDeposits(
+          masterNullifier,
+          masterSecret,
+          poolScope,
+          depositEvents
+        )
+
+        // Check again after recovery computation
+        if (cancelled) {
+          console.log('[Pool] Recovery cancelled (wallet switch), discarding results')
+          return
+        }
+
+        console.log('[Pool] Recovered', recovered.length, 'deposits')
+        setDeposits(recovered)
+        // Only clear needsRecovery AFTER successful recovery
+        setNeedsRecovery(false)
+
+        // Save to localStorage
+        if (address && chainId) {
+          const stored: StoredDeposit[] = recovered.map((d) => ({
+            index: Number(d.index),
+            precommitmentHash: d.precommitmentHash.toString(),
+            value: d.value.toString(),
+            label: d.label.toString(),
+            blockNumber: d.blockNumber.toString(),
+            txHash: d.txHash,
+            createdAt: Date.now(),
+          }))
+          saveStoredDeposits(address, chainId, stored)
+        }
+      } catch (err) {
+        // Only log errors if not cancelled
+        if (!cancelled) {
+          console.error('[Pool] Auto-recovery failed:', err)
+          // Keep needsRecovery true so it can retry
+        }
+      } finally {
+        // Always reset recovering state (both ref and state)
+        isRecoveringRef.current = false
+        setIsRecovering(false)
+      }
+    }
+
+    doRecover()
+
+    // Cleanup: cancel recovery if component unmounts or wallet changes
+    return () => {
+      cancelled = true
+      isRecoveringRef.current = false
+    }
+  }, [
+    needsRecovery,
+    isRestoring,
+    masterNullifier,
+    masterSecret,
+    poolScope,
+    publicClient,
+    contracts,
+    deposits.length,
+    address,
+    chainId,
+  ])
 
   /**
    * Derive pool keys with wallet signature
@@ -402,7 +563,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
   )
 
   /**
-   * Recover deposits from chain events
+   * Recover deposits from indexer API
    */
   const recoverDeposits = useCallback(async () => {
     if (!masterNullifier || !masterSecret) {
@@ -410,9 +571,6 @@ export function PoolProvider({ children }: PoolProviderProps) {
     }
     if (!poolScope) {
       throw new Error('Pool scope not loaded')
-    }
-    if (!publicClient) {
-      throw new Error('Public client not available')
     }
     if (!contracts || contracts.pool === '0x0000000000000000000000000000000000000000') {
       throw new Error('Pool contracts not deployed')
@@ -422,32 +580,19 @@ export function PoolProvider({ children }: PoolProviderProps) {
     setError(null)
 
     try {
-      // Fetch deposit events from the pool
-      // Note: Event param names must match Solidity contract (with underscore prefix)
-      const logs = await publicClient.getLogs({
-        address: contracts.pool as Address,
-        event: {
-          type: 'event',
-          name: 'Deposited',
-          inputs: [
-            { name: '_depositor', type: 'address', indexed: true },
-            { name: '_commitment', type: 'uint256', indexed: false },
-            { name: '_label', type: 'uint256', indexed: false },
-            { name: '_value', type: 'uint256', indexed: false },
-            { name: '_precommitmentHash', type: 'uint256', indexed: false },
-          ],
-        },
-        fromBlock: 'earliest',
-        toBlock: 'latest',
+      // Fetch deposit events from the indexer API (much faster than RPC)
+      const apiDeposits = await poolDepositsApi.list({
+        pool: contracts.pool,
+        chainId: chainId ?? 5000,
       })
 
-      // Transform to the format expected by recoverPoolDeposits
-      const depositEvents = logs.map((log) => ({
-        precommitment: log.args._precommitmentHash as bigint,
-        value: log.args._value as bigint,
-        label: log.args._label as bigint,
-        blockNumber: log.blockNumber,
-        txHash: log.transactionHash as `0x${string}`,
+      // Convert API response to format expected by recoverPoolDeposits
+      const depositEvents = apiDeposits.map((d) => ({
+        precommitment: BigInt(d.precommitmentHash),
+        value: BigInt(d.value),
+        label: BigInt(d.label),
+        blockNumber: BigInt(d.blockNumber),
+        txHash: d.transactionHash as `0x${string}`,
       }))
 
       // Recover deposits that match our keys
@@ -480,7 +625,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
     } finally {
       setIsRecovering(false)
     }
-  }, [masterNullifier, masterSecret, poolScope, publicClient, contracts, address, chainId])
+  }, [masterNullifier, masterSecret, poolScope, contracts, address, chainId])
 
   /**
    * Clear pool session

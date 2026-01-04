@@ -14,7 +14,15 @@
  * - Add secure session invalidation mechanisms
  */
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { useSignMessage, useAccount } from 'wagmi'
 import { deriveStealthKeys, formatStealthMetaAddress, type StealthKeys } from '@galeon/stealth'
 
@@ -150,6 +158,8 @@ export function StealthProvider({ children }: StealthProviderProps) {
   const [isRestoring, setIsRestoring] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasStoredSession, setHasStoredSession] = useState(false)
+  // Track previous address for account switch detection
+  const previousAddressRef = useRef<string | undefined>(undefined)
 
   /**
    * Derive keys from a signature (no wallet prompt)
@@ -179,10 +189,33 @@ export function StealthProvider({ children }: StealthProviderProps) {
   )
 
   /**
-   * Check for existing session on mount and when wallet changes
+   * Check for existing session on mount and handle address changes
+   * Clears old state first, then restores for new address
    */
   useEffect(() => {
     console.log('[Stealth] Checking for stored session...', { address })
+
+    // Detect account switch and clear old state first
+    const addressChanged =
+      previousAddressRef.current &&
+      address &&
+      previousAddressRef.current.toLowerCase() !== address.toLowerCase()
+
+    if (addressChanged) {
+      console.log('[Stealth] Account switched, clearing keys', {
+        previous: previousAddressRef.current,
+        current: address,
+      })
+      // Clear old state before restoring for new address
+      setKeys(null)
+      setMasterSignature(null)
+      setMetaAddress(null)
+      setError(null)
+      setHasStoredSession(false)
+    }
+
+    // Update tracking ref
+    previousAddressRef.current = address
 
     if (!address) {
       console.log('[Stealth] No address, skipping restoration')
@@ -191,6 +224,7 @@ export function StealthProvider({ children }: StealthProviderProps) {
       return
     }
 
+    // Try to restore session for current address
     const session = loadSession(address)
 
     if (session) {

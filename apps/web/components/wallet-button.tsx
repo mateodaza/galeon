@@ -14,6 +14,7 @@ import { formatUnits } from 'viem'
 import { Wallet, Shield, Key, ChevronDown, LogOut, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSignIn } from '@/hooks/use-sign-in'
+import { usePoolContext } from '@/contexts/pool-context'
 import { SignInModal } from '@/components/sign-in-modal'
 
 /**
@@ -81,6 +82,7 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const { address, isConnected } = useAppKitAccount()
   const { disconnect } = useDisconnect()
   const { isAuthenticated, hasKeys, isFullySignedIn, isLoading, signOut } = useSignIn()
+  const { hasPoolKeys, totalBalance: poolBalance } = usePoolContext()
   const [showModal, setShowModal] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -90,6 +92,10 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const { data: balance } = useBalance({
     address: address as `0x${string}` | undefined,
   })
+
+  // Format pool balance for display
+  const poolBalanceFormatted =
+    hasPoolKeys && poolBalance > 0n ? formatBalance(poolBalance, 18) : null
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -158,10 +164,21 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
               }
             />
 
-            {/* Balance */}
+            {/* Wallet Balance */}
             <span className={cn('font-semibold', variantStyles.balance)}>
               {formatBalance(balance?.value, balance?.decimals)} {balance?.symbol ?? 'MNT'}
             </span>
+
+            {/* Pool Balance - shown if user has pool keys and balance */}
+            {poolBalanceFormatted && (
+              <>
+                <span className={cn('h-4 w-px', variantStyles.divider)} />
+                <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                  <Shield className="h-3.5 w-3.5" />
+                  {poolBalanceFormatted}
+                </span>
+              </>
+            )}
 
             <span className={cn('h-4 w-px', variantStyles.divider)} />
 

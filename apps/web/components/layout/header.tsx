@@ -3,7 +3,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { formatEther } from 'viem'
+import { Shield } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
+import { usePoolContext } from '@/contexts/pool-context'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -28,6 +31,11 @@ interface HeaderProps {
  */
 export function Header({ nav, showWallet = true }: HeaderProps) {
   const pathname = usePathname()
+  const { hasPoolKeys, totalBalance } = usePoolContext()
+
+  // Format pool balance for display
+  const poolBalanceFormatted =
+    hasPoolKeys && totalBalance > 0n ? parseFloat(formatEther(totalBalance)).toFixed(4) : null
 
   return (
     <header className="flex items-center justify-between border-b px-6 py-4">
@@ -46,7 +54,21 @@ export function Header({ nav, showWallet = true }: HeaderProps) {
           </nav>
         )}
       </div>
-      {showWallet && <WalletButton />}
+      <div className="flex items-center gap-4">
+        {/* Pool balance indicator */}
+        {poolBalanceFormatted && (
+          <Link
+            href="/pool"
+            className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm transition-colors hover:bg-emerald-500/20"
+          >
+            <Shield className="h-4 w-4 text-emerald-500" />
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              {poolBalanceFormatted} MNT
+            </span>
+          </Link>
+        )}
+        {showWallet && <WalletButton />}
+      </div>
     </header>
   )
 }

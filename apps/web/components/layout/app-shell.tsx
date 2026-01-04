@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 interface AppShellProps {
   children: React.ReactNode
   /**
-   * Whether authentication is required.
+   * Whether authentication is required (wallet connected + SIWE signed in).
    * @default false
    */
   requireAuth?: boolean
@@ -53,21 +53,24 @@ export function AppShell({
   className,
 }: AppShellProps) {
   const router = useRouter()
-  const { isConnected, hasKeys, isLoading } = useSignIn()
+  const { isConnected, isAuthenticated, hasKeys, isLoading } = useSignIn()
+
+  // Check if auth requirements are met
+  // requireAuth means wallet connected AND SIWE authenticated (not just connected)
+  const isAuthMet = !requireAuth || (isConnected && isAuthenticated)
+  const isKeysMet = !requireKeys || hasKeys
 
   // Redirect if auth/keys required but not available (only after loading completes)
   useEffect(() => {
     if (isLoading) return // Wait for session restoration
 
-    if (requireAuth && !isConnected) {
-      router.push('/setup')
-    } else if (requireKeys && !hasKeys) {
+    if (!isAuthMet || !isKeysMet) {
       router.push('/setup')
     }
-  }, [requireAuth, requireKeys, isConnected, hasKeys, isLoading, router])
+  }, [isAuthMet, isKeysMet, isLoading, router])
 
   // Show loading state while restoring session or checking auth
-  if (isLoading || (requireAuth && !isConnected) || (requireKeys && !hasKeys)) {
+  if (isLoading || !isAuthMet || !isKeysMet) {
     return (
       <main className="bg-background flex min-h-screen flex-col items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin" />
