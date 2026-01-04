@@ -8,7 +8,7 @@
  */
 
 import { useAccount, useSwitchChain } from 'wagmi'
-import { CONTRACTS } from '@/lib/contracts'
+import { isSupportedChain, getStealthContracts } from '@/lib/contracts'
 
 /** Supported chain ID (Mantle mainnet) */
 const SUPPORTED_CHAIN_ID = 5000
@@ -20,11 +20,11 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
  * Check if a chain is supported (has non-zero contract addresses).
  */
 function isChainSupported(chainId: number): boolean {
-  const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-  if (!contracts) return false
+  if (!isSupportedChain(chainId)) return false
+
+  const contracts = getStealthContracts(chainId)
 
   // Check if contracts are deployed (not zero addresses)
-  // Cast to string to avoid TypeScript literal type comparison issues
   return (
     (contracts.galeonRegistry as string) !== ZERO_ADDRESS &&
     (contracts.announcer as string) !== ZERO_ADDRESS

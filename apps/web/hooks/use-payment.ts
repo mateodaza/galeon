@@ -16,15 +16,17 @@
 import { useMemo, useCallback } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, keccak256, toHex, encodePacked } from 'viem'
-import { galeonRegistryAbi, CONTRACTS } from '@/lib/contracts'
+import {
+  galeonRegistryAbi,
+  isSupportedChain,
+  getStealthContracts,
+  DEFAULT_CHAIN_ID,
+} from '@/lib/contracts'
 import {
   generateStealthAddress,
   formatStealthMetaAddress,
   type StealthMetaAddress,
 } from '@galeon/stealth'
-
-/** Default chain for reading port data when wallet not connected */
-const DEFAULT_CHAIN_ID = 5000 // Mantle Mainnet
 
 /**
  * Hook for fetching a Port's stealth meta-address.
@@ -37,8 +39,8 @@ export function usePortMetaAddress(portId: `0x${string}` | undefined) {
   const chainId = connectedChainId ?? DEFAULT_CHAIN_ID
 
   const contractAddress = useMemo(() => {
-    const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    return contracts?.galeonRegistry ?? null
+    if (!isSupportedChain(chainId)) return null
+    return getStealthContracts(chainId).galeonRegistry
   }, [chainId])
 
   const { data, isLoading, error } = useReadContract({
@@ -73,9 +75,8 @@ export function usePayNative() {
   const { chainId } = useAccount()
 
   const contractAddress = useMemo(() => {
-    if (!chainId) return null
-    const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    return contracts?.galeonRegistry ?? null
+    if (!chainId || !isSupportedChain(chainId)) return null
+    return getStealthContracts(chainId).galeonRegistry
   }, [chainId])
 
   const { writeContract, data: hash, isPending, error, reset } = useWriteContract()

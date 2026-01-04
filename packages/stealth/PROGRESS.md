@@ -1,7 +1,7 @@
 # Stealth Library (packages/stealth) Progress
 
 > Shared EIP-5564 stealth address cryptography
-> Last updated: 2025-12-29
+> Last updated: 2026-01-03
 
 ## Setup
 
@@ -35,6 +35,15 @@
 - [x] Ephemeral key scalar range validation in generateStealthAddressDeterministic ([1, n-1])
 - [x] Explicit length checks in buildAnnouncementMetadata (32-byte receiptHash, 20-byte token)
 - [x] Non-zero default salt for HKDF (avoids zero-salt footgun)
+
+## Galeon Metadata Format (2026-01-03)
+
+- [x] Updated metadata parsing to include `portId` field
+- [x] Native metadata: 65 bytes (viewTag 1 + receiptHash 32 + portId 32)
+- [x] Token metadata: 117 bytes (viewTag 1 + receiptHash 32 + portId 32 + token 20 + amount 32)
+- [x] Added `portId` to `ScannedPayment` interface
+- [x] Fixed byte offset parsing in `parsePaymentFromAnnouncement()`
+- [x] Updated tests to include portId in all metadata builds
 
 ## Dual Prefix Support (Mantle Branding)
 

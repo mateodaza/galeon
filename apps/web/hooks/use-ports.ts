@@ -15,7 +15,7 @@ import { useMemo, useState, useCallback } from 'react'
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { keccak256, toHex, encodePacked, stringToBytes } from 'viem'
-import { galeonRegistryAbi, CONTRACTS } from '@/lib/contracts'
+import { galeonRegistryAbi, isSupportedChain, getStealthContracts } from '@/lib/contracts'
 import { derivePortKeys, formatStealthMetaAddress } from '@galeon/stealth'
 import { useStealthContext } from '@/contexts/stealth-context'
 import { portsApi, type PortResponse, type PortStatus } from '@/lib/api'
@@ -98,9 +98,8 @@ export function useCreatePort() {
   const [error, setError] = useState<Error | null>(null)
 
   const contractAddress = useMemo(() => {
-    if (!chainId) return null
-    const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    return contracts?.galeonRegistry ?? null
+    if (!chainId || !isSupportedChain(chainId)) return null
+    return getStealthContracts(chainId).galeonRegistry
   }, [chainId])
 
   const { writeContractAsync } = useWriteContract()

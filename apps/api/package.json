@@ -62,6 +62,7 @@
     "@adonisjs/lucid": "^21.6.1",
     "@adonisjs/redis": "^9.2.0",
     "@adonisjs/transmit": "^0.5.0",
+    "@galeon/config": "workspace:*",
     "@galeon/stealth": "workspace:*",
     "@maximemrf/adonisjs-jwt": "^0.6.1",
     "@vinejs/vine": "^3.0.1",

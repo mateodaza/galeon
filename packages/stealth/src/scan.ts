@@ -12,11 +12,11 @@ import { computeViewTag, deriveStealthPrivateKey } from './address'
 /** Minimum metadata length (view tag only) */
 const MIN_METADATA_LENGTH = 1
 
-/** Metadata length for native payments: viewTag (1) + receiptHash (32) */
-const NATIVE_METADATA_LENGTH = 33
+/** Metadata length for native payments: viewTag (1) + receiptHash (32) + portId (32) */
+const NATIVE_METADATA_LENGTH = 65
 
-/** Metadata length for token payments: viewTag (1) + receiptHash (32) + token (20) + amount (32) */
-const TOKEN_METADATA_LENGTH = 85
+/** Metadata length for token payments: viewTag (1) + receiptHash (32) + portId (32) + token (20) + amount (32) */
+const TOKEN_METADATA_LENGTH = 117
 
 /**
  * Validate an announcement has required fields.
@@ -186,8 +186,9 @@ export function checkAnnouncement(
  * Galeon metadata format:
  * - Byte 0: view tag
  * - Bytes 1-32: receipt hash (32 bytes)
- * - Bytes 33-52: token address (20 bytes, optional)
- * - Bytes 53-84: amount (32 bytes, optional)
+ * - Bytes 33-64: port ID (32 bytes)
+ * - Bytes 65-84: token address (20 bytes, optional - only for token payments)
+ * - Bytes 85-116: amount (32 bytes, optional - only for token payments)
  *
  * @returns Parsed payment or null if metadata is malformed
  */
@@ -198,30 +199,38 @@ function parsePaymentFromAnnouncement(
 ): ScannedPayment | null {
   const metadata = announcement.metadata
 
-  // Must have at least native metadata length (viewTag + receiptHash)
-  if (metadata.length < NATIVE_METADATA_LENGTH) {
-    // Malformed metadata - skip this payment
+  // Extract receipt hash if present (bytes 1-33), otherwise use zero hash
+  // Some contracts may only include viewTag in metadata
+  let receiptHash: `0x${string}`
+  let portId: `0x${string}` | null = null
+
+  if (metadata.length >= NATIVE_METADATA_LENGTH) {
+    // Full Galeon metadata: viewTag (1) + receiptHash (32) + portId (32)
+    receiptHash = `0x${bytesToHex(metadata.slice(1, 33))}` as `0x${string}`
+    portId = `0x${bytesToHex(metadata.slice(33, 65))}` as `0x${string}`
+  } else if (metadata.length >= 33) {
+    // Legacy format without portId: viewTag (1) + receiptHash (32)
+    receiptHash = `0x${bytesToHex(metadata.slice(1, 33))}` as `0x${string}`
+  } else if (metadata.length >= MIN_METADATA_LENGTH) {
+    // Minimal metadata: just viewTag - use zero hash as placeholder
+    receiptHash = '0x0000000000000000000000000000000000000000000000000000000000000000'
+  } else {
+    // No metadata at all - skip
     return null
   }
 
-  // Extract receipt hash (bytes 1-33)
-  const receiptHash = `0x${bytesToHex(metadata.slice(1, 33))}` as `0x${string}`
-
-  // Extract token address and amount (if present)
+  // Extract token address and amount (if present in full-length token metadata)
   let token: `0x${string}` | null = null
   let amount = 0n
 
   if (metadata.length >= TOKEN_METADATA_LENGTH) {
-    // Token payment: has token address and amount
-    token = `0x${bytesToHex(metadata.slice(33, 53))}`
-    const amountHex = bytesToHex(metadata.slice(53, 85))
+    // Token payment: has token address (bytes 65-84) and amount (bytes 85-116)
+    token = `0x${bytesToHex(metadata.slice(65, 85))}`
+    const amountHex = bytesToHex(metadata.slice(85, 117))
     // Handle empty/zero amount gracefully
     amount = amountHex.length > 0 ? BigInt(`0x${amountHex}`) : 0n
-  } else if (metadata.length > NATIVE_METADATA_LENGTH) {
-    // Metadata is between native and token length - malformed
-    // This could be partial token data, skip to avoid misaccounting
-    return null
   }
+  // Note: We accept partial metadata to support minimal viewTag-only format
 
   return {
     stealthAddress,
@@ -229,6 +238,7 @@ function parsePaymentFromAnnouncement(
     amount,
     token,
     receiptHash,
+    portId,
     txHash: announcement.txHash,
     blockNumber: announcement.blockNumber,
   }
@@ -237,16 +247,22 @@ function parsePaymentFromAnnouncement(
 /**
  * Build metadata bytes for an announcement.
  *
+ * Galeon metadata format:
+ * - Native: viewTag (1) + receiptHash (32) + portId (32) = 65 bytes
+ * - Token: viewTag (1) + receiptHash (32) + portId (32) + token (20) + amount (32) = 117 bytes
+ *
  * @param viewTag - Single-byte view tag (0-255)
  * @param receiptHash - 32-byte receipt hash (0x-prefixed, 66 chars)
+ * @param portId - 32-byte port ID (0x-prefixed, 66 chars)
  * @param token - Token address (null for native currency, 0x-prefixed, 42 chars)
  * @param amount - Payment amount (only included for token payments)
  * @returns Metadata bytes for the announcement
- * @throws Error if viewTag, receiptHash, or token have invalid format/length
+ * @throws Error if viewTag, receiptHash, portId, or token have invalid format/length
  */
 export function buildAnnouncementMetadata(
   viewTag: number,
   receiptHash: `0x${string}`,
+  portId: `0x${string}`,
   token: `0x${string}` | null = null,
   amount: bigint = 0n
 ): Uint8Array {
@@ -261,11 +277,18 @@ export function buildAnnouncementMetadata(
   }
   const receiptBytes = hexToBytes(receiptHash.slice(2), 32)
 
+  // Validate portId (must be 32 bytes = 64 hex chars + 0x prefix)
+  if (!portId.startsWith('0x') || portId.length !== 66) {
+    throw new Error('Port ID must be 32 bytes (0x + 64 hex chars)')
+  }
+  const portIdBytes = hexToBytes(portId.slice(2), 32)
+
   if (token === null) {
-    // Native payment: viewTag (1) + receiptHash (32) = 33 bytes
-    const metadata = new Uint8Array(33)
+    // Native payment: viewTag (1) + receiptHash (32) + portId (32) = 65 bytes
+    const metadata = new Uint8Array(65)
     metadata[0] = viewTag
     metadata.set(receiptBytes, 1)
+    metadata.set(portIdBytes, 33)
     return metadata
   }
 
@@ -280,15 +303,16 @@ export function buildAnnouncementMetadata(
     throw new Error('Amount must be non-negative')
   }
 
-  // Token payment: viewTag (1) + receiptHash (32) + token (20) + amount (32) = 85 bytes
-  const metadata = new Uint8Array(85)
+  // Token payment: viewTag (1) + receiptHash (32) + portId (32) + token (20) + amount (32) = 117 bytes
+  const metadata = new Uint8Array(117)
   metadata[0] = viewTag
   metadata.set(receiptBytes, 1)
-  metadata.set(tokenBytes, 33)
+  metadata.set(portIdBytes, 33)
+  metadata.set(tokenBytes, 65)
 
   // Convert amount to 32-byte big-endian
   const amountHex = amount.toString(16).padStart(64, '0')
-  metadata.set(hexToBytes(amountHex), 53)
+  metadata.set(hexToBytes(amountHex), 85)
 
   return metadata
 }

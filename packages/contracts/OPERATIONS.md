@@ -357,6 +357,90 @@ Prevents withdrawals to a specific address (compliance).
 
 ---
 
+## GaleonRegistry Integration
+
+The GaleonRegistry is the bridge between stealth address payments and the Privacy Pool. It tracks:
+
+- **Port registrations** - Which stealth meta-addresses belong to registered Ports
+- **Verified balances** - Funds received through `payNative()` / `payToken()` that can be deposited
+- **Authorized pools** - Which Privacy Pools can consume verified balances
+
+### Authorize Privacy Pool (REQUIRED)
+
+**After deploying a new Privacy Pool, you MUST authorize it in GaleonRegistry:**
+
+```bash
+# Via Hardhat console
+cd packages/contracts
+npx hardhat console --network mantle
+```
+
+```typescript
+const registry = await ethers.getContractAt(
+  'GaleonRegistry',
+  '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D'
+)
+
+// Authorize the native MNT pool
+await registry.setAuthorizedPool('0x3260c8d8cc654B0897cd93cdf0662Fa679656b36', true)
+
+// Verify authorization
+await registry.authorizedPools('0x3260c8d8cc654B0897cd93cdf0662Fa679656b36')
+// Should return: true
+```
+
+**Why is this required?**
+
+The Privacy Pool calls `registry.consumeVerifiedBalance()` during deposits to:
+
+1. Prevent deposits of "dirty" funds sent directly (not through Ports)
+2. Prevent double-deposits by consuming the verified balance
+3. Maintain audit trail of all pool deposits
+
+Without authorization, deposits will revert with `"Not authorized pool"`.
+
+### Check Registry State for a Stealth Address
+
+```typescript
+const registry = await ethers.getContractAt(
+  'GaleonRegistry',
+  '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D'
+)
+const stealthAddress = '0x...'
+
+// Is this a valid Port stealth address?
+await registry.isPortStealthAddress(stealthAddress)
+
+// Can this address deposit to the pool?
+await registry.canDeposit(stealthAddress)
+
+// What's the verified balance? (address(0) = native MNT)
+await registry.verifiedBalance(stealthAddress, '0x0000000000000000000000000000000000000000')
+
+// Is this address frozen?
+await registry.frozenStealthAddresses(stealthAddress)
+```
+
+### Block a Depositor (ASP Compliance)
+
+```typescript
+// Block address from depositing to pool (at deposit time)
+const pool = await ethers.getContractAt(
+  'GaleonPrivacyPoolSimple',
+  '0x3260c8d8cc654B0897cd93cdf0662Fa679656b36'
+)
+await pool.updateBlocklist(depositorAddress, true)
+
+// Freeze stealth address in registry (prevents any new deposits from that address)
+const registry = await ethers.getContractAt(
+  'GaleonRegistry',
+  '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D'
+)
+await registry.setFrozenStealthAddress(stealthAddress, true)
+```
+
+---
+
 ## Verification Commands
 
 ### Verified Contracts
