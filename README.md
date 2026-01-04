@@ -4,13 +4,13 @@ Private payments using EIP-5564 stealth addresses on Mantle.
 
 ## Overview
 
-Galeon enables private payments using stealth addresses. Payers send funds to one-time addresses derived from the recipient's public keys, ensuring payment privacy while maintaining on-chain verifiability.
+Galeon enables private payments using stealth addresses. Whether you're a freelancer, business, DAO, or individual - anyone can receive payments privately. Payers send funds to one-time addresses derived from the recipient's public keys, ensuring payment privacy while maintaining on-chain verifiability.
 
 ### Key Features
 
 - **Private Payments**: Recipients receive funds at stealth addresses that can't be linked to their identity
 - **Port System**: Users create "Ports" - named payment endpoints with unique stealth keys
-- **Privacy Pool**: ZK mixing for sender privacy (0xbow fork) - deposit from Port, withdraw directly to recipient
+- **Privacy Pool**: ZK mixing for sender privacy (built upon 0xbow) - deposit from Port, withdraw directly to recipient
 - **Shipwreck**: Compliance reports with cryptographic proofs for auditors
 - **On-Chain Receipts**: Payment metadata is anchored on-chain for verifiable receipts
 - **Mantle L2**: Low fees and fast finality on Mantle network
@@ -98,7 +98,7 @@ Solidity smart contracts deployed on Mantle:
 - `ERC5564Announcer`: Stealth payment announcements with trusted relayer system
 - `ERC6538Registry`: Stealth meta-address registry
 
-**Privacy Pool v1 (0xbow fork):**
+**Privacy Pool v1 (built upon 0xbow):**
 
 - `GaleonEntrypoint`: Pool registry, ASP roots, deposit routing
 - `GaleonPrivacyPoolSimple`: Native currency (MNT/ETH) mixing pool
@@ -140,29 +140,29 @@ Centralized chain and contract configuration:
 
 ## How It Works
 
-### 1. Setup (Vendor)
+### 1. Setup
 
 1. Connect wallet and sign a message to derive stealth keys
-2. Create a "Port" with a name (e.g., "Main Store")
-3. Share the Port's payment link with customers
+2. Create a "Port" with a name (e.g., "Donations", "Invoices")
+3. Share the Port's payment link
 
-### 2. Payment (Payer)
+### 2. Pay
 
 1. Visit payment link (e.g., `/pay/[portId]`)
 2. Connect wallet, enter amount and optional memo
 3. Submit payment - funds go to a fresh stealth address
 
-### 3. Collection (Vendor)
+### 3. Collect
 
 1. Scan blockchain for payments to your Ports
 2. Derive private keys for each stealth address
 3. Collect funds to your main wallet
 
-### 4. Privacy Pool (Sender Privacy)
+### 4. Privacy Pool
 
-1. Deposit funds from Port to Privacy Pool
-2. Generate ZK proof and withdraw directly to recipient
-3. ZK proof breaks all links between deposit and withdrawal
+1. Deposit collected funds to Privacy Pool
+2. Generate ZK proof and withdraw to any address
+3. ZK proof breaks the link between deposit and withdrawal
 4. Generate Shipwreck compliance reports if needed
 
 ## Apps
@@ -173,7 +173,7 @@ Next.js 16 frontend with React 19 and Tailwind v4:
 
 - `/` - Landing page with wallet connect
 - `/setup` - Onboarding with stealth key derivation
-- `/dashboard` - Vendor dashboard with mode switching
+- `/dashboard` - Main dashboard with mode switching
 - `/receive` - Port management (create/manage payment endpoints)
 - `/send` - Payment initiation page
 - `/pay/[portId]` - Payment flow with stealth addresses
@@ -247,7 +247,7 @@ PONDER_RPC_URL_5000=https://rpc.mantle.xyz
 **Privacy Pool Hardening:**
 
 - Port-only deposits via `canDeposit()` check
-- `verifiedBalance` prevents dirty sends and double-deposits
+- `verifiedBalance` prevents unverified deposits and double-spending
 - Stealth address freezing for compliance/port deactivation
 - UUPS upgradeable with verifier swapping for circuit upgrades
 - ReentrancyGuard on all value transfers
