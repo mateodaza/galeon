@@ -1,17 +1,25 @@
 # Galeon
 
-Private payments using EIP-5564 stealth addresses on Mantle.
+Private payments on Mantle. Receive privately with stealth addresses. Send privately with ZK proofs.
 
 ## Overview
 
-Galeon enables private payments on-chain. Receive privately with stealth addresses. Send privately with ZK proofs. Whether you're a freelancer, business, DAO, or individual - Galeon gives you financial privacy without sacrificing verifiability.
+On-chain payments are public by default. Galeon makes them private.
+
+**Receiving?** Payers send to one-time stealth addresses - no one can link payments to your wallet.
+
+**Sending?** Withdraw through our Privacy Pool - ZK proofs break the trail between you and the recipient.
+
+**Need compliance?** Generate Shipwreck reports to prove specific transactions without exposing your full history.
+
+Whether you're a freelancer, business, DAO, or individual - Galeon gives you financial privacy without sacrificing compliance.
 
 ### Key Features
 
 - **Receive Privately**: Funds go to one-time stealth addresses that can't be linked to your identity
 - **Send Privately**: ZK mixing breaks the link between sender and recipient (Privacy Pool, built upon 0xbow)
 - **Port System**: Create named payment endpoints ("Donations", "Invoices") with unique keys
-- **Shipwreck**: Generate compliance reports with cryptographic proofs when needed
+- **Shipwreck**: Generate compliance reports to prove specific transactions when needed
 - **On-Chain Receipts**: Anchor payment metadata for verifiable records
 - **Mantle L2**: Low fees and fast finality
 
