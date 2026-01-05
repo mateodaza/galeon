@@ -1,7 +1,7 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2026-01-03
+> Last updated: 2026-01-04
 
 ## Setup
 
@@ -174,6 +174,63 @@ Frontend-backend integration for port creation:
 - `confirmed` - Transaction confirmed, `indexerPortId` stored
 
 **Future:** Reconciliation job to verify pending ports against Ponder indexer.
+
+## Phase 12: ASP Auto-Approve Service (2026-01-04)
+
+### Overview
+
+The ASP (Association Set Provider) service auto-approves deposit labels into a Merkle tree and updates the on-chain root. This enables O(1) withdrawals by proving membership in the ASP tree.
+
+### Implementation
+
+- [x] Add `poseidon-lite` and `@zk-kit/lean-imt` dependencies
+- [x] Create `ASPService` (`app/services/asp_service.ts`)
+  - LeanIMT tree with Poseidon hash
+  - Rebuild from existing deposits on startup
+  - Process new deposits and add labels
+  - Update on-chain root via `Entrypoint.updateRoot()`
+  - Generate ASP Merkle proofs for withdrawal circuits
+- [x] Create `UpdateASPRoot` job (`app/jobs/update_asp_root.ts`)
+- [x] Schedule job every 30 seconds
+- [x] Add env variables: `ENTRYPOINT_ADDRESS`, `ASP_POSTMAN_PRIVATE_KEY`
+
+### Configuration
+
+```env
+# ASP service (requires ASP_POSTMAN role on Entrypoint contract)
+ENTRYPOINT_ADDRESS=0x54BA91d29f84B8bAd161880798877e59f2999f7a
+
+# Optional: Falls back to RELAYER_PRIVATE_KEY if not set
+# ASP_POSTMAN_PRIVATE_KEY=0x...
+```
+
+> **Note**: If `ASP_POSTMAN_PRIVATE_KEY` is not set, the service will use `RELAYER_PRIVATE_KEY` as a fallback. This works when the same account has both roles (typical for hackathon setup).
+
+### Flow
+
+1. Scheduler triggers `UpdateASPRoot` job every 30 seconds
+2. On first run, rebuilds tree from all existing deposits (via PonderService)
+3. On subsequent runs, processes only new deposits since last check
+4. For hackathon: auto-approves ALL labels (no blocklist check)
+5. Production: would check depositor addresses against sanctions lists
+6. If tree root changed, calls `Entrypoint.updateRoot(root, ipfsCID)`
+
+### API Endpoints
+
+The ASP service exposes these public endpoints for withdrawal proofs:
+
+| Method | Endpoint                   | Description                            |
+| ------ | -------------------------- | -------------------------------------- |
+| GET    | `/api/v1/asp/status`       | Get ASP tree status and sync info      |
+| GET    | `/api/v1/asp/proof/:label` | Get Merkle proof for a deposit label   |
+| POST   | `/api/v1/asp/rebuild`      | Force rebuild tree and update on-chain |
+
+### Notes
+
+- Singleton ASP service instance persists tree state between job runs
+- Uses `poseidon-lite` (pure JS, Node.js compatible) instead of `maci-crypto` (browser-only)
+- IPFS CID is placeholder for hackathon; production would store actual tree data
+- ASP_POSTMAN_PRIVATE_KEY falls back to RELAYER_PRIVATE_KEY if not set
 
 ## Notes
 

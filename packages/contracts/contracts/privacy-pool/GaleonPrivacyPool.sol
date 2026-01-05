@@ -37,6 +37,7 @@ import {GaleonState} from "./GaleonState.sol";
 abstract contract GaleonPrivacyPool is GaleonState, IGaleonPrivacyPool {
     using ProofLib for ProofLib.WithdrawProof;
     using ProofLib for ProofLib.RagequitProof;
+    using ProofLib for ProofLib.MergeDepositProof;
 
     // ============ GALEON ADDITIONS ============
 
@@ -52,6 +53,11 @@ abstract contract GaleonPrivacyPool is GaleonState, IGaleonPrivacyPool {
     /// @notice Deposit-time blocklist for ASP compliance
     /// @dev GALEON ADDITION: Blocked addresses cannot deposit (in addition to withdrawal-time ASP)
     mapping(address => bool) public blockedDepositors;
+
+    /// @notice Merge deposit proof verifier
+    /// @dev GALEON ADDITION: Verifier for merging deposits into existing commitments
+    /// @dev UPGRADE NOTE: Added after initial deployment - MUST be at end of storage for compatibility
+    IVerifier public MERGE_DEPOSIT_VERIFIER;
 
     // ============ GALEON EVENTS ============
 
@@ -95,6 +101,35 @@ abstract contract GaleonPrivacyPool is GaleonState, IGaleonPrivacyPool {
 
         // Check the ASP root is the latest
         if (_proof.ASPRoot() != ENTRYPOINT.latestRoot()) revert IncorrectASPRoot();
+        _;
+    }
+
+    /**
+     * @notice Validates a merge deposit proof
+     * @dev GALEON ADDITION: Similar to validWithdrawal but for merge deposits
+     * @param _mergeData Encoded data for context computation
+     * @param _proof The merge deposit proof
+     */
+    modifier validMergeDeposit(bytes calldata _mergeData, ProofLib.MergeDepositProof calldata _proof) {
+        // Check merge deposit verifier is set
+        if (address(MERGE_DEPOSIT_VERIFIER) == address(0)) revert MergeDepositVerifierNotSet();
+
+        // Check the context matches to ensure its integrity
+        // Context = keccak256(mergeData, SCOPE) % SNARK_SCALAR_FIELD
+        if (_proof.md_context() != uint256(keccak256(abi.encode(_mergeData, SCOPE))) % Constants.SNARK_SCALAR_FIELD) {
+            revert ContextMismatch();
+        }
+
+        // Check the tree depth signals are less than the max tree depth
+        if (_proof.md_stateTreeDepth() > MAX_TREE_DEPTH || _proof.md_ASPTreeDepth() > MAX_TREE_DEPTH) {
+            revert InvalidTreeDepth();
+        }
+
+        // Check the state root is known
+        if (!_isKnownRoot(_proof.md_stateRoot())) revert UnknownStateRoot();
+
+        // Check the ASP root is the latest
+        if (_proof.md_ASPRoot() != ENTRYPOINT.latestRoot()) revert IncorrectASPRoot();
         _;
     }
 
@@ -226,6 +261,59 @@ abstract contract GaleonPrivacyPool is GaleonState, IGaleonPrivacyPool {
         emit Ragequit(msg.sender, _proof.commitmentHash(), _proof.label(), _proof.value());
     }
 
+    /// @inheritdoc IGaleonPrivacyPool
+    function mergeDeposit(
+        address _depositor,
+        bytes calldata _mergeData,
+        ProofLib.MergeDepositProof calldata _proof
+    ) external payable onlyEntrypoint validMergeDeposit(_mergeData, _proof) {
+        // Check deposits are enabled
+        if (dead) revert PoolIsDead();
+
+        // Get deposit value from proof
+        uint256 _depositValue = _proof.md_depositValue();
+
+        // Validate deposit value
+        if (_depositValue >= type(uint128).max) revert InvalidDepositValue();
+
+        // Check depositor is not on blocklist
+        if (blockedDepositors[_depositor]) revert DepositorBlocked();
+
+        // GALEON: Require galeonRegistry for Port verification
+        if (address(galeonRegistry) == address(0)) revert GaleonRegistryNotSet();
+
+        // GALEON: Verify depositor can deposit (is Port stealth address AND not frozen)
+        if (!galeonRegistry.canDeposit(_depositor)) revert MustDepositFromPort();
+
+        // GALEON: Check and consume verified balance
+        address registryAsset = ASSET == Constants.NATIVE_ASSET ? address(0) : ASSET;
+        if (galeonRegistry.verifiedBalance(_depositor, registryAsset) < _depositValue) {
+            revert InsufficientVerifiedBalance();
+        }
+        galeonRegistry.consumeVerifiedBalance(_depositor, registryAsset, _depositValue);
+
+        // Verify proof with Groth16 verifier
+        if (!MERGE_DEPOSIT_VERIFIER.verifyProof(_proof.pA, _proof.pB, _proof.pC, _proof.pubSignals)) {
+            revert InvalidProof();
+        }
+
+        // Mark existing commitment nullifier as spent
+        _spend(_proof.md_existingNullifierHash());
+
+        // Insert new commitment (merged value) in state
+        _insert(_proof.md_newCommitmentHash());
+
+        // Pull funds from caller (Entrypoint)
+        _pull(msg.sender, _depositValue);
+
+        emit MergeDeposited(
+            _depositor,
+            _depositValue,
+            _proof.md_existingNullifierHash(),
+            _proof.md_newCommitmentHash()
+        );
+    }
+
     /*///////////////////////////////////////////////////////////////
                              WIND DOWN
     //////////////////////////////////////////////////////////////*/
@@ -285,6 +373,16 @@ abstract contract GaleonPrivacyPool is GaleonState, IGaleonPrivacyPool {
     function _updateBlocklist(address _depositor, bool _blocked) internal {
         blockedDepositors[_depositor] = _blocked;
         emit DepositorBlocklistUpdated(_depositor, _blocked);
+    }
+
+    /**
+     * @notice Set the merge deposit verifier
+     * @dev GALEON ADDITION: Enables merge-on-deposit functionality
+     * @param _mergeDepositVerifier The merge deposit verifier address
+     */
+    function _setMergeDepositVerifier(address _mergeDepositVerifier) internal {
+        require(_mergeDepositVerifier != address(0), "Invalid merge deposit verifier");
+        MERGE_DEPOSIT_VERIFIER = IVerifier(_mergeDepositVerifier);
     }
 
     /*///////////////////////////////////////////////////////////////

@@ -1,6 +1,8 @@
 # Galeon
 
-Private payments on Mantle. Receive privately with stealth addresses. Send privately with ZK proofs.
+**Private payments for everyone.** Receive privately. Send privately. Prove what you need.
+
+Umbra hides receivers. Railgun hides senders. Galeon hides both — with compliance built in.
 
 ## Overview
 

@@ -117,6 +117,15 @@ contract GaleonPrivacyPoolSimple is
         _updateBlocklist(_depositor, _blocked);
     }
 
+    /**
+     * @notice Set the merge deposit verifier
+     * @dev GALEON ADDITION: Owner-only function to enable merge-on-deposit
+     * @param _verifier MergeDepositVerifier address
+     */
+    function setMergeDepositVerifier(address _verifier) external onlyOwner {
+        _setMergeDepositVerifier(_verifier);
+    }
+
     // ============ Asset Handling ============
 
     /**

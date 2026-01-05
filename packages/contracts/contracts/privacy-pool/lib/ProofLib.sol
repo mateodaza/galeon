@@ -102,4 +102,63 @@ library ProofLib {
     function label(RagequitProof memory _p) internal pure returns (uint256) {
         return _p.pubSignals[3];
     }
+
+    /*///////////////////////////////////////////////////////////////
+                        MERGE DEPOSIT PROOF
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Struct for merge deposit verification (merge new deposit into existing commitment)
+     * @dev GALEON ADDITION: Enables O(1) withdrawals via merge-on-deposit pattern
+     * @param pA First elliptic curve point of the Groth16 proof
+     * @param pB Second elliptic curve point of the Groth16 proof
+     * @param pC Third elliptic curve point of the Groth16 proof
+     * @param pubSignals Array of public inputs and outputs:
+     *        - [0] newCommitmentHash
+     *        - [1] existingNullifierHash
+     *        - [2] depositValue
+     *        - [3] stateRoot
+     *        - [4] stateTreeDepth
+     *        - [5] ASPRoot
+     *        - [6] ASPTreeDepth
+     *        - [7] context
+     */
+    struct MergeDepositProof {
+        uint256[2] pA;
+        uint256[2][2] pB;
+        uint256[2] pC;
+        uint256[8] pubSignals;
+    }
+
+    function md_newCommitmentHash(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[0];
+    }
+
+    function md_existingNullifierHash(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[1];
+    }
+
+    function md_depositValue(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[2];
+    }
+
+    function md_stateRoot(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[3];
+    }
+
+    function md_stateTreeDepth(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[4];
+    }
+
+    function md_ASPRoot(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[5];
+    }
+
+    function md_ASPTreeDepth(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[6];
+    }
+
+    function md_context(MergeDepositProof memory _p) internal pure returns (uint256) {
+        return _p.pubSignals[7];
+    }
 }

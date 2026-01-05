@@ -219,7 +219,7 @@ app.get('/pools/:address', async (c) => {
   return c.json(serializeBigInts(result[0]))
 })
 
-// GET /pools/:address/deposits - Get deposits for a pool
+// GET /pools/:address/deposits - Get deposits for a pool (ordered by insertion order for Merkle tree consistency)
 app.get('/pools/:address/deposits', async (c) => {
   const address = c.req.param('address')
   const limit = parseInt(c.req.query('limit') || '100')
@@ -228,7 +228,8 @@ app.get('/pools/:address/deposits', async (c) => {
     .select()
     .from(schema.poolDeposits)
     .where(eq(schema.poolDeposits.pool, address.toLowerCase() as `0x${string}`))
-    .orderBy(desc(schema.poolDeposits.blockNumber))
+    .orderBy(schema.poolDeposits.blockNumber)
+    .orderBy(schema.poolDeposits.logIndex)
     .limit(limit)
 
   return c.json(serializeBigInts(results))
@@ -264,7 +265,7 @@ app.get('/pools/:address/ragequits', async (c) => {
   return c.json(serializeBigInts(results))
 })
 
-// GET /pools/:address/leaves - Get merkle leaves for a pool
+// GET /pools/:address/leaves - Get merkle leaves for a pool (ordered by leafIndex for Merkle tree consistency)
 app.get('/pools/:address/leaves', async (c) => {
   const address = c.req.param('address')
   const limit = parseInt(c.req.query('limit') || '100')
@@ -273,7 +274,7 @@ app.get('/pools/:address/leaves', async (c) => {
     .select()
     .from(schema.merkleLeaves)
     .where(eq(schema.merkleLeaves.pool, address.toLowerCase() as `0x${string}`))
-    .orderBy(desc(schema.merkleLeaves.leafIndex))
+    .orderBy(schema.merkleLeaves.leafIndex)
     .limit(limit)
 
   return c.json(serializeBigInts(results))
@@ -283,14 +284,15 @@ app.get('/pools/:address/leaves', async (c) => {
 // Deposits (cross-pool)
 // ============================================================
 
-// GET /deposits - List all deposits
+// GET /deposits - List all deposits (ordered by insertion order for Merkle tree consistency)
 app.get('/deposits', async (c) => {
   const limit = parseInt(c.req.query('limit') || '100')
 
   const results = await db
     .select()
     .from(schema.poolDeposits)
-    .orderBy(desc(schema.poolDeposits.blockNumber))
+    .orderBy(schema.poolDeposits.blockNumber)
+    .orderBy(schema.poolDeposits.logIndex)
     .limit(limit)
 
   return c.json(serializeBigInts(results))

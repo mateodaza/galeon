@@ -83,6 +83,21 @@ interface IGaleonPrivacyPool is IGaleonState {
      */
     event PoolDied();
 
+    /**
+     * @notice Emitted when merging a deposit into an existing commitment
+     * @dev GALEON ADDITION: Enables O(1) withdrawals via merge-on-deposit pattern
+     * @param _depositor The address of the depositor
+     * @param _depositValue The amount being deposited
+     * @param _existingNullifierHash The nullifier of the spent commitment
+     * @param _newCommitmentHash The new commitment hash (merged value)
+     */
+    event MergeDeposited(
+        address indexed _depositor,
+        uint256 _depositValue,
+        uint256 _existingNullifierHash,
+        uint256 _newCommitmentHash
+    );
+
 
     /*///////////////////////////////////////////////////////////////
                               ERRORS
@@ -160,6 +175,11 @@ interface IGaleonPrivacyPool is IGaleonState {
      */
     error GaleonRegistryNotSet();
 
+    /**
+     * @notice GALEON ADDITION: Thrown when merge deposit verifier is not set
+     */
+    error MergeDepositVerifierNotSet();
+
     /*///////////////////////////////////////////////////////////////
                               LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -202,6 +222,21 @@ interface IGaleonPrivacyPool is IGaleonState {
      * @dev 0xbow original: IPrivacyPool.windDown
      */
     function windDown() external;
+
+    /**
+     * @notice Merge a new deposit into an existing commitment
+     * @dev GALEON ADDITION: Enables O(1) withdrawals via merge-on-deposit pattern
+     * @dev Only callable by the Entrypoint
+     * @dev Requires valid ZK proof that the user owns the existing commitment
+     * @param _depositor The depositor address (must match original commitment's label owner)
+     * @param _mergeData Encoded merge deposit data for context computation
+     * @param _proof The MergeDepositProof containing the ZK proof
+     */
+    function mergeDeposit(
+        address _depositor,
+        bytes calldata _mergeData,
+        ProofLib.MergeDepositProof calldata _proof
+    ) external payable;
 
 }
 

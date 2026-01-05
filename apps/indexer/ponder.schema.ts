@@ -212,6 +212,41 @@ export const poolDeposits = onchainTable(
 )
 
 // ============================================================
+// POOL_MERGE_DEPOSITS - Merge deposits into existing commitments
+// ============================================================
+// Indexed from GaleonPrivacyPool:MergeDeposited events
+export const poolMergeDeposits = onchainTable(
+  'pool_merge_deposits',
+  (t) => ({
+    // Primary key: txHash-logIndex
+    id: t.text().primaryKey(),
+
+    // Pool reference
+    pool: t.hex().notNull(),
+
+    // Event data
+    depositor: t.hex().notNull(),
+    depositValue: t.bigint().notNull(), // amount being added
+    existingNullifierHash: t.hex().notNull(), // nullifier of the spent commitment
+    newCommitment: t.hex().notNull(), // new commitment after merge
+
+    // Block context
+    blockNumber: t.bigint().notNull(),
+    blockTimestamp: t.bigint().notNull(),
+    transactionHash: t.hex().notNull(),
+    logIndex: t.integer().notNull(),
+
+    chainId: t.integer().notNull(),
+  }),
+  (table) => ({
+    poolIdx: index().on(table.pool),
+    depositorIdx: index().on(table.depositor),
+    nullifierIdx: index().on(table.existingNullifierHash),
+    newCommitmentIdx: index().on(table.newCommitment),
+  })
+)
+
+// ============================================================
 // POOL_WITHDRAWALS - Withdrawals from Privacy Pools
 // ============================================================
 // Indexed from GaleonPrivacyPool:Withdrawn events

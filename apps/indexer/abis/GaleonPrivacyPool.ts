@@ -22,6 +22,17 @@ export const GaleonPrivacyPoolAbi = [
       { name: '_newCommitment', type: 'uint256', indexed: false },
     ],
   },
+  // MergeDeposited - Merge deposit into existing commitment
+  {
+    type: 'event',
+    name: 'MergeDeposited',
+    inputs: [
+      { name: '_depositor', type: 'address', indexed: true },
+      { name: '_depositValue', type: 'uint256', indexed: false },
+      { name: '_existingNullifierHash', type: 'uint256', indexed: false },
+      { name: '_newCommitmentHash', type: 'uint256', indexed: false },
+    ],
+  },
   // Ragequit - Emergency exit by original depositor
   {
     type: 'event',

@@ -2,40 +2,17 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x81303679a7a8d6345F8c0FD0A622d650A74Da6F4",
-      "txHash": "0x4ae7cd8ea6403b8fb9f6d2358927eb1503b89c999a7b2d0f7ab8c0da2c6feb70",
+      "address": "0x8633518fbbf23E78586F1456530c3452885efb21",
       "kind": "uups"
     },
     {
-      "address": "0xb1fBe16734090aFF1C438cAB8E3009C8ca51346D",
-      "txHash": "0x439675a292a01f8f21050609575f4267354b7678b94f61a45dfd524770e42566",
-      "kind": "uups"
-    },
-    {
-      "address": "0x1767D6A8e6942fdc88cD4BFbFE6796D9D5FbaF2f",
-      "txHash": "0xf95b190ccb91dfb4f6934f8f30524ff49d3078d28840389536447990fd128b69",
-      "kind": "uups"
-    },
-    {
-      "address": "0x11021e2C1BE35AcCFE9Aa33862Cfb7e54E2036Ef",
-      "txHash": "0x93549bc68f5cdc2a7425739e58cc35f7fcde3c22d62c24995beba83c1cfec16a",
-      "kind": "uups"
-    },
-    {
-      "address": "0x54BA91d29f84B8bAd161880798877e59f2999f7a",
-      "txHash": "0x2c16ea6584be379de48c2a534d5a5f69afe16bfbe63f07a8eccdbcdcc3e9edaf",
-      "kind": "uups"
-    },
-    {
-      "address": "0x3260c8d8cc654B0897cd93cdf0662Fa679656b36",
-      "txHash": "0x45a1d99dbf9ca6fe64827dd862bbc2a5219180296ad5896cd0855ba39c542bea",
+      "address": "0xE271335D1FCa02b6c219B9944f0a4921aFD559C0",
       "kind": "uups"
     }
   ],
   "impls": {
-    "dc2515e8370470119eb5d2bae1dcdec1445aa02a020e8ea8c4be668b51c7f14b": {
-      "address": "0xBe482D5EddeA5baea113f3716f696642A69cBA18",
-      "txHash": "0xb0574c32a8f0bc589682ff01ff2dc8d8c4bbcd7d2d12c979988b9e2526808971",
+    "1a9493bb3990d57d7ad3ede6d81c28608db0e9a6cd06e3e56a657f6bfd566685": {
+      "address": "0x148d0785Cb7320B7C2D343cB7C23892F6DaE7805",
       "layout": {
         "solcVersion": "0.8.24",
         "storage": [
@@ -43,25 +20,25 @@
             "label": "scopeToPool",
             "offset": 0,
             "slot": "0",
-            "type": "t_mapping(t_uint256,t_contract(IGaleonPrivacyPool)4092)",
+            "type": "t_mapping(t_uint256,t_contract(IGaleonPrivacyPool)9256)",
             "contract": "GaleonEntrypoint",
-            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:50"
+            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:51"
           },
           {
             "label": "assetConfig",
             "offset": 0,
             "slot": "1",
-            "type": "t_mapping(t_contract(IERC20)1615,t_struct(AssetConfig)3636_storage)",
+            "type": "t_mapping(t_contract(IERC20)2610,t_struct(AssetConfig)8752_storage)",
             "contract": "GaleonEntrypoint",
-            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:53"
+            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:54"
           },
           {
             "label": "associationSets",
             "offset": 0,
             "slot": "2",
-            "type": "t_array(t_struct(AssociationSetData)3652_storage)dyn_storage",
+            "type": "t_array(t_struct(AssociationSetData)8768_storage)dyn_storage",
             "contract": "GaleonEntrypoint",
-            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:56"
+            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:57"
           },
           {
             "label": "usedPrecommitments",
@@ -69,7 +46,7 @@
             "slot": "3",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "GaleonEntrypoint",
-            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:59"
+            "src": "contracts/privacy-pool/GaleonEntrypoint.sol:60"
           }
         ],
         "types": {
@@ -105,7 +82,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(InitializableStorage)147_storage": {
+          "t_struct(InitializableStorage)213_storage": {
             "label": "struct Initializable.InitializableStorage",
             "members": [
               {
@@ -123,7 +100,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(ReentrancyGuardStorage)300_storage": {
+          "t_struct(ReentrancyGuardStorage)366_storage": {
             "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
             "members": [
               {
@@ -161,19 +138,19 @@
             "label": "uint64",
             "numberOfBytes": "8"
           },
-          "t_array(t_struct(AssociationSetData)3652_storage)dyn_storage": {
+          "t_array(t_struct(AssociationSetData)8768_storage)dyn_storage": {
             "label": "struct IGaleonEntrypoint.AssociationSetData[]",
             "numberOfBytes": "32"
           },
-          "t_contract(IERC20)1615": {
+          "t_contract(IERC20)2610": {
             "label": "contract IERC20",
             "numberOfBytes": "20"
           },
-          "t_contract(IGaleonPrivacyPool)4092": {
+          "t_contract(IGaleonPrivacyPool)9256": {
             "label": "contract IGaleonPrivacyPool",
             "numberOfBytes": "20"
           },
-          "t_mapping(t_contract(IERC20)1615,t_struct(AssetConfig)3636_storage)": {
+          "t_mapping(t_contract(IERC20)2610,t_struct(AssetConfig)8752_storage)": {
             "label": "mapping(contract IERC20 => struct IGaleonEntrypoint.AssetConfig)",
             "numberOfBytes": "32"
           },
@@ -181,7 +158,7 @@
             "label": "mapping(uint256 => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_contract(IGaleonPrivacyPool)4092)": {
+          "t_mapping(t_uint256,t_contract(IGaleonPrivacyPool)9256)": {
             "label": "mapping(uint256 => contract IGaleonPrivacyPool)",
             "numberOfBytes": "32"
           },
@@ -189,12 +166,12 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(AssetConfig)3636_storage": {
+          "t_struct(AssetConfig)8752_storage": {
             "label": "struct IGaleonEntrypoint.AssetConfig",
             "members": [
               {
                 "label": "pool",
-                "type": "t_contract(IGaleonPrivacyPool)4092",
+                "type": "t_contract(IGaleonPrivacyPool)9256",
                 "offset": 0,
                 "slot": "0"
               },
@@ -219,7 +196,7 @@
             ],
             "numberOfBytes": "128"
           },
-          "t_struct(AssociationSetData)3652_storage": {
+          "t_struct(AssociationSetData)8768_storage": {
             "label": "struct IGaleonEntrypoint.AssociationSetData",
             "members": [
               {
@@ -284,11 +261,11 @@
             }
           ]
         }
-      }
+      },
+      "allAddresses": ["0x148d0785Cb7320B7C2D343cB7C23892F6DaE7805"]
     },
-    "a3dedd8541d914223d5d457ef63658bf288385c0ad69e5e2a66f58366ccfd10c": {
-      "address": "0xA706D2A7dbe87E0A671E2904edA495072077016e",
-      "txHash": "0x3c6a7408dbd1c5caf765797bc7fa2a31b27878cab9b5238dae7fb6b28c110178",
+    "82eec2de0a2c51ba4d658a046a8493fb7011cf9545a537e0e3fb0729b491de8c": {
+      "address": "0xd694124E0F0F054418950ed6b0587C3D9588B8C2",
       "layout": {
         "solcVersion": "0.8.24",
         "storage": [
@@ -304,7 +281,7 @@
             "label": "ENTRYPOINT",
             "offset": 0,
             "slot": "1",
-            "type": "t_contract(IGaleonEntrypoint)4723",
+            "type": "t_contract(IGaleonEntrypoint)5020",
             "contract": "GaleonState",
             "src": "contracts/privacy-pool/GaleonState.sol:59"
           },
@@ -312,7 +289,7 @@
             "label": "WITHDRAWAL_VERIFIER",
             "offset": 0,
             "slot": "2",
-            "type": "t_contract(IVerifier)5136",
+            "type": "t_contract(IVerifier)5458",
             "contract": "GaleonState",
             "src": "contracts/privacy-pool/GaleonState.sol:62"
           },
@@ -320,7 +297,7 @@
             "label": "RAGEQUIT_VERIFIER",
             "offset": 0,
             "slot": "3",
-            "type": "t_contract(IVerifier)5136",
+            "type": "t_contract(IVerifier)5458",
             "contract": "GaleonState",
             "src": "contracts/privacy-pool/GaleonState.sol:65"
           },
@@ -384,9 +361,9 @@
             "label": "galeonRegistry",
             "offset": 0,
             "slot": "14",
-            "type": "t_contract(IGaleonRegistry)4944",
+            "type": "t_contract(IGaleonRegistry)5266",
             "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:45"
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:46"
           },
           {
             "label": "circuitVersion",
@@ -394,7 +371,7 @@
             "slot": "15",
             "type": "t_uint256",
             "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:50"
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:51"
           },
           {
             "label": "blockedDepositors",
@@ -402,7 +379,15 @@
             "slot": "16",
             "type": "t_mapping(t_address,t_bool)",
             "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:54"
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:55"
+          },
+          {
+            "label": "MERGE_DEPOSIT_VERIFIER",
+            "offset": 0,
+            "slot": "17",
+            "type": "t_contract(IVerifier)5458",
+            "contract": "GaleonPrivacyPool",
+            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:60"
           }
         ],
         "types": {
@@ -448,15 +433,15 @@
             "label": "uint64",
             "numberOfBytes": "8"
           },
-          "t_contract(IGaleonEntrypoint)4723": {
+          "t_contract(IGaleonEntrypoint)5020": {
             "label": "contract IGaleonEntrypoint",
             "numberOfBytes": "20"
           },
-          "t_contract(IGaleonRegistry)4944": {
+          "t_contract(IGaleonRegistry)5266": {
             "label": "contract IGaleonRegistry",
             "numberOfBytes": "20"
           },
-          "t_contract(IVerifier)5136": {
+          "t_contract(IVerifier)5458": {
             "label": "contract IVerifier",
             "numberOfBytes": "20"
           },
@@ -545,268 +530,8 @@
             }
           ]
         }
-      }
-    },
-    "9f0fe082a05fc2055c8596639cfa46c255a441eee67c674300c94e891df9b527": {
-      "address": "0x4549F8313Dc760Ea979fa885a94f77950fbcbce5",
-      "txHash": "0x5786d5f8e2f4dce96fee4a40acd62760fc175322dbf66ca8873744d3193cf831",
-      "layout": {
-        "solcVersion": "0.8.24",
-        "storage": [
-          {
-            "label": "SCOPE",
-            "offset": 0,
-            "slot": "0",
-            "type": "t_uint256",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:52"
-          },
-          {
-            "label": "ENTRYPOINT",
-            "offset": 0,
-            "slot": "1",
-            "type": "t_contract(IGaleonEntrypoint)4723",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:59"
-          },
-          {
-            "label": "WITHDRAWAL_VERIFIER",
-            "offset": 0,
-            "slot": "2",
-            "type": "t_contract(IVerifier)5136",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:62"
-          },
-          {
-            "label": "RAGEQUIT_VERIFIER",
-            "offset": 0,
-            "slot": "3",
-            "type": "t_contract(IVerifier)5136",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:65"
-          },
-          {
-            "label": "nonce",
-            "offset": 0,
-            "slot": "4",
-            "type": "t_uint256",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:68"
-          },
-          {
-            "label": "dead",
-            "offset": 0,
-            "slot": "5",
-            "type": "t_bool",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:71"
-          },
-          {
-            "label": "roots",
-            "offset": 0,
-            "slot": "6",
-            "type": "t_mapping(t_uint256,t_uint256)",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:74"
-          },
-          {
-            "label": "currentRootIndex",
-            "offset": 0,
-            "slot": "7",
-            "type": "t_uint32",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:77"
-          },
-          {
-            "label": "_merkleTree",
-            "offset": 0,
-            "slot": "8",
-            "type": "t_struct(LeanIMTData)2099_storage",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:81"
-          },
-          {
-            "label": "nullifierHashes",
-            "offset": 0,
-            "slot": "12",
-            "type": "t_mapping(t_uint256,t_bool)",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:84"
-          },
-          {
-            "label": "depositors",
-            "offset": 0,
-            "slot": "13",
-            "type": "t_mapping(t_uint256,t_address)",
-            "contract": "GaleonState",
-            "src": "contracts/privacy-pool/GaleonState.sol:87"
-          },
-          {
-            "label": "galeonRegistry",
-            "offset": 0,
-            "slot": "14",
-            "type": "t_contract(IGaleonRegistry)4944",
-            "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:45"
-          },
-          {
-            "label": "circuitVersion",
-            "offset": 0,
-            "slot": "15",
-            "type": "t_uint256",
-            "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:50"
-          },
-          {
-            "label": "blockedDepositors",
-            "offset": 0,
-            "slot": "16",
-            "type": "t_mapping(t_address,t_bool)",
-            "contract": "GaleonPrivacyPool",
-            "src": "contracts/privacy-pool/GaleonPrivacyPool.sol:54"
-          }
-        ],
-        "types": {
-          "t_address": {
-            "label": "address",
-            "numberOfBytes": "20"
-          },
-          "t_bool": {
-            "label": "bool",
-            "numberOfBytes": "1"
-          },
-          "t_struct(InitializableStorage)73_storage": {
-            "label": "struct Initializable.InitializableStorage",
-            "members": [
-              {
-                "label": "_initialized",
-                "type": "t_uint64",
-                "offset": 0,
-                "slot": "0"
-              },
-              {
-                "label": "_initializing",
-                "type": "t_bool",
-                "offset": 8,
-                "slot": "0"
-              }
-            ],
-            "numberOfBytes": "32"
-          },
-          "t_struct(OwnableStorage)13_storage": {
-            "label": "struct OwnableUpgradeable.OwnableStorage",
-            "members": [
-              {
-                "label": "_owner",
-                "type": "t_address",
-                "offset": 0,
-                "slot": "0"
-              }
-            ],
-            "numberOfBytes": "32"
-          },
-          "t_uint64": {
-            "label": "uint64",
-            "numberOfBytes": "8"
-          },
-          "t_contract(IGaleonEntrypoint)4723": {
-            "label": "contract IGaleonEntrypoint",
-            "numberOfBytes": "20"
-          },
-          "t_contract(IGaleonRegistry)4944": {
-            "label": "contract IGaleonRegistry",
-            "numberOfBytes": "20"
-          },
-          "t_contract(IVerifier)5136": {
-            "label": "contract IVerifier",
-            "numberOfBytes": "20"
-          },
-          "t_mapping(t_address,t_bool)": {
-            "label": "mapping(address => bool)",
-            "numberOfBytes": "32"
-          },
-          "t_mapping(t_uint256,t_address)": {
-            "label": "mapping(uint256 => address)",
-            "numberOfBytes": "32"
-          },
-          "t_mapping(t_uint256,t_bool)": {
-            "label": "mapping(uint256 => bool)",
-            "numberOfBytes": "32"
-          },
-          "t_mapping(t_uint256,t_uint256)": {
-            "label": "mapping(uint256 => uint256)",
-            "numberOfBytes": "32"
-          },
-          "t_struct(LeanIMTData)2099_storage": {
-            "label": "struct LeanIMTData",
-            "members": [
-              {
-                "label": "size",
-                "type": "t_uint256",
-                "offset": 0,
-                "slot": "0"
-              },
-              {
-                "label": "depth",
-                "type": "t_uint256",
-                "offset": 0,
-                "slot": "1"
-              },
-              {
-                "label": "sideNodes",
-                "type": "t_mapping(t_uint256,t_uint256)",
-                "offset": 0,
-                "slot": "2"
-              },
-              {
-                "label": "leaves",
-                "type": "t_mapping(t_uint256,t_uint256)",
-                "offset": 0,
-                "slot": "3"
-              }
-            ],
-            "numberOfBytes": "128"
-          },
-          "t_uint256": {
-            "label": "uint256",
-            "numberOfBytes": "32"
-          },
-          "t_uint32": {
-            "label": "uint32",
-            "numberOfBytes": "4"
-          }
-        },
-        "namespaces": {
-          "erc7201:openzeppelin.storage.Ownable": [
-            {
-              "contract": "OwnableUpgradeable",
-              "label": "_owner",
-              "type": "t_address",
-              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
-              "offset": 0,
-              "slot": "0"
-            }
-          ],
-          "erc7201:openzeppelin.storage.Initializable": [
-            {
-              "contract": "Initializable",
-              "label": "_initialized",
-              "type": "t_uint64",
-              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
-              "offset": 0,
-              "slot": "0"
-            },
-            {
-              "contract": "Initializable",
-              "label": "_initializing",
-              "type": "t_bool",
-              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
-              "offset": 8,
-              "slot": "0"
-            }
-          ]
-        }
-      }
+      },
+      "allAddresses": ["0xd694124E0F0F054418950ed6b0587C3D9588B8C2"]
     }
   }
 }

@@ -74,7 +74,9 @@
     "pg": "^8.14.0",
     "reflect-metadata": "^0.2.2",
     "siwe": "^2.3.2",
-    "viem": "^2.43.3"
+    "viem": "^2.43.3",
+    "@zk-kit/lean-imt": "2.2.4",
+    "poseidon-lite": "0.3.0"
   },
   "hotHook": {
     "boundaries": [

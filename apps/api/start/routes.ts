@@ -17,6 +17,9 @@ const CollectionsController = () => import('#controllers/collections_controller'
 const AnnouncementsController = () => import('#controllers/announcements_controller')
 const DepositsController = () => import('#controllers/deposits_controller')
 const RegistryController = () => import('#controllers/registry_controller')
+const AspController = () => import('#controllers/asp_controller')
+const PoolRelayController = () => import('#controllers/pool_relay_controller')
+const NullifiersController = () => import('#controllers/nullifiers_controller')
 
 // Health check
 router.get('/', async () => {
@@ -31,6 +34,9 @@ router
 
     // Pool deposits (public - used for deposit recovery)
     router.get('/deposits', [DepositsController, 'index'])
+
+    // Nullifiers (public - check if a nullifier has been spent)
+    router.get('/nullifiers/:hex', [NullifiersController, 'show'])
 
     // Auth routes (public)
     router
@@ -90,5 +96,24 @@ router
       })
       .prefix('/registry')
       .use(middleware.auth())
+
+    // ASP routes (public - needed for withdrawal proofs)
+    router
+      .group(() => {
+        router.get('/status', [AspController, 'status'])
+        router.get('/proof/:label', [AspController, 'proof'])
+        router.post('/rebuild', [AspController, 'rebuild'])
+      })
+      .prefix('/asp')
+
+    // Pool Relayer routes (public - privacy pool withdrawal relay)
+    router
+      .group(() => {
+        router.get('/status', [PoolRelayController, 'status'])
+        router.get('/details', [PoolRelayController, 'details'])
+        router.post('/quote', [PoolRelayController, 'quote'])
+        router.post('/request', [PoolRelayController, 'request'])
+      })
+      .prefix('/relayer')
   })
   .prefix('/api/v1')

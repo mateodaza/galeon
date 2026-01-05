@@ -56,6 +56,10 @@ export interface CollectablePayment {
   receiptHash: `0x${string}`
   txHash: `0x${string}`
   blockNumber: bigint
+  /** Port ID this payment belongs to */
+  portId: string
+  /** Port label for display */
+  portLabel: string
 }
 
 /**
@@ -133,7 +137,14 @@ export function useCollection() {
 
       // Scan for payments across ALL user Ports
       // Each Port has its own derived keys, so we scan with each Port's keys
-      const allScannedPayments: ReturnType<typeof scanAnnouncements> = []
+      // We track which port each payment belongs to for per-port collection
+      // Note: ScannedPayment has its own portId from chain, we override with our UUID-based portId
+      type ScannedPaymentBase = ReturnType<typeof scanAnnouncements>[number]
+      type ScannedPaymentWithPort = Omit<ScannedPaymentBase, 'portId'> & {
+        portId: string
+        portLabel: string
+      }
+      const allScannedPayments: ScannedPaymentWithPort[] = []
 
       for (const port of userPorts) {
         const portIndex = uuidToPortIndex(port.id)
@@ -144,7 +155,14 @@ export function useCollection() {
           portKeys.spendingPrivateKey,
           portKeys.viewingPrivateKey
         )
-        allScannedPayments.push(...portPayments)
+        // Add port info to each payment
+        for (const payment of portPayments) {
+          allScannedPayments.push({
+            ...payment,
+            portId: port.id,
+            portLabel: port.name,
+          })
+        }
       }
 
       const scannedPayments = allScannedPayments
@@ -211,6 +229,8 @@ export function useCollection() {
             receiptHash: payment.receiptHash,
             txHash: payment.txHash,
             blockNumber: payment.blockNumber,
+            portId: payment.portId,
+            portLabel: payment.portLabel,
           }
 
           if (balance >= MINIMUM_COLLECTABLE_BALANCE) {
@@ -542,7 +562,11 @@ export function useCollection() {
 
         console.log('[collectToPool] Using precommitment:', {
           hash: precommitment.hash.toString(),
+          hashHex: `0x${precommitment.hash.toString(16).padStart(64, '0')}`,
           depositIndex: depositIndex.toString(),
+          masterNullifierPrefix: masterNullifier.toString().slice(0, 20) + '...',
+          masterSecretPrefix: masterSecret.toString().slice(0, 20) + '...',
+          poolScope: poolScope.toString(),
         })
 
         // Create wallet from stealth private key

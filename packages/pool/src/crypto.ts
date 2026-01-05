@@ -67,3 +67,37 @@ export function bytesToFieldElement(bytes: Uint8Array): bigint {
   }
   return result % SNARK_SCALAR_FIELD
 }
+
+/**
+ * Compute the withdrawal context for ZK proof.
+ * Must match contract: keccak256(abi.encode(withdrawal, SCOPE)) % SNARK_SCALAR_FIELD
+ *
+ * @param withdrawal - The withdrawal struct { processooor, data }
+ * @param scope - The pool scope
+ * @returns Context value as bigint
+ */
+export async function computeWithdrawalContext(
+  withdrawal: { processooor: `0x${string}`; data: `0x${string}` },
+  scope: bigint
+): Promise<bigint> {
+  // Dynamic import for viem (browser/node compatible)
+  const { keccak256, encodeAbiParameters } = await import('viem')
+
+  const encoded = encodeAbiParameters(
+    [
+      {
+        name: 'withdrawal',
+        type: 'tuple',
+        components: [
+          { name: 'processooor', type: 'address' },
+          { name: 'data', type: 'bytes' },
+        ],
+      },
+      { name: 'scope', type: 'uint256' },
+    ],
+    [{ processooor: withdrawal.processooor, data: withdrawal.data }, scope]
+  )
+
+  const hash = keccak256(encoded)
+  return BigInt(hash) % SNARK_SCALAR_FIELD
+}

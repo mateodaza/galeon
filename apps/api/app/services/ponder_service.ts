@@ -334,7 +334,8 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('pool_deposits')
-      .orderBy('block_number', 'desc')
+      .orderBy('block_number', 'asc')
+      .orderBy('log_index', 'asc')
 
     if (options?.pool) {
       query.where('pool', options.pool.toLowerCase())
@@ -375,4 +376,148 @@ export default class PonderService {
       chainId: Number(row.chain_id),
     }
   }
+
+  /**
+   * List all merge deposits with optional filters and pagination
+   */
+  async listMergeDeposits(options?: {
+    pool?: string
+    depositor?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderPoolMergeDeposit[]; hasMore: boolean }> {
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_DEPOSITS_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_DEPOSITS_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db
+      .connection(this.connection)
+      .from('pool_merge_deposits')
+      .orderBy('block_number', 'asc')
+      .orderBy('log_index', 'asc')
+
+    if (options?.pool) {
+      query.where('pool', options.pool.toLowerCase())
+    }
+    if (options?.depositor) {
+      query.where('depositor', options.depositor.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapPoolMergeDeposit(row))
+
+    return { data, hasMore }
+  }
+
+  /**
+   * Map database row to PonderPoolMergeDeposit interface
+   */
+  private mapPoolMergeDeposit(row: Record<string, unknown>): PonderPoolMergeDeposit {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      depositor: String(row.depositor),
+      depositValue: String(row.deposit_value),
+      existingNullifierHash: String(row.existing_nullifier_hash),
+      newCommitment: String(row.new_commitment),
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+
+  /**
+   * Check if a nullifier has been spent (used in a withdrawal)
+   * @param nullifierHash - The nullifier hash as hex string
+   * @param chainId - Optional chain ID filter
+   * @returns The withdrawal record if spent, null otherwise
+   */
+  async findWithdrawalByNullifier(
+    nullifierHash: string,
+    chainId?: number
+  ): Promise<PonderPoolWithdrawal | null> {
+    const query = db
+      .connection(this.connection)
+      .from('pool_withdrawals')
+      .where('spent_nullifier', nullifierHash.toLowerCase())
+
+    if (chainId !== undefined) {
+      query.where('chain_id', chainId)
+    }
+
+    const result = await query.first()
+    return result ? this.mapPoolWithdrawal(result) : null
+  }
+
+  /**
+   * Map database row to PonderPoolWithdrawal interface
+   */
+  private mapPoolWithdrawal(row: Record<string, unknown>): PonderPoolWithdrawal {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      processooor: String(row.processooor),
+      value: String(row.value),
+      spentNullifier: String(row.spent_nullifier),
+      newCommitment: String(row.new_commitment),
+      recipient: row.recipient ? String(row.recipient) : null,
+      relayer: row.relayer ? String(row.relayer) : null,
+      asset: row.asset ? String(row.asset) : null,
+      feeAmount: row.fee_amount ? String(row.fee_amount) : null,
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+}
+
+/**
+ * Pool withdrawal data from Ponder indexer database
+ */
+export interface PonderPoolWithdrawal {
+  id: string
+  pool: string
+  processooor: string
+  value: string
+  spentNullifier: string
+  newCommitment: string
+  recipient: string | null
+  relayer: string | null
+  asset: string | null
+  feeAmount: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+/**
+ * Pool merge deposit data from Ponder indexer database
+ */
+export interface PonderPoolMergeDeposit {
+  id: string
+  pool: string
+  depositor: string
+  depositValue: string
+  existingNullifierHash: string
+  newCommitment: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
 }

@@ -16,6 +16,7 @@ import scheduler from 'adonisjs-scheduler/services/main'
 // Import job classes
 import VerifyPorts from '#jobs/verify_ports'
 import VerifyReceipts from '#jobs/verify_receipts'
+import UpdateASPRoot from '#jobs/update_asp_root'
 
 /**
  * Verify pending ports against the Ponder indexer.
@@ -37,4 +38,19 @@ scheduler
     await VerifyReceipts.dispatch({ batchSize: 100 })
   })
   .everyMinute()
+  .withoutOverlapping()
+
+/**
+ * Update ASP (Association Set Provider) root.
+ * Runs every 30 seconds to:
+ * - Auto-approve new deposit labels into the ASP Merkle tree
+ * - Update the on-chain ASP root if the tree has changed
+ *
+ * For hackathon: auto-approves ALL labels (no sanctions check).
+ */
+scheduler
+  .call(async () => {
+    await UpdateASPRoot.dispatch({})
+  })
+  .everyThirtySeconds()
   .withoutOverlapping()

@@ -1,18 +1,26 @@
 'use client'
 
 /**
- * Collection page for withdrawing funds from stealth addresses.
+ * Collection overview page.
  *
- * Supports:
- * - Collect All: Scans all Ports and collects all pending payments
- * - Collect by Port: Select specific Ports to collect from
+ * Shows all ports with pending payments, linking to per-port collection pages.
+ * Also supports collecting all payments at once.
  */
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useAccount } from 'wagmi'
 import { isAddress, formatEther } from 'viem'
-import { Loader2, ExternalLink, AlertTriangle, CheckCircle2, Shield, Wallet } from 'lucide-react'
+import {
+  Loader2,
+  ExternalLink,
+  AlertTriangle,
+  CheckCircle2,
+  Shield,
+  Wallet,
+  Anchor,
+  ChevronRight,
+} from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout'
 import { getTxExplorerUrl } from '@/lib/chains'
 import { Button } from '@/components/ui/button'
@@ -20,8 +28,17 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useCollection, type CollectablePayment } from '@/hooks/use-collection'
 
+/** Group payments by port */
+interface PortGroup {
+  portId: string
+  portLabel: string
+  payments: CollectablePayment[]
+  totalBalance: bigint
+  totalVerifiedBalance: bigint
+}
+
 export default function CollectPage() {
-  const { address: _connectedAddress } = useAccount()
+  const { address: connectedAddress } = useAccount()
   const {
     payments,
     dustPayments,
@@ -42,6 +59,34 @@ export default function CollectPage() {
     hasKeys,
     hasPoolKeys,
   } = useCollection()
+
+  // Group payments by port
+  const portGroups = useMemo(() => {
+    const groups = new Map<string, PortGroup>()
+
+    for (const payment of payments) {
+      const existing = groups.get(payment.portId)
+      if (existing) {
+        existing.payments.push(payment)
+        existing.totalBalance += payment.balance
+        existing.totalVerifiedBalance += payment.verifiedBalance
+      } else {
+        groups.set(payment.portId, {
+          portId: payment.portId,
+          portLabel: payment.portLabel,
+          payments: [payment],
+          totalBalance: payment.balance,
+          totalVerifiedBalance: payment.verifiedBalance,
+        })
+      }
+    }
+
+    // Sort by total balance descending
+    return Array.from(groups.values()).sort((a, b) => (b.totalBalance > a.totalBalance ? 1 : -1))
+  }, [payments])
+
+  // View mode: 'overview' shows port cards, 'all' shows all payments
+  const [viewMode, setViewMode] = useState<'overview' | 'all'>('overview')
 
   // Destination: 'pool' or 'external'
   const [destination, setDestination] = useState<'pool' | 'external'>('pool')
@@ -165,7 +210,33 @@ export default function CollectPage() {
       {/* Results section */}
       <Card className="mt-6">
         <CardContent className="pt-6">
-          <h2 className="text-foreground text-lg font-semibold">Available to Collect</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-foreground text-lg font-semibold">Available to Collect</h2>
+            {payments.length > 0 && portGroups.length > 1 && (
+              <div className="flex gap-1 rounded-lg border p-1">
+                <button
+                  onClick={() => setViewMode('overview')}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    viewMode === 'overview'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  By Port
+                </button>
+                <button
+                  onClick={() => setViewMode('all')}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    viewMode === 'all'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All
+                </button>
+              </div>
+            )}
+          </div>
 
           {payments.length === 0 && dustPayments.length === 0 ? (
             <div className="text-muted-foreground mt-4 text-center">
@@ -188,12 +259,53 @@ export default function CollectPage() {
             </div>
           ) : (
             <>
-              {/* Payment list */}
-              <div className="mt-4 space-y-3">
-                {payments.map((payment, i) => (
-                  <PaymentCard key={i} payment={payment} hasPoolKeys={hasPoolKeys} />
-                ))}
-              </div>
+              {/* Port overview - cards linking to per-port collection */}
+              {viewMode === 'overview' && portGroups.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {portGroups.map((group) => (
+                    <Link
+                      key={group.portId}
+                      href={`/collect/${group.portId}`}
+                      className="bg-muted hover:bg-muted/80 flex items-center justify-between rounded-lg p-4 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 rounded-full p-2">
+                          <Anchor className="text-primary h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-foreground font-medium">{group.portLabel}</p>
+                          <p className="text-muted-foreground text-sm">
+                            {group.payments.length} payment
+                            {group.payments.length > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-foreground font-semibold">
+                            {formatEther(group.totalBalance)} MNT
+                          </p>
+                          {hasPoolKeys && group.totalVerifiedBalance > 0n && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                              {formatEther(group.totalVerifiedBalance)} pool-eligible
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight className="text-muted-foreground h-5 w-5" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* All payments view */}
+              {viewMode === 'all' && (
+                <div className="mt-4 space-y-3">
+                  {payments.map((payment, i) => (
+                    <PaymentCard key={i} payment={payment} hasPoolKeys={hasPoolKeys} />
+                  ))}
+                </div>
+              )}
 
               {/* Collect error */}
               {collectError && (
@@ -287,9 +399,39 @@ export default function CollectPage() {
                       {externalAddress && !isAddress(externalAddress) && (
                         <p className="text-destructive mt-1 text-xs">Invalid address</p>
                       )}
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        Use an address that is NOT linked to your identity for better privacy.
-                      </p>
+
+                      {/* Privacy warning when sending to connected wallet */}
+                      {externalAddress &&
+                        isAddress(externalAddress) &&
+                        connectedAddress &&
+                        externalAddress.toLowerCase() === connectedAddress.toLowerCase() && (
+                          <div className="mt-3 rounded-lg border border-red-500/50 bg-red-500/10 p-3">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+                              <div>
+                                <p className="font-medium text-red-600 dark:text-red-400">
+                                  Privacy Warning
+                                </p>
+                                <p className="text-sm text-red-600/80 dark:text-red-400/80">
+                                  Sending to your connected wallet creates a traceable link. Anyone
+                                  can see these funds came from stealth addresses. For better
+                                  privacy, use the Privacy Pool or a fresh wallet.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      {!(
+                        externalAddress &&
+                        isAddress(externalAddress) &&
+                        connectedAddress &&
+                        externalAddress.toLowerCase() === connectedAddress.toLowerCase()
+                      ) && (
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          Use an address that is NOT linked to your identity for better privacy.
+                        </p>
+                      )}
                     </div>
                   )}
 

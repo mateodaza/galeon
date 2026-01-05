@@ -11,6 +11,9 @@
 /** API base URL - defaults to localhost in development */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'
 
+/** Indexer API URL - Ponder indexer for on-chain data */
+export const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:42069'
+
 /** Token storage keys */
 const ACCESS_TOKEN_KEY = 'galeon-access-token'
 const REFRESH_TOKEN_KEY = 'galeon-refresh-token'
@@ -498,6 +501,59 @@ export interface PoolDepositsListResponse {
   offset: number
 }
 
+// ============================================================
+// Nullifier API (public - check if nullifier is spent)
+// ============================================================
+
+export interface NullifierCheckResponse {
+  spent: boolean
+  withdrawal: {
+    id: string
+    pool: string
+    spentNullifier: string
+    value: string
+    blockNumber: string
+    transactionHash: string
+  } | null
+}
+
+export const nullifierApi = {
+  /**
+   * Check if a nullifier has been spent.
+   * Uses the Ponder indexer directly for real-time on-chain data.
+   * @param nullifierHex - The nullifier as a hex string (0x-prefixed, 64 chars)
+   */
+  isSpent: async (nullifierHex: string): Promise<boolean> => {
+    // Use indexer API directly for nullifier checks (has real-time on-chain data)
+    const url = `${INDEXER_URL}/nullifiers/${nullifierHex}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      // If 404 or error, assume not spent
+      console.warn(`Nullifier check failed: ${response.statusText}`)
+      return false
+    }
+
+    const result: NullifierCheckResponse = await response.json()
+    return result.spent
+  },
+
+  /**
+   * Check multiple nullifiers in parallel.
+   * @param nullifierHexes - Array of nullifier hex strings
+   * @returns Map of nullifier -> spent status
+   */
+  checkMultiple: async (nullifierHexes: string[]): Promise<Map<string, boolean>> => {
+    const results = await Promise.all(
+      nullifierHexes.map(async (hex) => {
+        const spent = await nullifierApi.isSpent(hex)
+        return [hex, spent] as [string, boolean]
+      })
+    )
+    return new Map(results)
+  },
+}
+
 export const poolDepositsApi = {
   /**
    * Fetch a single page of pool deposits from the backend.
@@ -593,6 +649,180 @@ export const registryApi = {
       chainId,
       asset,
     })
+    return result.data
+  },
+}
+
+// ============================================================
+// ASP Types (Association Set Provider)
+// ============================================================
+
+export interface ASPStatusResponse {
+  success: boolean
+  data: {
+    configured: boolean
+    treeSize: number
+    treeDepth: number
+    localRoot: string
+    onChainRoot: string | null
+    synced: boolean
+    lastProcessedBlock: string
+    entrypointAddress: string | null
+  }
+}
+
+export interface ASPProofResponse {
+  success: boolean
+  data: {
+    root: string
+    leaf: string
+    index: string
+    siblings: string[]
+    depth: number
+  }
+  error?: string
+}
+
+export interface ASPRebuildResponse {
+  success: boolean
+  data: {
+    labelsAdded: number
+    root: string
+    onChainUpdate: {
+      updated: boolean
+      txHash?: string
+      newRoot: string
+    } | null
+  }
+}
+
+// ============================================================
+// ASP API (public - needed for withdrawal proofs)
+// ============================================================
+
+// ============================================================
+// Merkle Leaves Types (from Ponder indexer - all tree leaves)
+// ============================================================
+
+export interface MerkleLeafResponse {
+  id: string
+  pool: string
+  leafIndex: string
+  leaf: string
+  root: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Merkle Leaves API (public - fetch all tree leaves including withdrawal changes)
+// ============================================================
+
+export const merkleLeavesApi = {
+  /**
+   * Fetch all merkle leaves for a pool from the indexer.
+   * This includes BOTH deposit commitments AND withdrawal change commitments.
+   * Must be used for building the state tree (not poolDepositsApi which only has deposits).
+   *
+   * @param pool - Pool address
+   * @param limit - Max results (default 1000)
+   */
+  list: async (pool: string, limit = 1000): Promise<MerkleLeafResponse[]> => {
+    const url = `${INDEXER_URL}/pools/${pool.toLowerCase()}/leaves?limit=${limit}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Merkle leaves API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Get all commitment values for building the state tree.
+   * Returns leaves ordered by leafIndex for correct tree construction.
+   *
+   * @param pool - Pool address
+   */
+  getCommitments: async (pool: string): Promise<bigint[]> => {
+    const leaves = await merkleLeavesApi.list(pool)
+    // Sort by leafIndex to ensure correct order
+    leaves.sort((a, b) => Number(a.leafIndex) - Number(b.leafIndex))
+    return leaves.map((l) => BigInt(l.leaf))
+  },
+}
+
+export const aspApi = {
+  /**
+   * Get ASP tree status and sync info.
+   */
+  getStatus: async (): Promise<ASPStatusResponse['data']> => {
+    const url = `${API_BASE_URL}/api/v1/asp/status`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`ASP API error: ${response.statusText}`)
+    }
+
+    const result: ASPStatusResponse = await response.json()
+    return result.data
+  },
+
+  /**
+   * Get Merkle proof for a specific label in the ASP tree.
+   * Required for withdrawal proofs.
+   * @param label - The deposit label as a string (bigint)
+   */
+  getProof: async (
+    label: string
+  ): Promise<{
+    root: bigint
+    leaf: bigint
+    index: bigint
+    siblings: bigint[]
+    depth: number
+  }> => {
+    const url = `${API_BASE_URL}/api/v1/asp/proof/${label}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(error.error || `ASP proof error: ${response.statusText}`)
+    }
+
+    const result: ASPProofResponse = await response.json()
+
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get ASP proof')
+    }
+
+    // Convert string values to bigint
+    return {
+      root: BigInt(result.data.root),
+      leaf: BigInt(result.data.leaf),
+      index: BigInt(result.data.index),
+      siblings: result.data.siblings.map((s) => BigInt(s)),
+      depth: result.data.depth,
+    }
+  },
+
+  /**
+   * Force rebuild the ASP tree and update on-chain root.
+   * Used for debugging/testing.
+   */
+  rebuild: async (): Promise<ASPRebuildResponse['data']> => {
+    const url = `${API_BASE_URL}/api/v1/asp/rebuild`
+    const response = await fetch(url, { method: 'POST' })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(error.error || `ASP rebuild error: ${response.statusText}`)
+    }
+
+    const result: ASPRebuildResponse = await response.json()
     return result.data
   },
 }

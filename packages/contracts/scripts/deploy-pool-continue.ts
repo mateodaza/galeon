@@ -4,19 +4,23 @@ import { ethers, upgrades } from 'hardhat'
  * Continuation script for Privacy Pool deployment.
  * Use this after the initial deploy-pool.ts failed partway through.
  *
- * Already deployed (from previous run):
- * - WithdrawalVerifier: 0x7529e3ec251A648A873F53d9969c1C05a44029A1
- * - RagequitVerifier: 0xFDb199E0aC8eC430541438aa6E63101F8C205D76
- * - GaleonEntrypoint: 0x54BA91d29f84B8bAd161880798877e59f2999f7a
+ * Already deployed (Jan 4, 2026 run):
+ * - WithdrawalVerifier: 0x32f0240E1Acf7326B598eE850998CaFEA4aEABb7
+ * - RagequitVerifier: 0xAE1126645a26bC30B9A29D9c216e8F6B51B82803
+ * - MergeDepositVerifier: 0x05DB69e37b8c7509E9d97826249385682CE9b29d
+ * - GaleonEntrypoint: 0x8633518fbbf23E78586F1456530c3452885efb21
+ * - PoseidonT3: 0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954
+ * - PoseidonT4: 0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892
  */
 
 const ALREADY_DEPLOYED = {
-  withdrawalVerifier: '0x7529e3ec251A648A873F53d9969c1C05a44029A1',
-  ragequitVerifier: '0xFDb199E0aC8eC430541438aa6E63101F8C205D76',
-  entrypoint: '0x54BA91d29f84B8bAd161880798877e59f2999f7a',
+  withdrawalVerifier: '0x32f0240E1Acf7326B598eE850998CaFEA4aEABb7',
+  ragequitVerifier: '0xAE1126645a26bC30B9A29D9c216e8F6B51B82803',
+  mergeDepositVerifier: '0x05DB69e37b8c7509E9d97826249385682CE9b29d',
+  entrypoint: '0x8633518fbbf23E78586F1456530c3452885efb21',
   galeonRegistry: '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D',
-  poseidonT3: '0xAE4c25FF221d3aa361B39DA242357fa04420215D',
-  poseidonT4: '0x95Ed84fE7A51ba9680D217aAf2EB6ED3E1977e45',
+  poseidonT3: '0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954',
+  poseidonT4: '0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892',
 }
 
 async function main() {
@@ -39,11 +43,12 @@ async function main() {
   console.log(`Balance: ${ethers.formatEther(balance)} MNT\n`)
 
   console.log('Already deployed:')
-  console.log(`  WithdrawalVerifier: ${ALREADY_DEPLOYED.withdrawalVerifier}`)
-  console.log(`  RagequitVerifier: ${ALREADY_DEPLOYED.ragequitVerifier}`)
-  console.log(`  GaleonEntrypoint: ${ALREADY_DEPLOYED.entrypoint}`)
-  console.log(`  PoseidonT3: ${ALREADY_DEPLOYED.poseidonT3}`)
-  console.log(`  PoseidonT4: ${ALREADY_DEPLOYED.poseidonT4}`)
+  console.log(`  WithdrawalVerifier:   ${ALREADY_DEPLOYED.withdrawalVerifier}`)
+  console.log(`  RagequitVerifier:     ${ALREADY_DEPLOYED.ragequitVerifier}`)
+  console.log(`  MergeDepositVerifier: ${ALREADY_DEPLOYED.mergeDepositVerifier}`)
+  console.log(`  GaleonEntrypoint:     ${ALREADY_DEPLOYED.entrypoint}`)
+  console.log(`  PoseidonT3:           ${ALREADY_DEPLOYED.poseidonT3}`)
+  console.log(`  PoseidonT4:           ${ALREADY_DEPLOYED.poseidonT4}`)
   console.log('')
 
   // 1. Deploy GaleonPrivacyPoolSimple (UUPS Proxy) with linked libraries
@@ -96,6 +101,22 @@ async function main() {
   )
   console.log(`   ✓ Pool registered with entrypoint`)
 
+  // 2b. Set MergeDepositVerifier on pool
+  console.log('2b. Setting MergeDepositVerifier on pool...')
+  const poolContract = await ethers.getContractAt('GaleonPrivacyPoolSimple', poolAddr)
+  const setVerifierTx = await poolContract.setMergeDepositVerifier(
+    ALREADY_DEPLOYED.mergeDepositVerifier
+  )
+  await setVerifierTx.wait()
+  console.log(`   ✓ MergeDepositVerifier set on pool`)
+
+  // 2c. Authorize pool in GaleonRegistry (required for deposits!)
+  console.log('2c. Authorizing pool in GaleonRegistry...')
+  const registry = await ethers.getContractAt('GaleonRegistry', ALREADY_DEPLOYED.galeonRegistry)
+  const authorizeTx = await registry.setAuthorizedPool(poolAddr, true)
+  await authorizeTx.wait()
+  console.log(`   ✓ Pool authorized in GaleonRegistry`)
+
   // 3. Update initial ASP root
   console.log('3. Setting initial ASP root...')
   const INITIAL_ROOT =
@@ -111,23 +132,22 @@ async function main() {
   console.log(`========================================\n`)
 
   console.log(`Contract Addresses:`)
-  console.log(`  poseidonT3:         '${ALREADY_DEPLOYED.poseidonT3}'`)
-  console.log(`  poseidonT4:         '${ALREADY_DEPLOYED.poseidonT4}'`)
-  console.log(`  withdrawalVerifier: '${ALREADY_DEPLOYED.withdrawalVerifier}'`)
-  console.log(`  ragequitVerifier:   '${ALREADY_DEPLOYED.ragequitVerifier}'`)
-  console.log(`  entrypoint:         '${ALREADY_DEPLOYED.entrypoint}'`)
-  console.log(`  pool:               '${poolAddr}'`)
-  console.log(`  galeonRegistry:     '${ALREADY_DEPLOYED.galeonRegistry}'`)
+  console.log(`  withdrawalVerifier:    '${ALREADY_DEPLOYED.withdrawalVerifier}'`)
+  console.log(`  ragequitVerifier:      '${ALREADY_DEPLOYED.ragequitVerifier}'`)
+  console.log(`  mergeDepositVerifier:  '${ALREADY_DEPLOYED.mergeDepositVerifier}'`)
+  console.log(`  entrypoint:            '${ALREADY_DEPLOYED.entrypoint}'`)
+  console.log(`  pool:                  '${poolAddr}'`)
+  console.log(`  galeonRegistry:        '${ALREADY_DEPLOYED.galeonRegistry}'`)
 
   console.log(`\nExplorer Links:`)
-  console.log(`  Pool:               https://mantlescan.xyz/address/${poolAddr}`)
+  console.log(`  Pool: https://mantlescan.xyz/address/${poolAddr}`)
 
-  console.log(`\n📋 Update packages/pool/src/contracts.ts with:\n`)
-  console.log(`  5000: {`)
-  console.log(`    entrypoint: '${ALREADY_DEPLOYED.entrypoint}' as const,`)
-  console.log(`    pool: '${poolAddr}' as const,`)
-  console.log(`    withdrawalVerifier: '${ALREADY_DEPLOYED.withdrawalVerifier}' as const,`)
-  console.log(`    ragequitVerifier: '${ALREADY_DEPLOYED.ragequitVerifier}' as const,`)
+  console.log(`\n📋 Update packages/config/src/contracts.ts with:\n`)
+  console.log(`  pool: {`)
+  console.log(`    entrypoint: '${ALREADY_DEPLOYED.entrypoint}',`)
+  console.log(`    pool: '${poolAddr}',`)
+  console.log(`    withdrawalVerifier: '${ALREADY_DEPLOYED.withdrawalVerifier}',`)
+  console.log(`    ragequitVerifier: '${ALREADY_DEPLOYED.ragequitVerifier}',`)
   console.log(`  },`)
 }
 

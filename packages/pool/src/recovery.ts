@@ -47,6 +47,9 @@ export async function recoverPoolDeposits(
 
   let consecutiveMisses = 0
 
+  // Debug: Log first few expected precommitments
+  console.log('[recoverPoolDeposits] Trying to match precommitments...')
+
   // Try indices starting from 0
   for (let index = BigInt(0); ; index++) {
     const { nullifier, secret, hash } = await createDepositSecrets(
@@ -56,11 +59,22 @@ export async function recoverPoolDeposits(
       index
     )
 
+    // Debug: Log first 5 expected precommitments
+    if (index < 5n) {
+      const hashHex = `0x${hash.toString(16).padStart(64, '0')}`
+      console.log(
+        `[recoverPoolDeposits] Index ${index}: expected precommitment ${hash.toString()} (hex: ${hashHex})`
+      )
+    }
+
     const event = depositMap.get(hash.toString())
 
     if (!event) {
       consecutiveMisses++
       if (consecutiveMisses >= MAX_CONSECUTIVE_MISSES) {
+        console.log(
+          `[recoverPoolDeposits] Stopped after ${index} indices (${MAX_CONSECUTIVE_MISSES} consecutive misses)`
+        )
         break
       }
       continue

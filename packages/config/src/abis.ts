@@ -255,6 +255,60 @@ export const entrypointAbi = [
     stateMutability: 'view',
   },
   {
+    type: 'function',
+    name: 'latestRoot',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'relay',
+    inputs: [
+      {
+        name: '_withdrawal',
+        type: 'tuple',
+        components: [
+          { name: 'processooor', type: 'address' },
+          { name: 'data', type: 'bytes' },
+        ],
+      },
+      {
+        name: '_proof',
+        type: 'tuple',
+        components: [
+          { name: 'pA', type: 'uint256[2]' },
+          { name: 'pB', type: 'uint256[2][2]' },
+          { name: 'pC', type: 'uint256[2]' },
+          { name: 'pubSignals', type: 'uint256[8]' },
+        ],
+      },
+      { name: '_scope', type: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'mergeDeposit',
+    inputs: [
+      { name: '_mergeData', type: 'bytes' },
+      {
+        name: '_proof',
+        type: 'tuple',
+        components: [
+          { name: 'pA', type: 'uint256[2]' },
+          { name: 'pB', type: 'uint256[2][2]' },
+          { name: 'pC', type: 'uint256[2]' },
+          { name: 'pubSignals', type: 'uint256[8]' },
+        ],
+      },
+      { name: '_scope', type: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
     type: 'event',
     name: 'Deposited',
     inputs: [
@@ -327,6 +381,16 @@ export const poolAbi = [
       { name: '_commitment', type: 'uint256', indexed: false },
       { name: '_label', type: 'uint256', indexed: false },
       { name: '_value', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'MergeDeposited',
+    inputs: [
+      { name: '_depositor', type: 'address', indexed: true },
+      { name: '_depositValue', type: 'uint256', indexed: false },
+      { name: '_spentNullifier', type: 'uint256', indexed: false },
+      { name: '_newCommitment', type: 'uint256', indexed: false },
     ],
   },
 ] as const satisfies Abi

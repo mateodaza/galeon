@@ -92,6 +92,16 @@ interface IGaleonEntrypoint {
     event Deposited(address indexed _depositor, IGaleonPrivacyPool indexed _pool, uint256 _commitment, uint256 _amount);
 
     /**
+     * @notice Emitted when merging a deposit into existing commitment
+     * @dev GALEON ADDITION: For O(1) withdrawals
+     * @param _depositor The address of the depositor
+     * @param _pool The Privacy Pool contract
+     * @param _newCommitment The new commitment hash (merged)
+     * @param _amount The amount of asset deposited
+     */
+    event MergeDeposited(address indexed _depositor, IGaleonPrivacyPool indexed _pool, uint256 _newCommitment, uint256 _amount);
+
+    /**
      * @notice Emitted when processing a withdrawal through the Entrypoint
      * @param _relayer The address of the relayer
      * @param _recipient The address of the withdrawal recipient
@@ -287,6 +297,19 @@ interface IGaleonEntrypoint {
      * @return _commitment The deposit commitment hash
      */
     function deposit(IERC20 _asset, uint256 _value, uint256 _precommitment) external returns (uint256 _commitment);
+
+    /**
+     * @notice Merge a native asset deposit into existing commitment
+     * @dev GALEON ADDITION: Enables O(1) withdrawals
+     * @param _mergeData Encoded merge deposit data for context
+     * @param _proof The MergeDepositProof with ZK proof
+     * @param _scope The Pool scope to merge into
+     */
+    function mergeDeposit(
+        bytes calldata _mergeData,
+        ProofLib.MergeDepositProof calldata _proof,
+        uint256 _scope
+    ) external payable;
 
     /**
      * @notice Process a withdrawal via relay

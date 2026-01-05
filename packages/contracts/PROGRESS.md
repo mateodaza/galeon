@@ -1,7 +1,7 @@
 # Contracts (packages/contracts) Progress
 
 > Solidity smart contracts + Hardhat
-> Last updated: 2026-01-03
+> Last updated: 2026-01-04
 
 ## Setup
 
@@ -171,3 +171,149 @@ Explorer links:
 2. **Pool must be authorized** - Registry reverts with "Not authorized pool" otherwise
 3. **verifiedBalance must be sufficient** - Pool reverts with `InsufficientVerifiedBalance` otherwise
 4. **Owner keys must be secured** - Use timelock/multisig for all owner addresses
+
+---
+
+## Privacy Pool v2 - Account Model (Planned)
+
+**Spec:** [docs/FOG_PORT_POOL_SPEC.md](/docs/FOG_PORT_POOL_SPEC.md)
+
+### Overview
+
+Upgrade to Account Model architecture for O(1) withdrawals regardless of deposit history.
+
+### Circuit (Completed 2026-01-04)
+
+- [x] `mergeDeposit.circom` - Merge new deposit into existing commitment
+  - File: `packages/0xbow/packages/circuits/circuits/mergeDeposit.circom`
+  - Public signals: depositValue, stateRoot, stateTreeDepth, ASPRoot, ASPTreeDepth, context
+  - Outputs: newCommitmentHash, existingNullifierHash
+  - Added to `circuits.json` configuration
+  - Build scripts added to package.json
+
+### Contract Changes (Completed 2026-01-04)
+
+- [x] Add `MERGE_DEPOSIT_VERIFIER` to GaleonState
+- [x] Add `mergeDeposit()` function to GaleonPrivacyPool
+- [x] Add `MergeDepositProof` struct to ProofLib with accessor functions
+- [x] Add `validMergeDeposit` modifier for proof validation
+- [x] Add `_setMergeDepositVerifier()` internal function
+- [x] Add `MergeDeposited` event to IGaleonPrivacyPool
+- [x] Add `MergeDepositVerifierNotSet` error
+
+### Remaining Tasks
+
+- [x] Compile mergeDeposit circuit (17,655 constraints, 220 template instances)
+- [x] Generate trusted setup keys (dev keys via circomkit)
+- [x] Generate MergeDepositVerifier.sol
+- [ ] Deploy verifier contract
+- [ ] Call `_setMergeDepositVerifier()` on pool
+
+---
+
+## Circuit Setup Operations (One-Time)
+
+### Prerequisites
+
+- Node.js 20+
+- circom 2.2.0+ via Rust: `cargo install --git https://github.com/iden3/circom.git --force`
+- ~2GB disk space for ptau file
+
+### Setup (Clone 0xbow repo for isolated build)
+
+Since 0xbow is a submodule excluded from workspace, clone it separately:
+
+```bash
+cd /tmp
+git clone https://github.com/0xbow-io/privacy-pools-core.git
+cd privacy-pools-core/packages/circuits
+yarn install
+yarn setup:ptau
+```
+
+### Configure circomkit
+
+```bash
+# Fix circomkit.json include format
+cat > circomkit.json << 'EOF'
+{
+  "version": "2.1.2",
+  "proofSystem": "groth16",
+  "curve": "bn128",
+  "include": ["./node_modules/circomlib/circuits", "./node_modules/maci-circuits/circom"]
+}
+EOF
+
+# Add circuit to circuits.json
+cat > circuits.json << 'EOF'
+{
+  "mergeDeposit": {
+    "file": "mergeDeposit",
+    "template": "MergeDeposit",
+    "params": [32],
+    "pubs": ["depositValue", "stateRoot", "stateTreeDepth", "ASPRoot", "ASPTreeDepth", "context"]
+  }
+}
+EOF
+```
+
+### Copy mergeDeposit.circom
+
+```bash
+cp /path/to/galeon/packages/0xbow/packages/circuits/circuits/mergeDeposit.circom ./circuits/
+```
+
+### Build & Generate Verifier
+
+```bash
+npx circomkit setup mergeDeposit    # Compiles + trusted setup
+npx circomkit vkey mergeDeposit     # Export verification key
+npx circomkit contract mergeDeposit # Generate Solidity verifier
+```
+
+### Copy to Galeon
+
+```bash
+cp build/mergeDeposit/Groth16Verifier.sol /path/to/galeon/packages/contracts/contracts/privacy-pool/verifiers/MergeDepositVerifier.sol
+```
+
+Then fix the pragma and contract name in the copied file.
+
+### Notes
+
+- **Trusted setup is per-circuit**: Each circuit needs its own setup
+- **Dev keys vs Production**: These are development keys. For production, run a multi-party ceremony
+- **ptau file**: Reused across circuits - only download once
+- **mergeDeposit stats**: 17,655 non-linear constraints, 220 template instances
+
+---
+
+### Key Changes from v1
+
+| Aspect      | v1                            | v2                            |
+| ----------- | ----------------------------- | ----------------------------- |
+| Deposits    | Each creates new commitment   | Merges into single commitment |
+| Withdrawals | O(N) - need multi-input proof | O(1) - always single proof    |
+| Label       | New per deposit               | Preserved from first deposit  |
+| Ragequit    | No ASP check                  | ASP-gated (banned = frozen)   |
+
+### Storage Layout
+
+No breaking changes - new verifier added alongside existing ones.
+
+```solidity
+// Existing
+IVerifier public WITHDRAWAL_VERIFIER;
+IVerifier public RAGEQUIT_VERIFIER;
+
+// New
+IVerifier public MERGE_DEPOSIT_VERIFIER;
+```
+
+### Deployment Plan
+
+1. Compile mergeDeposit circuit
+2. Generate dev proving keys (trusted setup)
+3. Deploy MergeDepositVerifier
+4. Upgrade GaleonPrivacyPoolSimple to include mergeDeposit()
+5. Call `_upgradeVerifiers()` with new verifier address

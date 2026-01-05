@@ -66,8 +66,6 @@ Track fund collection from stealth addresses.
 
 ## Environment Variables
 
-See [.env.example](./.env.example) for all configuration options.
-
 ### Required
 
 - `APP_KEY` - Session encryption key
@@ -76,7 +74,33 @@ See [.env.example](./.env.example) for all configuration options.
 ### Optional
 
 - `PONDER_DB_*` - Ponder database connection for blockchain sync
-- `ALCHEMY_WEBHOOK_SECRET` - Alchemy webhook signing key
+
+### Pool Relayer
+
+```bash
+# Private key for the relayer wallet (pays gas for private withdrawals)
+RELAYER_PRIVATE_KEY=0xYOUR_RELAYER_PRIVATE_KEY_HERE
+
+# Fee charged on withdrawals in basis points (100 = 1%)
+RELAYER_FEE_BPS=100
+
+# Minimum withdrawal amount in wei (default: 0.01 MNT)
+MIN_WITHDRAW_AMOUNT=10000000000000000
+
+# Maximum gas price the relayer will accept (in wei, default: 100 gwei)
+MAX_GAS_PRICE=100000000000
+```
+
+## Pool Relayer API
+
+Privacy-preserving withdrawal relay for the privacy pool.
+
+| Endpoint           | Method | Auth | Description             |
+| ------------------ | ------ | ---- | ----------------------- |
+| `/relayer/status`  | GET    | No   | Get relayer status      |
+| `/relayer/details` | GET    | No   | Get fee configuration   |
+| `/relayer/quote`   | POST   | No   | Get fee quote           |
+| `/relayer/request` | POST   | No   | Submit withdrawal relay |
 
 ## Architecture
 

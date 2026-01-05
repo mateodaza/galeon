@@ -105,9 +105,58 @@ export interface WithdrawalProofInput {
 }
 
 /**
+ * Input for merge deposit proof generation
+ * Based on galeon mergeDeposit.circom circuit
+ * Enables O(1) withdrawals by merging deposits into existing commitment
+ */
+export interface MergeDepositProofInput {
+  // Public inputs
+  depositValue: bigint
+  stateRoot: bigint
+  stateTreeDepth: number
+  ASPRoot: bigint
+  ASPTreeDepth: number
+  context: bigint
+
+  // Private inputs
+  label: bigint
+  existingValue: bigint
+  existingNullifier: bigint
+  existingSecret: bigint
+  newNullifier: bigint
+  newSecret: bigint
+  stateSiblings: bigint[]
+  stateIndex: bigint
+  ASPSiblings: bigint[]
+  ASPIndex: bigint
+}
+
+/**
  * Generated withdrawal proof
  */
 export interface WithdrawalProof {
+  // Groth16 proof components
+  proof: {
+    pi_a: [string, string, string]
+    pi_b: [[string, string], [string, string], [string, string]]
+    pi_c: [string, string, string]
+    protocol: 'groth16'
+    curve: 'bn128'
+  }
+
+  // Public signals (for on-chain verification)
+  publicSignals: string[]
+
+  // Computed outputs
+  newCommitmentHash: bigint
+  existingNullifierHash: bigint
+}
+
+/**
+ * Generated merge deposit proof
+ * Same structure as WithdrawalProof but for merge deposits
+ */
+export interface MergeDepositProof {
   // Groth16 proof components
   proof: {
     pi_a: [string, string, string]

@@ -26,6 +26,8 @@ export interface PoolContracts {
   withdrawalVerifier: `0x${string}`
   /** Ragequit verifier */
   ragequitVerifier: `0x${string}`
+  /** Merge deposit verifier (for O(1) withdrawals) */
+  mergeDepositVerifier: `0x${string}`
 }
 
 /** All contracts for a chain */
@@ -43,10 +45,11 @@ export const CONTRACTS: Record<SupportedChainId, ChainContracts> = {
       registry: '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22',
     },
     pool: {
-      entrypoint: '0x54BA91d29f84B8bAd161880798877e59f2999f7a',
-      pool: '0x3260c8d8cc654B0897cd93cdf0662Fa679656b36',
-      withdrawalVerifier: '0x7529e3ec251A648A873F53d9969c1C05a44029A1',
-      ragequitVerifier: '0xFDb199E0aC8eC430541438aa6E63101F8C205D76',
+      entrypoint: '0x8633518fbbf23E78586F1456530c3452885efb21',
+      pool: '0xE271335D1FCa02b6c219B9944f0a4921aFD559C0',
+      withdrawalVerifier: '0x4894F811D370d987B55bE4e5eeA48588d6545a32',
+      ragequitVerifier: '0xAE1126645a26bC30B9A29D9c216e8F6B51B82803',
+      mergeDepositVerifier: '0x05DB69e37b8c7509E9d97826249385682CE9b29d',
     },
   },
   5003: {
@@ -60,6 +63,7 @@ export const CONTRACTS: Record<SupportedChainId, ChainContracts> = {
       pool: '0x0000000000000000000000000000000000000000',
       withdrawalVerifier: '0x0000000000000000000000000000000000000000',
       ragequitVerifier: '0x0000000000000000000000000000000000000000',
+      mergeDepositVerifier: '0x0000000000000000000000000000000000000000',
     },
   },
 }

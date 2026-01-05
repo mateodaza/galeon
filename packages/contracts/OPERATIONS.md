@@ -91,7 +91,18 @@ Complete reference for deployed contracts, operations, and administration.
 
 ### Update ASP Root
 
-Called periodically to update the Association Set Provider root.
+Called periodically to update the Association Set Provider root. **This is handled automatically by the API service** via the `UpdateASPRoot` scheduled job (runs every 30 seconds).
+
+**Automatic (Recommended):** Configure the API with:
+
+```env
+ENTRYPOINT_ADDRESS=0x54BA91d29f84B8bAd161880798877e59f2999f7a
+# Uses RELAYER_PRIVATE_KEY as fallback if ASP_POSTMAN_PRIVATE_KEY not set
+```
+
+Then run the scheduler: `node ace scheduler:run`
+
+**Manual (if needed):**
 
 ```solidity
 // ABI
@@ -189,11 +200,9 @@ function relay(
     uint256 _scope
 ) external
 
-// Withdrawal struct
+// Withdrawal struct (existingNullifierHash and newCommitment are in proof pubSignals)
 struct Withdrawal {
     address processooor;  // Must be entrypoint address
-    uint256 existingNullifierHash;
-    uint256 newCommitment;
     bytes data;  // Encoded RelayData
 }
 

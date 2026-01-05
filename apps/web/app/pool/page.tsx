@@ -1,20 +1,19 @@
 'use client'
 
 /**
- * Privacy Pool test page.
+ * Privacy Pool page.
  *
- * Allows testing deposit, recovery, and balance tracking.
- * This is a development page for testing the pool integration.
+ * Allows deposit, withdrawal, and balance tracking with merge deposit support.
  */
 
 import { useState } from 'react'
-import { formatEther, parseEther } from 'viem'
+import { formatEther } from 'viem'
 import { useAccount } from 'wagmi'
 import { usePoolContext } from '@/contexts/pool-context'
 import { GlassCard } from '@/components/ui/glass-card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { DepositModal } from '@/components/pool/deposit-modal'
+import { WithdrawModal } from '@/components/pool/withdraw-modal'
 
 export default function PoolPage() {
   const { address: _address, isConnected } = useAccount()
@@ -27,26 +26,15 @@ export default function PoolPage() {
     poolScope,
     error,
     derivePoolKeys,
-    deposit,
     recoverDeposits,
     clearPoolSession,
-    isDepositing,
     isRecovering,
     contracts,
   } = usePoolContext()
 
-  const [depositAmount, setDepositAmount] = useState('0.01')
   const [lastTxHash, setLastTxHash] = useState<string | null>(null)
-
-  const handleDeposit = async () => {
-    try {
-      const amount = parseEther(depositAmount)
-      const txHash = await deposit(amount)
-      setLastTxHash(txHash)
-    } catch (err) {
-      console.error('Deposit failed:', err)
-    }
-  }
+  const [showDepositModal, setShowDepositModal] = useState(false)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
 
   if (!isConnected) {
     return (
@@ -125,21 +113,13 @@ export default function PoolPage() {
         <GlassCard className="p-6">
           <h2 className="mb-4 text-lg font-semibold">Deposit</h2>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="amount">Amount (MNT)</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                placeholder="0.01"
-              />
-              <p className="mt-1 text-xs text-gray-400">Minimum: 0.01 MNT</p>
-            </div>
-            <Button onClick={handleDeposit} disabled={isDepositing} className="w-full">
-              {isDepositing ? 'Depositing...' : 'Deposit to Pool'}
+            <p className="text-sm text-gray-400">
+              {deposits.length > 0
+                ? 'Add funds to your pool balance. You can merge with existing deposits for single-tx withdrawals.'
+                : 'Add funds to the privacy pool. Your deposits are protected by zero-knowledge proofs.'}
+            </p>
+            <Button onClick={() => setShowDepositModal(true)} className="w-full">
+              Deposit to Pool
             </Button>
             {lastTxHash && (
               <div className="text-sm">
@@ -182,6 +162,11 @@ export default function PoolPage() {
                 {formatEther(totalBalance)} MNT
               </span>
             </div>
+            {totalBalance > 0n && (
+              <Button onClick={() => setShowWithdrawModal(true)} className="w-full">
+                Withdraw from Pool
+              </Button>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Deposits:</span>
               <span className="text-white">{deposits.length}</span>
@@ -221,6 +206,14 @@ export default function PoolPage() {
           <p className="text-sm text-red-300">{error}</p>
         </GlassCard>
       )}
+
+      {/* Modals */}
+      <DepositModal
+        open={showDepositModal}
+        onOpenChange={setShowDepositModal}
+        onSuccess={setLastTxHash}
+      />
+      <WithdrawModal open={showWithdrawModal} onOpenChange={setShowWithdrawModal} />
     </div>
   )
 }

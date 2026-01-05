@@ -224,16 +224,116 @@ npx hardhat run scripts/deploy-pool.ts --network mantle
 npx hardhat verify --network mantle <address>
 ```
 
-### Privacy Pool (Chain ID: 5000)
+### Upgrading UUPS Proxies
 
-| Contract                | Address                                      | Verified                                                                          |
-| ----------------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
-| PoseidonT3              | `0xAE4c25FF221d3aa361B39DA242357fa04420215D` | [View](https://mantlescan.xyz/address/0xAE4c25FF221d3aa361B39DA242357fa04420215D) |
-| PoseidonT4              | `0x95Ed84fE7A51ba9680D217aAf2EB6ED3E1977e45` | [View](https://mantlescan.xyz/address/0x95Ed84fE7A51ba9680D217aAf2EB6ED3E1977e45) |
-| WithdrawalVerifier      | `0x7529e3ec251A648A873F53d9969c1C05a44029A1` | [View](https://mantlescan.xyz/address/0x7529e3ec251A648A873F53d9969c1C05a44029A1) |
-| RagequitVerifier        | `0xFDb199E0aC8eC430541438aa6E63101F8C205D76` | [View](https://mantlescan.xyz/address/0xFDb199E0aC8eC430541438aa6E63101F8C205D76) |
-| GaleonEntrypoint        | `0x54BA91d29f84B8bAd161880798877e59f2999f7a` | [View](https://mantlescan.xyz/address/0x54BA91d29f84B8bAd161880798877e59f2999f7a) |
-| GaleonPrivacyPoolSimple | `0x3260c8d8cc654B0897cd93cdf0662Fa679656b36` | [View](https://mantlescan.xyz/address/0x3260c8d8cc654B0897cd93cdf0662Fa679656b36) |
+**⚠️ IMPORTANT: Always follow these steps to avoid stale bytecode issues!**
+
+```bash
+cd packages/contracts
+
+# 1. ALWAYS clean cache before upgrading (prevents stale bytecode)
+rm -rf cache artifacts
+
+# 2. Recompile fresh
+npx hardhat compile
+
+# 3. Run upgrade script
+npx hardhat run scripts/upgrade-entrypoint.ts --network mantle
+```
+
+**Why this matters:**
+
+- Hardhat caches compiled bytecode in `cache/` and `artifacts/`
+- OpenZeppelin's `upgradeProxy` checks if bytecode already exists before deploying
+- If you don't clear the cache, you may upgrade with **old bytecode** that's missing your new functions
+- The upgrade will "succeed" but the contract won't have your changes
+
+**Quick one-liner for upgrades:**
+
+```bash
+rm -rf cache artifacts && npx hardhat compile && npx hardhat run scripts/upgrade-entrypoint.ts --network mantle
+```
+
+**Verify the upgrade worked:**
+
+```bash
+# Check implementation address changed
+cast storage <PROXY_ADDRESS> 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url https://rpc.mantle.xyz
+
+# Check new function exists in bytecode (relay = 0x8a44121e)
+cast code <IMPLEMENTATION_ADDRESS> --rpc-url https://rpc.mantle.xyz | grep -o "8a44121e" && echo "✓ relay() found"
+```
+
+---
+
+### ⚠️ CRITICAL: Verifier and Circuit Artifact Synchronization
+
+**This is the #1 cause of failed ZK proof verification!**
+
+The Solidity verifier contracts MUST be generated from the **exact same `.zkey` file** used by the frontend to generate proofs. If they don't match, proofs will verify locally with snarkjs but **fail on-chain**.
+
+#### Symptoms of Verifier Mismatch
+
+- `snarkjs groth16 verify` returns `OK!` locally
+- On-chain `verifyProof()` returns `false`
+- Contract reverts with proof-related errors
+
+#### How to Fix a Verifier Mismatch
+
+```bash
+# 1. Generate a fresh Solidity verifier from your actual zkey
+npx snarkjs zkey export solidityverifier apps/web/public/circuits/withdraw_final.zkey contracts/privacy-pool/verifiers/WithdrawalVerifier.sol
+
+# 2. Update pragma and contract name if needed
+sed -i '' 's/pragma solidity >=0.7.0 <0.9.0;/pragma solidity ^0.8.24;/' contracts/privacy-pool/verifiers/WithdrawalVerifier.sol
+
+# 3. Compile and deploy the new verifier
+npx hardhat compile
+npx hardhat run scripts/deploy-verifier.ts --network mantle
+
+# 4. Update the Pool's WITHDRAWAL_VERIFIER storage (it's NOT immutable!)
+# Call pool.upgradeVerifiers(newWithdrawalVerifier, ragequitVerifier)
+```
+
+#### Important Notes on Verifier Storage
+
+The `GaleonPrivacyPoolSimple` contract stores `WITHDRAWAL_VERIFIER` as a **storage variable**, not an immutable. This means:
+
+1. **Upgrading the Pool implementation does NOT change the verifier address** - the proxy's storage persists
+2. **You must call `upgradeVerifiers()` separately** to update the verifier address after deploying a new one
+3. **Check current verifier:** `cast call <POOL_PROXY> "WITHDRAWAL_VERIFIER()(address)" --rpc-url https://rpc.mantle.xyz`
+
+#### Checklist When Updating Circuits
+
+- [ ] Ensure `withdraw_final.zkey`, `withdraw_final.wasm`, and `verification_key.json` are all from the same compilation
+- [ ] Generate `WithdrawalVerifier.sol` directly from `withdraw_final.zkey` (not from `verification_key.json`)
+- [ ] Deploy the new verifier contract
+- [ ] Call `pool.upgradeVerifiers(newVerifier, ragequitVerifier)` to update storage
+- [ ] Update `packages/config/src/contracts.ts` with the new verifier address
+- [ ] Test a withdrawal before announcing the upgrade
+
+---
+
+### Privacy Pool - Current Deployment (Chain ID: 5000)
+
+| Contract                 | Address                                      | Notes                             |
+| ------------------------ | -------------------------------------------- | --------------------------------- |
+| PoseidonT3               | `0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954` | Library                           |
+| PoseidonT4               | `0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892` | Library                           |
+| WithdrawalVerifier       | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` | Groth16 verifier (from zkey)      |
+| RagequitVerifier         | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` | Groth16 verifier                  |
+| MergeDepositVerifier     | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` | For O(1) withdrawals              |
+| GaleonEntrypoint (Proxy) | `0x8633518fbbf23E78586F1456530c3452885efb21` | UUPS proxy                        |
+| GaleonEntrypoint (Impl)  | `0x14008E78B963B830542cf6d8EF250D2cfB356B1B` | relay() + mergeDeposit()          |
+| GaleonPrivacyPoolSimple  | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` | UUPS proxy                        |
+| GaleonPoolSimple (Impl)  | `0x0eBEf0E46A99df88e2Eba7a53Fe1283b55a1bF9D` | Latest with merge deposit support |
+
+### Privacy Pool - Old Deployment (deprecated)
+
+| Contract                | Address                                      |
+| ----------------------- | -------------------------------------------- |
+| GaleonEntrypoint        | `0x54BA91d29f84B8bAd161880798877e59f2999f7a` |
+| GaleonPrivacyPoolSimple | `0x3260c8d8cc654B0897cd93cdf0662Fa679656b36` |
 
 ---
 

@@ -61,6 +61,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   RELAYER_PRIVATE_KEY: Env.schema.string.optional(),
+  RELAYER_FEE_BPS: Env.schema.string.optional(), // Fee in basis points (100 = 1%)
+  MIN_WITHDRAW_AMOUNT: Env.schema.string.optional(), // Minimum withdrawal in wei
+  MAX_GAS_PRICE: Env.schema.string.optional(), // Max gas price in wei
 
   /*
   |----------------------------------------------------------
@@ -80,4 +83,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   PONDER_DB_USER: Env.schema.string.optional(),
   PONDER_DB_PASSWORD: Env.schema.string.optional(),
   PONDER_DB_DATABASE: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for ASP (Association Set Provider) service
+  |----------------------------------------------------------
+  */
+  ENTRYPOINT_ADDRESS: Env.schema.string.optional(),
+  ASP_POSTMAN_PRIVATE_KEY: Env.schema.string.optional(),
 })

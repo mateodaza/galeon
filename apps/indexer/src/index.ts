@@ -278,6 +278,28 @@ ponder.on('GaleonPrivacyPool:Withdrawn', async ({ event, context }) => {
   })
 })
 
+ponder.on('GaleonPrivacyPool:MergeDeposited', async ({ event, context }) => {
+  const { _depositor, _depositValue, _existingNullifierHash, _newCommitmentHash } = event.args
+
+  const existingNullifierHex =
+    `0x${_existingNullifierHash.toString(16).padStart(64, '0')}` as `0x${string}`
+  const newCommitmentHex = `0x${_newCommitmentHash.toString(16).padStart(64, '0')}` as `0x${string}`
+
+  await context.db.insert(schema.poolMergeDeposits).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    pool: event.log.address.toLowerCase() as `0x${string}`,
+    depositor: _depositor.toLowerCase() as `0x${string}`,
+    depositValue: _depositValue,
+    existingNullifierHash: existingNullifierHex,
+    newCommitment: newCommitmentHex,
+    blockNumber: event.block.number,
+    blockTimestamp: event.block.timestamp,
+    transactionHash: event.transaction.hash,
+    logIndex: event.log.logIndex,
+    chainId: context.chain.id,
+  })
+})
+
 ponder.on('GaleonPrivacyPool:Ragequit', async ({ event, context }) => {
   const { _ragequitter, _commitment, _label, _value } = event.args
 

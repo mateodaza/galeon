@@ -67,6 +67,14 @@ async function main() {
   const ragequitVerifierAddr = await ragequitVerifier.getAddress()
   console.log(`   ✓ RagequitVerifier: ${ragequitVerifierAddr}`)
 
+  // 2b. Deploy MergeDepositVerifier
+  console.log('2b. Deploying MergeDepositVerifier...')
+  const MergeDepositVerifier = await ethers.getContractFactory('MergeDepositVerifier')
+  const mergeDepositVerifier = await MergeDepositVerifier.deploy()
+  await mergeDepositVerifier.waitForDeployment()
+  const mergeDepositVerifierAddr = await mergeDepositVerifier.getAddress()
+  console.log(`   ✓ MergeDepositVerifier: ${mergeDepositVerifierAddr}`)
+
   // 3. Deploy GaleonEntrypoint (UUPS Proxy)
   console.log('3. Deploying GaleonEntrypoint (UUPS Proxy)...')
   const GaleonEntrypoint = await ethers.getContractFactory('GaleonEntrypoint')
@@ -103,6 +111,7 @@ async function main() {
   })
 
   // For UUPS with constructor args, we need to use deployProxy with constructorArgs
+  // Note: unsafeAllow flags needed because base contracts use constructors for immutable vars
   const pool = await upgrades.deployProxy(
     GaleonPrivacyPoolSimple,
     [
@@ -116,6 +125,7 @@ async function main() {
       kind: 'uups',
       constructorArgs: [entrypointAddr, withdrawalVerifierAddr, ragequitVerifierAddr],
       unsafeAllowLinkedLibraries: true,
+      unsafeAllow: ['constructor', 'state-variable-immutable'],
     }
   )
   await pool.waitForDeployment()
@@ -139,6 +149,20 @@ async function main() {
   )
   console.log(`   ✓ Pool registered with entrypoint`)
 
+  // 6b. Set MergeDepositVerifier on pool
+  console.log('6b. Setting MergeDepositVerifier on pool...')
+  const poolContract = await ethers.getContractAt('GaleonPrivacyPoolSimple', poolAddr)
+  const setVerifierTx = await poolContract.setMergeDepositVerifier(mergeDepositVerifierAddr)
+  await setVerifierTx.wait()
+  console.log(`   ✓ MergeDepositVerifier set on pool`)
+
+  // 6c. Authorize pool in GaleonRegistry (required for deposits!)
+  console.log('6c. Authorizing pool in GaleonRegistry...')
+  const registryContract = await ethers.getContractAt('GaleonRegistry', galeonRegistryAddr)
+  const authorizeTx = await registryContract.setAuthorizedPool(poolAddr, true)
+  await authorizeTx.wait()
+  console.log(`   ✓ Pool authorized in GaleonRegistry`)
+
   // 7. Update initial ASP root (empty for now - will be updated by ASP)
   console.log('7. Setting initial ASP root...')
   // For now, set a placeholder root. In production, this would be the actual ASP root.
@@ -155,32 +179,35 @@ async function main() {
   console.log(`========================================\n`)
 
   console.log(`Contract Addresses:`)
-  console.log(`  withdrawalVerifier: '${withdrawalVerifierAddr}'`)
-  console.log(`  ragequitVerifier:   '${ragequitVerifierAddr}'`)
-  console.log(`  entrypoint:         '${entrypointAddr}'`)
-  console.log(`  pool:               '${poolAddr}'`)
-  console.log(`  galeonRegistry:     '${galeonRegistryAddr}'`)
+  console.log(`  withdrawalVerifier:    '${withdrawalVerifierAddr}'`)
+  console.log(`  ragequitVerifier:      '${ragequitVerifierAddr}'`)
+  console.log(`  mergeDepositVerifier:  '${mergeDepositVerifierAddr}'`)
+  console.log(`  entrypoint:            '${entrypointAddr}'`)
+  console.log(`  pool:                  '${poolAddr}'`)
+  console.log(`  galeonRegistry:        '${galeonRegistryAddr}'`)
 
   console.log(`\nExplorer Links:`)
-  console.log(`  WithdrawalVerifier: ${config.explorer}/address/${withdrawalVerifierAddr}`)
-  console.log(`  RagequitVerifier:   ${config.explorer}/address/${ragequitVerifierAddr}`)
-  console.log(`  Entrypoint:         ${config.explorer}/address/${entrypointAddr}`)
-  console.log(`  Pool:               ${config.explorer}/address/${poolAddr}`)
+  console.log(`  WithdrawalVerifier:    ${config.explorer}/address/${withdrawalVerifierAddr}`)
+  console.log(`  RagequitVerifier:      ${config.explorer}/address/${ragequitVerifierAddr}`)
+  console.log(`  MergeDepositVerifier:  ${config.explorer}/address/${mergeDepositVerifierAddr}`)
+  console.log(`  Entrypoint:            ${config.explorer}/address/${entrypointAddr}`)
+  console.log(`  Pool:                  ${config.explorer}/address/${poolAddr}`)
 
   const networkName = chainId === 5000 ? 'mantle' : 'mantleSepolia'
   console.log(`\n🔍 Verify contracts:`)
   console.log(`  npx hardhat verify --network ${networkName} ${withdrawalVerifierAddr}`)
   console.log(`  npx hardhat verify --network ${networkName} ${ragequitVerifierAddr}`)
+  console.log(`  npx hardhat verify --network ${networkName} ${mergeDepositVerifierAddr}`)
   console.log(
     `\n  For proxy contracts, use OpenZeppelin's verification plugin or manual verification`
   )
 
-  console.log(`\n📋 Update packages/pool/src/contracts.ts with:\n`)
-  console.log(`  ${chainId}: {`)
-  console.log(`    entrypoint: '${entrypointAddr}' as const,`)
-  console.log(`    pool: '${poolAddr}' as const,`)
-  console.log(`    withdrawalVerifier: '${withdrawalVerifierAddr}' as const,`)
-  console.log(`    ragequitVerifier: '${ragequitVerifierAddr}' as const,`)
+  console.log(`\n📋 Update packages/config/src/contracts.ts with:\n`)
+  console.log(`  pool: {`)
+  console.log(`    entrypoint: '${entrypointAddr}',`)
+  console.log(`    pool: '${poolAddr}',`)
+  console.log(`    withdrawalVerifier: '${withdrawalVerifierAddr}',`)
+  console.log(`    ragequitVerifier: '${ragequitVerifierAddr}',`)
   console.log(`  },`)
 }
 
