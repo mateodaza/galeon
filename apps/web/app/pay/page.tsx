@@ -9,9 +9,10 @@
  * 3. Private Send - withdraw from privacy pool anonymously (full ZK privacy)
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAddress, formatEther } from 'viem'
+import { AlertTriangle } from 'lucide-react'
 import {
   Shield,
   QrCode,
@@ -59,12 +60,19 @@ export default function PayPage() {
     collectError,
     collectTxHashes,
     hasKeys,
+    getStealthPaySummary,
   } = useCollection()
 
   const isValidRecipient = recipient.length === 0 || isAddress(recipient)
   const poolBalanceFormatted = formatEther(poolBalance)
   const hasPoolBalance = poolBalance > 0n
   const hasStealthBalance = stealthBalance > 0n
+
+  // Get stealth pay summary for UI feedback
+  const stealthPaySummary = useMemo(
+    () => getStealthPaySummary(stealthAmount, payments),
+    [getStealthPaySummary, stealthAmount, payments]
+  )
 
   // Auto-scan for stealth payments when switching to stealth mode
   useEffect(() => {
@@ -350,14 +358,50 @@ export default function PayPage() {
                     value={stealthAmount}
                     onChange={(e) => setStealthAmount(e.target.value)}
                     placeholder={`Max: ${parseFloat(stealthBalanceFormatted).toFixed(4)} MNT`}
-                    className="mt-1.5"
+                    className={`mt-1.5 ${
+                      stealthAmount && !stealthPaySummary.canSend
+                        ? 'border-amber-500 focus-visible:ring-amber-500'
+                        : ''
+                    }`}
                     step="0.0001"
                     min="0"
                   />
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    Leave empty to send all available funds
-                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">{stealthPaySummary.message}</p>
                 </div>
+
+                {/* Show available addresses when amount exceeds single address */}
+                {stealthAmount && !stealthPaySummary.canSend && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4" />
+                      Available addresses:
+                    </div>
+                    <div className="space-y-1">
+                      {stealthPaySummary.availableAddresses.map((addr) => (
+                        <div
+                          key={addr.address}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span className="text-muted-foreground font-mono">
+                            {addr.address.slice(0, 10)}...{addr.address.slice(-8)}
+                          </span>
+                          <span
+                            className={
+                              addr.canCover
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {addr.balance} MNT
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      Reduce amount to send from a single address (preserves privacy)
+                    </p>
+                  </div>
+                )}
 
                 {collectError && (
                   <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
@@ -381,7 +425,9 @@ export default function PayPage() {
 
                 <Button
                   onClick={handleStealthPay}
-                  disabled={!recipient || !isValidRecipient || isCollecting}
+                  disabled={
+                    !recipient || !isValidRecipient || isCollecting || !stealthPaySummary.canSend
+                  }
                   size="lg"
                   className="w-full bg-amber-600 hover:bg-amber-700"
                 >

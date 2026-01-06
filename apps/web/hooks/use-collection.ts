@@ -2118,6 +2118,112 @@ export function useCollection() {
     }
   }, [])
 
+  /**
+   * Find the best payment address to use for a specific amount.
+   * Returns the smallest address that can cover amount + gas.
+   */
+  const findBestPaymentForAmount = useCallback(
+    (amountWei: bigint, filteredPayments: CollectablePayment[]): CollectablePayment | null => {
+      // Gas cost estimate for Mantle L2 (conservative)
+      const gasCost = parseEther('0.01') // ~10M gas at low price
+
+      // Filter to addresses that can cover amount + gas
+      const eligible = filteredPayments.filter((p) => p.balance > amountWei + gasCost)
+
+      if (eligible.length === 0) return null
+
+      // Sort by balance ascending (smallest first) to find best fit
+      const sorted = [...eligible].sort((a, b) => (a.balance < b.balance ? -1 : 1))
+
+      // Return smallest address that can cover the amount
+      return sorted[0]
+    },
+    []
+  )
+
+  /**
+   * Get a summary of stealth address selection for UI display.
+   * Helps user understand which address(es) will be used.
+   */
+  const getStealthPaySummary = useCallback(
+    (
+      amountInput: string,
+      filteredPayments: CollectablePayment[]
+    ): {
+      mode: 'single' | 'all' | 'none'
+      selectedPayment: CollectablePayment | null
+      canSend: boolean
+      message: string
+      availableAddresses: Array<{ address: string; balance: string; canCover: boolean }>
+    } => {
+      const gasCost = parseEther('0.01')
+
+      // No payments available
+      if (filteredPayments.length === 0) {
+        return {
+          mode: 'none',
+          selectedPayment: null,
+          canSend: false,
+          message: 'No stealth funds available',
+          availableAddresses: [],
+        }
+      }
+
+      // Build available addresses list
+      const availableAddresses = filteredPayments.map((p) => ({
+        address: p.stealthAddress,
+        balance: p.balanceFormatted,
+        canCover: false, // Will be updated below
+      }))
+
+      // If no amount specified, send all
+      if (!amountInput || amountInput === '') {
+        const total = filteredPayments.reduce((sum, p) => sum + p.balance, 0n)
+        return {
+          mode: 'all',
+          selectedPayment: null,
+          canSend: true,
+          message: `Will send from ${filteredPayments.length} address${filteredPayments.length > 1 ? 'es' : ''} (${formatEther(total)} MNT total)`,
+          availableAddresses,
+        }
+      }
+
+      // Parse amount
+      const amountWei = parseEther(amountInput)
+
+      // Update which addresses can cover the amount
+      availableAddresses.forEach((addr, i) => {
+        addr.canCover = filteredPayments[i].balance > amountWei + gasCost
+      })
+
+      // Find best address
+      const bestPayment = findBestPaymentForAmount(amountWei, filteredPayments)
+
+      if (bestPayment) {
+        return {
+          mode: 'single',
+          selectedPayment: bestPayment,
+          canSend: true,
+          message: `Sending from ${bestPayment.stealthAddress.slice(0, 10)}...${bestPayment.stealthAddress.slice(-8)} (${bestPayment.balanceFormatted} MNT)`,
+          availableAddresses,
+        }
+      }
+
+      // No single address can cover the amount
+      const maxSingle = filteredPayments.reduce((max, p) => (p.balance > max ? p.balance : max), 0n)
+      const maxSendable = maxSingle > gasCost ? maxSingle - gasCost : 0n
+
+      return {
+        mode: 'none',
+        selectedPayment: null,
+        canSend: false,
+        message: `No single address has ${amountInput} MNT. Max from one address: ${formatEther(maxSendable)} MNT`,
+        availableAddresses,
+      }
+    },
+    [findBestPaymentForAmount]
+  )
+
   return {
     payments,
     dustPayments,
@@ -2152,6 +2258,9 @@ export function useCollection() {
     depositResults,
     // Pool deposit stats calculator
     calculatePoolDepositStats,
+    // Stealth Pay address selection
+    findBestPaymentForAmount,
+    getStealthPaySummary,
   }
 }
 
