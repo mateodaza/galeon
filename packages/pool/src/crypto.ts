@@ -101,3 +101,29 @@ export async function computeWithdrawalContext(
   const hash = keccak256(encoded)
   return BigInt(hash) % SNARK_SCALAR_FIELD
 }
+
+/**
+ * Compute the merge deposit context for ZK proof.
+ * Must match contract: keccak256(abi.encode(mergeData, SCOPE)) % SNARK_SCALAR_FIELD
+ *
+ * @param mergeData - The encoded merge data (e.g., abi.encode(depositor))
+ * @param scope - The pool scope
+ * @returns Context value as bigint
+ */
+export async function computeMergeDepositContext(
+  mergeData: `0x${string}`,
+  scope: bigint
+): Promise<bigint> {
+  const { keccak256, encodeAbiParameters } = await import('viem')
+
+  const encoded = encodeAbiParameters(
+    [
+      { name: 'mergeData', type: 'bytes' },
+      { name: 'scope', type: 'uint256' },
+    ],
+    [mergeData, scope]
+  )
+
+  const hash = keccak256(encoded)
+  return BigInt(hash) % SNARK_SCALAR_FIELD
+}

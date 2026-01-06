@@ -5,13 +5,22 @@
  *
  * Allows users to deposit MNT into the privacy pool.
  * Supports both new deposits and merge deposits (O(1) withdrawals).
- * Flow: Enter amount -> Choose type (if existing) -> Sign (if needed) -> Confirm
+ * Flow: Enter amount -> Sign (if needed) -> Review (preflight check) -> Confirm
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { parseEther, formatEther } from 'viem'
-import { useAccount, useBalance } from 'wagmi'
-import { Loader2, Shield, AlertCircle, Check, Sparkles, Plus, Merge } from 'lucide-react'
+import { useAccount, useBalance, useChainId } from 'wagmi'
+import {
+  Loader2,
+  Shield,
+  AlertCircle,
+  Check,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +33,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
+import { healthApi, type PreflightResult } from '@/lib/api'
+import { POOL_CONTRACTS } from '@galeon/pool'
 
 interface DepositModalProps {
   open: boolean
@@ -31,11 +42,12 @@ interface DepositModalProps {
   onSuccess?: (txHash: `0x${string}`) => void
 }
 
-type Step = 'amount' | 'type' | 'sign' | 'confirm' | 'pending' | 'success'
+type Step = 'amount' | 'sign' | 'review' | 'confirm' | 'pending' | 'success'
 type DepositType = 'new' | 'merge'
 
 export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProps) {
   const { address } = useAccount()
+  const chainId = useChainId()
   const { data: balance } = useBalance({ address })
   const {
     hasPoolKeys,
@@ -51,15 +63,23 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
 
   const [step, setStep] = useState<Step>('amount')
   const [amount, setAmount] = useState('')
-  const [depositType, setDepositType] = useState<DepositType>('new')
   const [selectedDeposit, setSelectedDeposit] = useState<PoolDeposit | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null)
   const [progressMessage, setProgressMessage] = useState<string>('')
 
+  // Preflight state for merge deposits
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null)
+  const [isLoadingPreflight, setIsLoadingPreflight] = useState(false)
+  const [preflightError, setPreflightError] = useState<string | null>(null)
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
+
   const parsedAmount = amount ? parseEther(amount) : BigInt(0)
   const hasEnoughBalance = balance && parsedAmount <= balance.value
   const hasExistingDeposits = deposits.length > 0
+
+  // Deposit type is now automatic - merge if existing deposits, new otherwise
+  const depositType: DepositType = hasExistingDeposits ? 'merge' : 'new'
 
   // Find the largest existing deposit for auto-selection
   const largestDeposit = useMemo(() => {
@@ -67,15 +87,76 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
     return deposits.reduce((max, d) => (d.value > max.value ? d : max), deposits[0])
   }, [deposits])
 
+  // Get pool address for preflight check
+  const poolAddress =
+    chainId && chainId in POOL_CONTRACTS
+      ? POOL_CONTRACTS[chainId as keyof typeof POOL_CONTRACTS].pool
+      : undefined
+
   const resetModal = useCallback(() => {
     setStep('amount')
     setAmount('')
-    setDepositType('new')
     setSelectedDeposit(null)
     setError(null)
     setTxHash(null)
     setProgressMessage('')
+    setPreflight(null)
+    setIsLoadingPreflight(false)
+    setPreflightError(null)
+    setRetryCountdown(null)
   }, [])
+
+  // Run preflight check for merge deposits
+  const runPreflightCheck = useCallback(async () => {
+    if (!poolAddress || !selectedDeposit) return
+
+    setIsLoadingPreflight(true)
+    setPreflightError(null)
+    setRetryCountdown(null)
+
+    try {
+      const result = await healthApi.preflight('privatesend', {
+        poolAddress,
+        depositLabel: selectedDeposit.label.toString(),
+      })
+
+      setPreflight(result)
+
+      if (!result.canProceed && result.retryAfterMs) {
+        setRetryCountdown(Math.ceil(result.retryAfterMs / 1000))
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Preflight check failed'
+      setPreflightError(message)
+    } finally {
+      setIsLoadingPreflight(false)
+    }
+  }, [poolAddress, selectedDeposit])
+
+  // Countdown timer for retry
+  useEffect(() => {
+    if (retryCountdown === null || retryCountdown <= 0) return
+
+    const timer = setTimeout(() => {
+      setRetryCountdown(retryCountdown - 1)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [retryCountdown])
+
+  // Auto-retry preflight when countdown reaches 0
+  useEffect(() => {
+    if (retryCountdown === 0 && step === 'review') {
+      runPreflightCheck()
+    }
+  }, [retryCountdown, step, runPreflightCheck])
+
+  // Run preflight when entering review step
+  useEffect(() => {
+    if (step === 'review' && depositType === 'merge') {
+      runPreflightCheck()
+    }
+  }, [step, depositType, runPreflightCheck])
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -100,35 +181,40 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
         return
       }
 
-      // If user has existing deposits, show type selection
-      if (hasExistingDeposits && hasPoolKeys) {
-        // Auto-select largest deposit for merge
+      // Auto-select largest deposit for merge (if we have deposits)
+      if (hasExistingDeposits) {
         setSelectedDeposit(largestDeposit)
-        setStep('type')
-      } else if (!hasPoolKeys) {
+      }
+
+      // Go to sign step if no keys, otherwise continue
+      if (!hasPoolKeys) {
         setStep('sign')
+      } else if (depositType === 'merge') {
+        // Go to review step for merge deposits (preflight check)
+        setStep('review')
       } else {
+        // For new deposits, go straight to confirm
         setStep('confirm')
       }
-    } else if (step === 'type') {
-      if (depositType === 'merge' && !selectedDeposit) {
-        setError('Please select a deposit to merge into')
-        return
-      }
-      setStep('confirm')
     } else if (step === 'sign') {
       try {
         await derivePoolKeys()
-        // After signing, if user has deposits, show type selection
+        // After signing, auto-select largest deposit for merge (if deposits exist)
         if (hasExistingDeposits) {
           setSelectedDeposit(largestDeposit)
-          setStep('type')
+        }
+        if (depositType === 'merge') {
+          // Go to review step for merge deposits (preflight check)
+          setStep('review')
         } else {
           setStep('confirm')
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to derive pool keys')
       }
+    } else if (step === 'review') {
+      // From review, proceed to confirm (button is disabled until preflight passes)
+      setStep('confirm')
     } else if (step === 'confirm') {
       setStep('pending')
       try {
@@ -158,8 +244,8 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
     hasPoolKeys,
     hasExistingDeposits,
     largestDeposit,
-    depositType,
     selectedDeposit,
+    depositType,
     derivePoolKeys,
     deposit,
     mergeDeposit,
@@ -186,8 +272,8 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
           </DialogTitle>
           <DialogDescription>
             {step === 'amount' && 'Enter the amount of MNT you want to deposit.'}
-            {step === 'type' && 'Choose how to deposit your funds.'}
             {step === 'sign' && 'Sign a message to derive your pool keys.'}
+            {step === 'review' && 'Checking sync status before merge deposit.'}
             {step === 'confirm' && 'Review and confirm your deposit.'}
             {step === 'pending' && 'Processing your deposit...'}
             {step === 'success' && 'Deposit successful!'}
@@ -227,89 +313,6 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
             </div>
           )}
 
-          {/* Type Selection Step */}
-          {step === 'type' && (
-            <div className="space-y-4">
-              <div className="grid gap-3">
-                {/* Merge Option - Recommended */}
-                <button
-                  type="button"
-                  onClick={() => setDepositType('merge')}
-                  className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                    depositType === 'merge'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${
-                        depositType === 'merge' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      }`}
-                    >
-                      <Merge className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Merge Deposit</span>
-                        <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
-                          Recommended
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        Combine with your largest deposit (
-                        {formatEther(largestDeposit?.value ?? 0n)} MNT). Enables single-transaction
-                        withdrawals.
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* New Deposit Option */}
-                <button
-                  type="button"
-                  onClick={() => setDepositType('new')}
-                  className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                    depositType === 'new'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${
-                        depositType === 'new' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      }`}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-medium">New Deposit</span>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        Create a separate deposit. Withdrawals will require multiple transactions.
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {depositType === 'merge' && (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                    <Sparkles className="h-4 w-4 shrink-0" />
-                    <span>
-                      After merging, your total balance of{' '}
-                      <span className="text-foreground font-mono font-medium">
-                        {formatEther((largestDeposit?.value ?? 0n) + parsedAmount)} MNT
-                      </span>{' '}
-                      can be withdrawn in a single transaction.
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Sign Step */}
           {step === 'sign' && (
             <div className="space-y-4">
@@ -327,6 +330,123 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
                   </span>
                 ) : (
                   'Click continue to sign the message'
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Review Step - Sync check for merge deposits */}
+          {step === 'review' && (
+            <div className="space-y-4">
+              <div className="bg-muted space-y-2 rounded-lg p-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-mono font-medium">{amount} MNT</span>
+                </div>
+                {selectedDeposit && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Existing Balance</span>
+                      <span className="font-mono">{formatEther(selectedDeposit.value)} MNT</span>
+                    </div>
+                    <div className="border-border mt-2 flex justify-between border-t pt-2">
+                      <span className="text-muted-foreground font-medium">New Total</span>
+                      <span className="font-mono font-medium">
+                        {formatEther(selectedDeposit.value + parsedAmount)} MNT
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Sync Status */}
+              <div
+                className={`rounded-lg border p-3 ${
+                  isLoadingPreflight
+                    ? 'border-slate-500/20 bg-slate-500/5'
+                    : preflight?.canProceed
+                      ? 'border-emerald-500/20 bg-emerald-500/5'
+                      : 'border-amber-500/20 bg-amber-500/5'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {isLoadingPreflight ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                    ) : preflight?.canProceed ? (
+                      <CheckCircle className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-amber-500" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {isLoadingPreflight
+                        ? 'Checking sync status...'
+                        : preflight?.canProceed
+                          ? 'Ready to merge deposit'
+                          : 'Waiting for sync'}
+                    </span>
+                  </div>
+                  {!isLoadingPreflight && !preflight?.canProceed && (
+                    <button
+                      onClick={runPreflightCheck}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-300"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Refresh
+                    </button>
+                  )}
+                </div>
+
+                {/* Sync check details */}
+                {preflight && !isLoadingPreflight && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.indexerSynced ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">Indexer</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.aspSynced ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">ASP Tree</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.stateTreeValid ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">State Tree</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.labelExists ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">Deposit</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error/Warning messages */}
+                {preflight && !preflight.canProceed && preflight.errors.length > 0 && (
+                  <div className="mt-2 text-xs text-amber-400">
+                    {preflight.errors[0]}
+                    {retryCountdown !== null && retryCountdown > 0 && (
+                      <span className="ml-1 text-slate-400">(retry in {retryCountdown}s)</span>
+                    )}
+                  </div>
+                )}
+
+                {preflightError && (
+                  <div className="mt-2 text-xs text-red-400">{preflightError}</div>
                 )}
               </div>
             </div>
@@ -435,19 +555,19 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
                 onClick={() => {
                   if (step === 'amount') {
                     handleOpenChange(false)
-                  } else if (step === 'type') {
-                    setStep('amount')
                   } else if (step === 'sign') {
                     setStep('amount')
+                  } else if (step === 'review') {
+                    setStep('amount')
                   } else if (step === 'confirm') {
-                    if (hasExistingDeposits) {
-                      setStep('type')
+                    if (depositType === 'merge') {
+                      setStep('review')
                     } else {
                       setStep('amount')
                     }
                   }
                 }}
-                disabled={isDerivingKeys || isDepositing || isMergeDepositing}
+                disabled={isDerivingKeys || isDepositing || isMergeDepositing || isLoadingPreflight}
               >
                 {step === 'amount' ? 'Cancel' : 'Back'}
               </Button>
@@ -455,6 +575,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
                 onClick={handleContinue}
                 disabled={
                   (step === 'amount' && (!amount || !hasEnoughBalance)) ||
+                  (step === 'review' && (isLoadingPreflight || !preflight?.canProceed)) ||
                   isDerivingKeys ||
                   isDepositing ||
                   isMergeDepositing
@@ -468,6 +589,16 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
                       : isMergeDepositing
                         ? 'Merging...'
                         : 'Depositing...'}
+                  </>
+                ) : step === 'review' && isLoadingPreflight ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : step === 'review' && !preflight?.canProceed ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Waiting for Sync...
                   </>
                 ) : step === 'confirm' ? (
                   depositType === 'merge' ? (

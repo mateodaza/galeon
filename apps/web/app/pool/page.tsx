@@ -1,22 +1,25 @@
 'use client'
 
 /**
- * Privacy Pool page.
+ * Pool Management page.
  *
- * Allows deposit, withdrawal, and balance tracking with merge deposit support.
+ * Advanced pool management: recovery, contract info, deposit history.
+ * Normal users access pool via /pay → Pool Withdrawal mode.
  */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { formatEther } from 'viem'
 import { useAccount } from 'wagmi'
+import { ArrowLeft, Settings, RefreshCw, Shield, ExternalLink } from 'lucide-react'
 import { usePoolContext } from '@/contexts/pool-context'
-import { GlassCard } from '@/components/ui/glass-card'
+import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { DepositModal } from '@/components/pool/deposit-modal'
+import { Card, CardContent } from '@/components/ui/card'
 import { WithdrawModal } from '@/components/pool/withdraw-modal'
 
-export default function PoolPage() {
-  const { address: _address, isConnected } = useAccount()
+export default function PoolManagementPage() {
+  const { isConnected } = useAccount()
   const {
     hasPoolKeys,
     isDerivingKeys,
@@ -27,193 +30,221 @@ export default function PoolPage() {
     error,
     derivePoolKeys,
     recoverDeposits,
+    forceSync,
     clearPoolSession,
     isRecovering,
     contracts,
   } = usePoolContext()
 
-  const [lastTxHash, setLastTxHash] = useState<string | null>(null)
-  const [showDepositModal, setShowDepositModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto max-w-2xl px-4 py-8">
-        <GlassCard className="p-6 text-center">
-          <h1 className="mb-4 text-2xl font-bold">Privacy Pool</h1>
-          <p className="text-gray-400">Connect your wallet to continue</p>
-          <appkit-button />
-        </GlassCard>
-      </div>
+      <AppShell>
+        <Card className="mt-6 p-6 text-center">
+          <Shield className="text-muted-foreground mx-auto h-12 w-12" />
+          <h1 className="text-foreground mt-4 text-xl font-bold">Pool Management</h1>
+          <p className="text-muted-foreground mt-2">Connect your wallet to continue</p>
+        </Card>
+      </AppShell>
     )
   }
 
   if (isRestoring) {
     return (
-      <div className="container mx-auto max-w-2xl px-4 py-8">
-        <GlassCard className="p-6 text-center">
-          <p className="text-gray-400">Restoring session...</p>
-        </GlassCard>
-      </div>
+      <AppShell>
+        <Card className="mt-6 p-6 text-center">
+          <RefreshCw className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
+          <p className="text-muted-foreground mt-4">Restoring session...</p>
+        </Card>
+      </AppShell>
     )
   }
 
+  const actions = (
+    <Button variant="outline" asChild>
+      <Link href="/pay">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Pay
+      </Link>
+    </Button>
+  )
+
   return (
-    <div className="container mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold text-white">Privacy Pool</h1>
+    <AppShell requireAuth requireKeys>
+      <PageHeader
+        title="Pool Management"
+        description="Recovery, contract info, and deposit history."
+        actions={actions}
+      />
 
-      {/* Contract Info */}
-      <GlassCard className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">Contract Info</h2>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Entrypoint:</span>
-            <code className="text-cyan-400">{contracts?.entrypoint || 'Not deployed'}</code>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Pool:</span>
-            <code className="text-cyan-400">{contracts?.pool || 'Not deployed'}</code>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Pool Scope:</span>
-            <code className="text-cyan-400">
-              {poolScope ? `0x${poolScope.toString(16).slice(0, 16)}...` : 'Loading...'}
-            </code>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Pool Keys */}
-      <GlassCard className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">Pool Keys</h2>
-        {hasPoolKeys ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-green-500" />
-              <span className="text-green-400">Keys derived</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={clearPoolSession}>
-              Clear Session
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Sign a message to derive your pool keys. This enables deposits and recovery.
-            </p>
-            <Button onClick={derivePoolKeys} disabled={isDerivingKeys}>
-              {isDerivingKeys ? 'Signing...' : 'Derive Pool Keys'}
-            </Button>
-          </div>
-        )}
-      </GlassCard>
-
-      {/* Deposit */}
-      {hasPoolKeys && (
-        <GlassCard className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Deposit</h2>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              {deposits.length > 0
-                ? 'Add funds to your pool balance. You can merge with existing deposits for single-tx withdrawals.'
-                : 'Add funds to the privacy pool. Your deposits are protected by zero-knowledge proofs.'}
-            </p>
-            <Button onClick={() => setShowDepositModal(true)} className="w-full">
-              Deposit to Pool
-            </Button>
-            {lastTxHash && (
-              <div className="text-sm">
-                <span className="text-gray-400">Last TX: </span>
-                <a
-                  href={`https://mantlescan.xyz/tx/${lastTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-cyan-400 hover:underline"
-                >
-                  {lastTxHash.slice(0, 10)}...{lastTxHash.slice(-8)}
-                </a>
-              </div>
-            )}
-          </div>
-        </GlassCard>
-      )}
-
-      {/* Recovery */}
-      {hasPoolKeys && (
-        <GlassCard className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Recovery</h2>
-          <p className="mb-4 text-sm text-gray-400">
-            Scan the chain for deposits made with your keys.
-          </p>
-          <Button onClick={recoverDeposits} disabled={isRecovering} variant="outline">
-            {isRecovering ? 'Scanning...' : 'Recover Deposits'}
-          </Button>
-        </GlassCard>
-      )}
-
-      {/* Balance & Deposits */}
-      {hasPoolKeys && (
-        <GlassCard className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Balance & Deposits</h2>
-          <div className="space-y-4">
+      {/* Quick Actions */}
+      {hasPoolKeys && totalBalance > 0n && (
+        <Card className="mt-6 border-emerald-500/20 bg-emerald-500/5">
+          <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Total Balance:</span>
-              <span className="text-2xl font-bold text-cyan-400">
-                {formatEther(totalBalance)} MNT
-              </span>
-            </div>
-            {totalBalance > 0n && (
-              <Button onClick={() => setShowWithdrawModal(true)} className="w-full">
-                Withdraw from Pool
+              <div>
+                <p className="text-sm text-emerald-600 dark:text-emerald-400">Pool Balance</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatEther(totalBalance)} MNT
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowWithdrawModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Withdraw
               </Button>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Deposits:</span>
-              <span className="text-white">{deposits.length}</span>
             </div>
-            {deposits.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-medium text-gray-400">Recent Deposits</h3>
-                {deposits
-                  .slice(-5)
-                  .reverse()
-                  .map((d, i) => (
-                    <div key={i} className="rounded bg-white/5 p-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">#{d.index.toString()}</span>
-                        <span className="text-white">{formatEther(d.value)} MNT</span>
-                      </div>
-                      <a
-                        href={`https://mantlescan.xyz/tx/${d.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-cyan-400 hover:underline"
-                      >
-                        {d.txHash.slice(0, 10)}...
-                      </a>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </GlassCard>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Pool Keys Status */}
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2">
+            <Settings className="text-muted-foreground h-5 w-5" />
+            <h2 className="text-foreground font-semibold">Pool Keys</h2>
+          </div>
+          {hasPoolKeys ? (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="text-sm text-emerald-600 dark:text-emerald-400">Keys derived</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={clearPoolSession}>
+                Clear Session
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <p className="text-muted-foreground text-sm">
+                Sign a message to derive your pool keys.
+              </p>
+              <Button onClick={derivePoolKeys} disabled={isDerivingKeys} className="mt-3">
+                {isDerivingKeys ? 'Signing...' : 'Derive Pool Keys'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sync & Recovery */}
+      {hasPoolKeys && (
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="text-muted-foreground h-5 w-5" />
+              <h2 className="text-foreground font-semibold">Sync & Recovery</h2>
+            </div>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Keep your local state in sync with the blockchain. Force Sync traces through all
+              withdrawals and merges to find your current active deposits.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button onClick={forceSync} disabled={isRecovering} variant="default">
+                {isRecovering ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Force Sync
+                  </>
+                )}
+              </Button>
+              <Button onClick={recoverDeposits} disabled={isRecovering} variant="outline">
+                {isRecovering ? 'Scanning...' : 'Quick Recover'}
+              </Button>
+            </div>
+            <p className="text-muted-foreground mt-2 text-xs">
+              Use <strong>Force Sync</strong> if withdrawals fail. It re-traces all transaction
+              chains to find your current balance.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Deposit History */}
+      {hasPoolKeys && deposits.length > 0 && (
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <h2 className="text-foreground font-semibold">Deposit History ({deposits.length})</h2>
+            <div className="mt-4 space-y-2">
+              {deposits
+                .slice()
+                .reverse()
+                .map((d, i) => (
+                  <div
+                    key={i}
+                    className="bg-muted flex items-center justify-between rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="text-foreground text-sm font-medium">
+                        {formatEther(d.value)} MNT
+                      </p>
+                      <p className="text-muted-foreground text-xs">Index #{d.index.toString()}</p>
+                    </div>
+                    <a
+                      href={`https://mantlescan.xyz/tx/${d.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs"
+                    >
+                      View TX
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Contract Info (collapsed by default for advanced users) */}
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <details>
+            <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm">
+              Contract Info (Advanced)
+            </summary>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entrypoint:</span>
+                <code className="text-primary text-xs">
+                  {contracts?.entrypoint || 'Not deployed'}
+                </code>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pool:</span>
+                <code className="text-primary text-xs">{contracts?.pool || 'Not deployed'}</code>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pool Scope:</span>
+                <code className="text-primary text-xs">
+                  {poolScope ? `0x${poolScope.toString(16).slice(0, 16)}...` : 'Loading...'}
+                </code>
+              </div>
+            </div>
+          </details>
+        </CardContent>
+      </Card>
 
       {/* Error */}
       {error && (
-        <GlassCard className="border-red-500/50 p-6">
-          <h2 className="mb-2 text-lg font-semibold text-red-400">Error</h2>
-          <p className="text-sm text-red-300">{error}</p>
-        </GlassCard>
+        <Card className="border-destructive mt-6">
+          <CardContent className="pt-6">
+            <p className="text-destructive text-sm">{error}</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Modals */}
-      <DepositModal
-        open={showDepositModal}
-        onOpenChange={setShowDepositModal}
-        onSuccess={setLastTxHash}
-      />
+      {/* Withdraw Modal */}
       <WithdrawModal open={showWithdrawModal} onOpenChange={setShowWithdrawModal} />
-    </div>
+    </AppShell>
   )
 }

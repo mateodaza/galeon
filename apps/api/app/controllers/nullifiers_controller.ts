@@ -4,7 +4,7 @@ import PonderService from '#services/ponder_service'
 export default class NullifiersController {
   /**
    * GET /nullifiers/:hex
-   * Check if a nullifier has been spent.
+   * Check if a nullifier has been spent and how.
    *
    * Path params:
    * - hex: The nullifier hash as hex string (with or without 0x prefix)
@@ -14,7 +14,9 @@ export default class NullifiersController {
    *
    * Returns:
    * - spent: boolean
-   * - withdrawal: withdrawal record if spent, null otherwise
+   * - spentBy: 'withdrawal' | 'merge' | null (indicates how it was spent)
+   * - withdrawal: withdrawal record if spent via withdrawal
+   * - mergeDeposit: merge deposit record if spent via merge
    */
   async show({ params, request, response, logger }: HttpContext) {
     const { hex } = params
@@ -25,13 +27,20 @@ export default class NullifiersController {
 
     try {
       const ponderService = new PonderService()
-      const withdrawal = await ponderService.findWithdrawalByNullifier(
-        normalizedHex,
-        chainId !== undefined ? Number(chainId) : undefined
-      )
+      const parsedChainId = chainId !== undefined ? Number(chainId) : undefined
+
+      // Check both withdrawals and merge deposits in parallel
+      const [withdrawal, mergeDeposit] = await Promise.all([
+        ponderService.findWithdrawalByNullifier(normalizedHex, parsedChainId),
+        ponderService.findMergeDepositByNullifier(normalizedHex, parsedChainId),
+      ])
+
+      const spent = withdrawal !== null || mergeDeposit !== null
+      const spentBy = withdrawal ? 'withdrawal' : mergeDeposit ? 'merge' : null
 
       return response.ok({
-        spent: withdrawal !== null,
+        spent,
+        spentBy,
         withdrawal: withdrawal
           ? {
               id: withdrawal.id,
@@ -50,14 +59,30 @@ export default class NullifiersController {
               chainId: withdrawal.chainId,
             }
           : null,
+        mergeDeposit: mergeDeposit
+          ? {
+              id: mergeDeposit.id,
+              pool: mergeDeposit.pool,
+              depositor: mergeDeposit.depositor,
+              depositValue: mergeDeposit.depositValue,
+              existingNullifierHash: mergeDeposit.existingNullifierHash,
+              newCommitment: mergeDeposit.newCommitment,
+              blockNumber: mergeDeposit.blockNumber,
+              blockTimestamp: mergeDeposit.blockTimestamp,
+              transactionHash: mergeDeposit.transactionHash,
+              chainId: mergeDeposit.chainId,
+            }
+          : null,
       })
     } catch (error) {
       // If table doesn't exist, return not spent (indexer not running)
       if (error instanceof Error && error.message.includes('does not exist')) {
-        logger.warn('Pool withdrawals table does not exist - indexer may not be running')
+        logger.warn('Pool tables do not exist - indexer may not be running')
         return response.ok({
           spent: false,
+          spentBy: null,
           withdrawal: null,
+          mergeDeposit: null,
         })
       }
       throw error

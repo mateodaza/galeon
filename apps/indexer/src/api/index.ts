@@ -265,6 +265,22 @@ app.get('/pools/:address/ragequits', async (c) => {
   return c.json(serializeBigInts(results))
 })
 
+// GET /pools/:address/merge-deposits - Get merge deposits for a pool
+app.get('/pools/:address/merge-deposits', async (c) => {
+  const address = c.req.param('address')
+  const limit = parseInt(c.req.query('limit') || '100')
+
+  const results = await db
+    .select()
+    .from(schema.poolMergeDeposits)
+    .where(eq(schema.poolMergeDeposits.pool, address.toLowerCase() as `0x${string}`))
+    .orderBy(schema.poolMergeDeposits.blockNumber)
+    .orderBy(schema.poolMergeDeposits.logIndex)
+    .limit(limit)
+
+  return c.json(serializeBigInts(results))
+})
+
 // GET /pools/:address/leaves - Get merkle leaves for a pool (ordered by leafIndex for Merkle tree consistency)
 app.get('/pools/:address/leaves', async (c) => {
   const address = c.req.param('address')
@@ -331,6 +347,42 @@ app.get('/deposits/by-commitment/:hex', async (c) => {
 })
 
 // ============================================================
+// Merge Deposits (cross-pool)
+// ============================================================
+
+// GET /merge-deposits - List all merge deposits
+app.get('/merge-deposits', async (c) => {
+  const limit = parseInt(c.req.query('limit') || '100')
+
+  const results = await db
+    .select()
+    .from(schema.poolMergeDeposits)
+    .orderBy(desc(schema.poolMergeDeposits.blockNumber))
+    .limit(limit)
+
+  return c.json(serializeBigInts(results))
+})
+
+// GET /merge-deposits/by-nullifier/:hex - Find merge deposit by spent nullifier hash
+app.get('/merge-deposits/by-nullifier/:hex', async (c) => {
+  const nullifier = c.req.param('hex')
+
+  const result = await db
+    .select()
+    .from(schema.poolMergeDeposits)
+    .where(
+      eq(schema.poolMergeDeposits.existingNullifierHash, nullifier.toLowerCase() as `0x${string}`)
+    )
+    .limit(1)
+
+  if (result.length === 0) {
+    return c.json({ error: 'Merge deposit not found' }, 404)
+  }
+
+  return c.json(serializeBigInts(result[0]))
+})
+
+// ============================================================
 // Withdrawals (cross-pool)
 // ============================================================
 
@@ -362,12 +414,8 @@ app.get('/withdrawals/by-recipient/:address', async (c) => {
   return c.json(serializeBigInts(results))
 })
 
-// ============================================================
-// Nullifiers
-// ============================================================
-
-// GET /nullifiers/:hex - Check if nullifier has been spent
-app.get('/nullifiers/:hex', async (c) => {
+// GET /withdrawals/by-nullifier/:hex - Find withdrawal by spent nullifier hash
+app.get('/withdrawals/by-nullifier/:hex', async (c) => {
   const nullifier = c.req.param('hex')
 
   const result = await db
@@ -377,10 +425,58 @@ app.get('/nullifiers/:hex', async (c) => {
     .limit(1)
 
   if (result.length === 0) {
-    return c.json({ spent: false, withdrawal: null })
+    return c.json({ error: 'Withdrawal not found' }, 404)
   }
 
-  return c.json({ spent: true, withdrawal: serializeBigInts(result[0]) })
+  return c.json(serializeBigInts(result[0]))
+})
+
+// ============================================================
+// Nullifiers
+// ============================================================
+
+// GET /nullifiers/:hex - Check if nullifier has been spent (via withdrawal OR merge)
+app.get('/nullifiers/:hex', async (c) => {
+  const nullifier = c.req.param('hex').toLowerCase() as `0x${string}`
+
+  // Check withdrawals first
+  const withdrawal = await db
+    .select()
+    .from(schema.poolWithdrawals)
+    .where(eq(schema.poolWithdrawals.spentNullifier, nullifier))
+    .limit(1)
+
+  if (withdrawal.length > 0) {
+    return c.json({
+      spent: true,
+      spentBy: 'withdrawal',
+      withdrawal: serializeBigInts(withdrawal[0]),
+      mergeDeposit: null,
+    })
+  }
+
+  // Check merge deposits
+  const mergeDeposit = await db
+    .select()
+    .from(schema.poolMergeDeposits)
+    .where(eq(schema.poolMergeDeposits.existingNullifierHash, nullifier))
+    .limit(1)
+
+  if (mergeDeposit.length > 0) {
+    return c.json({
+      spent: true,
+      spentBy: 'merge',
+      withdrawal: null,
+      mergeDeposit: serializeBigInts(mergeDeposit[0]),
+    })
+  }
+
+  return c.json({
+    spent: false,
+    spentBy: null,
+    withdrawal: null,
+    mergeDeposit: null,
+  })
 })
 
 // ============================================================
@@ -479,6 +575,62 @@ app.get('/authorized-pools', async (c) => {
   const results = await query.orderBy(desc(schema.authorizedPools.blockNumber)).limit(limit)
 
   return c.json(serializeBigInts(results))
+})
+
+// ============================================================
+// Sync Status (renamed from /health to avoid Ponder conflict)
+// ============================================================
+
+// GET /sync-status - Indexer sync status
+app.get('/sync-status', async (c) => {
+  try {
+    // Get latest indexed block from merkle_leaves (most frequently updated table)
+    const latestLeaf = await db
+      .select()
+      .from(schema.merkleLeaves)
+      .orderBy(desc(schema.merkleLeaves.blockNumber))
+      .limit(1)
+
+    // Fallback to pool_deposits if no leaves
+    let lastIndexedBlock = latestLeaf[0]?.blockNumber ?? null
+
+    if (!lastIndexedBlock) {
+      const latestDeposit = await db
+        .select()
+        .from(schema.poolDeposits)
+        .orderBy(desc(schema.poolDeposits.blockNumber))
+        .limit(1)
+
+      lastIndexedBlock = latestDeposit[0]?.blockNumber ?? null
+    }
+
+    // Get counts for context
+    const [depositCount, leafCount, withdrawalCount] = await Promise.all([
+      db.select().from(schema.poolDeposits),
+      db.select().from(schema.merkleLeaves),
+      db.select().from(schema.poolWithdrawals),
+    ])
+
+    return c.json({
+      status: 'ok',
+      lastIndexedBlock: lastIndexedBlock ? Number(lastIndexedBlock) : 0,
+      counts: {
+        deposits: depositCount.length,
+        merkleLeaves: leafCount.length,
+        withdrawals: withdrawalCount.length,
+      },
+      timestamp: Date.now(),
+    })
+  } catch (error) {
+    return c.json(
+      {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now(),
+      },
+      500
+    )
+  }
 })
 
 export default app

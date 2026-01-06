@@ -24,6 +24,8 @@ import {
   createDepositSecrets,
   createWithdrawalSecrets,
   recoverPoolDeposits,
+  traceMergeChain,
+  recoverWithdrawalChange,
   POOL_SIGN_MESSAGE,
   POOL_CONTRACTS,
   entrypointAbi,
@@ -32,12 +34,15 @@ import {
   PoolMerkleTree,
   generateMergeDepositProof,
   formatMergeDepositProofForContract,
+  computeMergeDepositContext,
   poseidonHash,
   type PoolContracts,
   type MergeDepositProofInput,
+  type MergeDepositEvent,
+  type WithdrawalEvent,
 } from '@galeon/pool'
 import { encodeAbiParameters, type Address } from 'viem'
-import { poolDepositsApi, nullifierApi, merkleLeavesApi } from '@/lib/api'
+import { poolDepositsApi, mergeDepositsApi, nullifierApi, merkleLeavesApi } from '@/lib/api'
 
 /** Storage key prefix */
 const STORAGE_KEY = 'galeon-pool-session'
@@ -58,6 +63,7 @@ interface PoolSession {
 /** Deposit record stored in localStorage */
 interface StoredDeposit {
   index: number
+  derivationDepth: number
   precommitmentHash: string
   value: string
   label: string
@@ -68,7 +74,12 @@ interface StoredDeposit {
 
 /** Pool deposit with full details */
 export interface PoolDeposit {
+  /** Original deposit index (0 for first deposit, 1 for second, etc.) */
   index: bigint
+  /** Derivation depth - how many withdrawals/merges this commitment has gone through.
+   *  0 = original deposit, 1 = after first withdrawal/merge, 2 = after second, etc.
+   *  Used to calculate the next childIndex for withdrawals. */
+  derivationDepth: bigint
   nullifier: bigint
   secret: bigint
   precommitmentHash: bigint
@@ -182,6 +193,10 @@ interface PoolContextValue {
   ) => Promise<`0x${string}`>
   /** Recover deposits from chain events */
   recoverDeposits: () => Promise<void>
+  /** Force a full sync of deposits from chain (clears cache and re-traces all chains) */
+  forceSync: () => Promise<void>
+  /** Add a deposit directly to context (bypasses indexer lag) */
+  addDeposit: (deposit: PoolDeposit) => void
   /** Clear pool session */
   clearPoolSession: () => void
   /** Whether deposit is in progress */
@@ -197,41 +212,288 @@ interface PoolContextValue {
 const PoolContext = createContext<PoolContextValue | null>(null)
 
 /**
- * Filter out deposits that have been spent (nullifier already used).
- * Checks each deposit's nullifier hash against the indexer's spent nullifiers.
+ * Recursively trace a deposit through all withdrawals and merges to find
+ * the current active commitment.
  *
- * IMPORTANT: The contract stores nullifierHash = Poseidon(nullifier), NOT the raw nullifier.
- * So we must compute the hash before checking.
+ * This handles chains like: deposit → partial withdrawal → merge → partial withdrawal → ...
+ *
+ * @param deposit - Current deposit to trace
+ * @param masterNullifier - Master nullifier for deriving new secrets
+ * @param masterSecret - Master secret for deriving new secrets
+ * @param mergeEvents - All merge events for this pool
+ * @param chainId - Chain ID for nullifier API calls
+ * @param recursionDepth - Current recursion depth (for safety)
+ * @returns The final active deposit, or null if fully withdrawn
  */
-async function filterUnspentDeposits(deposits: PoolDeposit[]): Promise<PoolDeposit[]> {
+async function traceDepositChain(
+  deposit: PoolDeposit,
+  masterNullifier: bigint,
+  masterSecret: bigint,
+  mergeEvents: MergeDepositEvent[],
+  chainId: number,
+  recursionDepth: number = 0
+): Promise<PoolDeposit | null> {
+  // Safety: prevent infinite loops
+  const MAX_RECURSION = 50
+  if (recursionDepth >= MAX_RECURSION) {
+    console.error(`[Pool] Max recursion depth reached (${MAX_RECURSION}), stopping`)
+    return deposit // Return current as best guess
+  }
+
+  // Compute nullifierHash = Poseidon(nullifier)
+  const nullifierHash = await poseidonHash([deposit.nullifier])
+  const nullifierHashHex = `0x${nullifierHash.toString(16).padStart(64, '0')}`
+
+  // Check how the nullifier was spent (if at all)
+  const spendInfo = await nullifierApi.check(nullifierHashHex, chainId)
+
+  if (!spendInfo.spent) {
+    // Not spent - this is the active deposit
+    console.log(`[Pool] Found active deposit at derivationDepth ${deposit.derivationDepth}`)
+    return deposit
+  }
+
+  if (spendInfo.spentBy === 'withdrawal') {
+    console.log(`[Pool] Deposit spent via withdrawal (derivationDepth: ${deposit.derivationDepth})`)
+
+    // Check if it was a partial withdrawal with change commitment
+    const zeroCommitment = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    if (!spendInfo.withdrawal || spendInfo.withdrawal.newCommitment === zeroCommitment) {
+      console.log('[Pool] Full withdrawal - no remaining balance')
+      return null // Fully withdrawn
+    }
+
+    // Convert to WithdrawalEvent format
+    const withdrawalEvent: WithdrawalEvent = {
+      spentNullifier: BigInt(spendInfo.withdrawal.spentNullifier),
+      newCommitment: BigInt(spendInfo.withdrawal.newCommitment),
+      withdrawnValue: BigInt(spendInfo.withdrawal.value),
+      blockNumber: BigInt(spendInfo.withdrawal.blockNumber),
+      txHash: spendInfo.withdrawal.transactionHash as `0x${string}`,
+    }
+
+    // Recover the change deposit
+    const changeDeposit = await recoverWithdrawalChange(
+      masterNullifier,
+      masterSecret,
+      {
+        index: deposit.index,
+        nullifier: deposit.nullifier,
+        secret: deposit.secret,
+        precommitmentHash: deposit.precommitmentHash,
+        value: deposit.value,
+        label: deposit.label,
+        blockNumber: deposit.blockNumber,
+        txHash: deposit.txHash,
+      },
+      withdrawalEvent
+    )
+
+    if (!changeDeposit) {
+      console.log('[Pool] Could not recover change deposit')
+      return null
+    }
+
+    // The change deposit has derivationDepth = parent's derivationDepth + 1
+    const nextDerivationDepth = deposit.derivationDepth + 1n
+
+    // Recursively trace the change deposit
+    return traceDepositChain(
+      {
+        index: deposit.index, // Keep original index for reference
+        derivationDepth: nextDerivationDepth,
+        nullifier: changeDeposit.nullifier,
+        secret: changeDeposit.secret,
+        precommitmentHash: changeDeposit.precommitmentHash,
+        value: changeDeposit.value,
+        label: changeDeposit.label,
+        blockNumber: changeDeposit.blockNumber,
+        txHash: changeDeposit.txHash,
+      },
+      masterNullifier,
+      masterSecret,
+      mergeEvents,
+      chainId,
+      recursionDepth + 1
+    )
+  }
+
+  if (spendInfo.spentBy === 'merge') {
+    console.log(`[Pool] Deposit spent via merge (derivationDepth: ${deposit.derivationDepth})`)
+
+    // Use merge data from API response directly (most reliable source)
+    let mergeEvent: MergeDepositEvent | undefined
+
+    if (spendInfo.mergeDeposit) {
+      mergeEvent = {
+        existingNullifierHash: BigInt(spendInfo.mergeDeposit.existingNullifierHash),
+        newCommitment: BigInt(spendInfo.mergeDeposit.newCommitment),
+        depositValue: BigInt(spendInfo.mergeDeposit.depositValue),
+        blockNumber: BigInt(spendInfo.mergeDeposit.blockNumber),
+        txHash: spendInfo.mergeDeposit.transactionHash as `0x${string}`,
+      }
+    } else {
+      // Fallback to searching mergeEvents array
+      mergeEvent = mergeEvents.find(
+        (m) => m.existingNullifierHash.toString() === nullifierHash.toString()
+      )
+    }
+
+    if (!mergeEvent) {
+      console.error('[Pool] Could not find merge event for nullifier')
+      return deposit // Return current as fallback
+    }
+
+    console.log('[Pool] Using merge event:', {
+      existingNullifierHash: mergeEvent.existingNullifierHash.toString(),
+      newCommitment: mergeEvent.newCommitment.toString(),
+      depositValue: mergeEvent.depositValue.toString(),
+    })
+
+    // Use traceMergeChain for merge events (it handles the recovery and follows the entire chain)
+    const mergeResult = await traceMergeChain(
+      masterNullifier,
+      masterSecret,
+      {
+        index: deposit.index,
+        nullifier: deposit.nullifier,
+        secret: deposit.secret,
+        precommitmentHash: deposit.precommitmentHash,
+        value: deposit.value,
+        label: deposit.label,
+        blockNumber: deposit.blockNumber,
+        txHash: deposit.txHash,
+      },
+      mergeEvents
+    )
+
+    if (!mergeResult) {
+      console.error('[Pool] Could not trace merge chain')
+      return null
+    }
+
+    const { deposit: mergedDeposit, mergeCount } = mergeResult
+
+    // The merged deposit's derivationDepth should be the actual childIndex from the last merge
+    // This is stored in mergedDeposit.index by recoverMergeDeposit
+    // Don't use deposit.derivationDepth + mergeCount as childIndexes might not be sequential
+    const nextDerivationDepth = mergedDeposit.index
+    console.log(
+      `[Pool] Traced ${mergeCount} merge(s), derivationDepth: ${deposit.derivationDepth} -> ${nextDerivationDepth} (actual childIndex)`
+    )
+
+    // Recursively trace the merged deposit (it might have been withdrawn after the merges)
+    return traceDepositChain(
+      {
+        index: deposit.index, // Keep original index for reference
+        derivationDepth: nextDerivationDepth,
+        nullifier: mergedDeposit.nullifier,
+        secret: mergedDeposit.secret,
+        precommitmentHash: mergedDeposit.precommitmentHash,
+        value: mergedDeposit.value,
+        label: mergedDeposit.label,
+        blockNumber: mergedDeposit.blockNumber,
+        txHash: mergedDeposit.txHash,
+      },
+      masterNullifier,
+      masterSecret,
+      mergeEvents,
+      chainId,
+      recursionDepth + 1
+    )
+  }
+
+  // Unknown spend type
+  console.warn(`[Pool] Unknown spentBy type: ${spendInfo.spentBy}`)
+  return deposit
+}
+
+/**
+ * Filter deposits and trace all chains to find active commitments.
+ *
+ * For each original deposit:
+ * 1. Recursively trace through withdrawals and merges
+ * 2. Find the final active commitment (or null if fully withdrawn)
+ * 3. Deduplicate results (same commitment might be reached from different paths)
+ *
+ * @param deposits - Original deposits recovered from chain
+ * @param masterNullifier - Master nullifier for tracing chains
+ * @param masterSecret - Master secret for tracing chains
+ * @param poolAddress - Pool address for fetching merge events
+ * @param chainId - Chain ID for fetching merge events
+ */
+async function resolveActiveDeposits(
+  deposits: PoolDeposit[],
+  masterNullifier: bigint,
+  masterSecret: bigint,
+  poolAddress: string,
+  chainId: number
+): Promise<PoolDeposit[]> {
   if (deposits.length === 0) return []
 
-  // Compute nullifier hashes for each deposit and check if spent
-  const unspent: PoolDeposit[] = []
+  // Fetch all merge events for this pool
+  let mergeEvents: MergeDepositEvent[] = []
+  try {
+    const apiMerges = await mergeDepositsApi.list({ pool: poolAddress, chainId })
+    mergeEvents = apiMerges.map((m) => ({
+      existingNullifierHash: BigInt(m.existingNullifierHash),
+      newCommitment: BigInt(m.newCommitment),
+      depositValue: BigInt(m.depositValue),
+      blockNumber: BigInt(m.blockNumber),
+      txHash: m.transactionHash as `0x${string}`,
+    }))
+    console.log(`[Pool] Fetched ${mergeEvents.length} merge events`)
+  } catch (err) {
+    console.warn('[Pool] Failed to fetch merge events:', err)
+  }
+
+  const activeDeposits: PoolDeposit[] = []
+  const seenCommitments = new Set<string>() // Track to avoid duplicates
 
   for (const deposit of deposits) {
     try {
-      // CRITICAL: Compute nullifierHash = Poseidon(nullifier)
-      // The contract stores the HASH, not the raw nullifier
-      const nullifierHash = await poseidonHash([deposit.nullifier])
-      const nullifierHashHex = `0x${nullifierHash.toString(16).padStart(64, '0')}`
+      console.log(`[Pool] Tracing deposit index ${deposit.index}...`)
 
-      const isSpent = await nullifierApi.isSpent(nullifierHashHex)
-      if (!isSpent) {
-        unspent.push(deposit)
+      // Ensure deposit has derivationDepth (original deposits start at 0)
+      const depositWithDepth: PoolDeposit = {
+        ...deposit,
+        derivationDepth: deposit.derivationDepth ?? 0n,
+      }
+
+      const activeDeposit = await traceDepositChain(
+        depositWithDepth,
+        masterNullifier,
+        masterSecret,
+        mergeEvents,
+        chainId
+      )
+
+      if (activeDeposit) {
+        // Deduplicate by precommitmentHash
+        const key = activeDeposit.precommitmentHash.toString()
+        if (!seenCommitments.has(key)) {
+          seenCommitments.add(key)
+          activeDeposits.push(activeDeposit)
+          console.log(
+            `[Pool] Found active deposit with value ${activeDeposit.value.toString()}, derivationDepth ${activeDeposit.derivationDepth}`
+          )
+        } else {
+          console.log(`[Pool] Skipping duplicate commitment`)
+        }
       } else {
-        console.log(
-          `[Pool] Deposit at index ${deposit.index} has been spent (nullifierHash: ${nullifierHashHex.slice(0, 18)}...)`
-        )
+        console.log(`[Pool] Deposit ${deposit.index} was fully withdrawn`)
       }
     } catch (err) {
-      // On error, assume not spent (safer to show than hide)
-      console.warn(`[Pool] Failed to check nullifier for deposit ${deposit.index}:`, err)
-      unspent.push(deposit)
+      // On error, assume active (safer to show than hide)
+      console.warn(`[Pool] Failed to trace deposit ${deposit.index}:`, err)
+      activeDeposits.push(deposit)
     }
   }
 
-  return unspent
+  console.log(
+    `[Pool] Resolved ${activeDeposits.length} active deposits from ${deposits.length} original`
+  )
+  return activeDeposits
 }
 
 interface PoolProviderProps {
@@ -457,8 +719,20 @@ export function PoolProvider({ children }: PoolProviderProps) {
           return
         }
 
-        // Filter out spent deposits (nullifiers that have been used in withdrawals)
-        const unspentDeposits = await filterUnspentDeposits(recovered)
+        // Convert RecoveredDeposit to PoolDeposit with derivationDepth = 0 (original deposits)
+        const depositsWithDepth: PoolDeposit[] = recovered.map((d) => ({
+          ...d,
+          derivationDepth: 0n, // Original deposits start at depth 0
+        }))
+
+        // Resolve active deposits (trace merge chains, filter withdrawals)
+        const activeDeposits = await resolveActiveDeposits(
+          depositsWithDepth,
+          masterNullifier,
+          masterSecret,
+          contracts.pool,
+          chainId ?? 5000
+        )
 
         if (cancelled) {
           console.log('[Pool] Recovery cancelled during nullifier check')
@@ -469,17 +743,18 @@ export function PoolProvider({ children }: PoolProviderProps) {
           '[Pool] Recovered',
           recovered.length,
           'deposits,',
-          unspentDeposits.length,
-          'unspent'
+          activeDeposits.length,
+          'active'
         )
-        setDeposits(unspentDeposits)
+        setDeposits(activeDeposits)
         // Only clear needsRecovery AFTER successful recovery
         setNeedsRecovery(false)
 
-        // Save to localStorage (only unspent deposits)
+        // Save to localStorage (only active deposits)
         if (address && chainId) {
-          const stored: StoredDeposit[] = unspentDeposits.map((d) => ({
+          const stored: StoredDeposit[] = activeDeposits.map((d) => ({
             index: Number(d.index),
+            derivationDepth: Number(d.derivationDepth),
             precommitmentHash: d.precommitmentHash.toString(),
             value: d.value.toString(),
             label: d.label.toString(),
@@ -596,6 +871,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
         // Add to local deposits (label will be set from event, using 0 as placeholder)
         const newDeposit: PoolDeposit = {
           index: nextIndex,
+          derivationDepth: 0n, // Original deposit, not derived from withdrawal/merge
           nullifier: precommitment.nullifier,
           secret: precommitment.secret,
           precommitmentHash: precommitment.hash,
@@ -612,6 +888,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
         if (address && chainId) {
           const stored: StoredDeposit[] = updatedDeposits.map((d) => ({
             index: Number(d.index),
+            derivationDepth: Number(d.derivationDepth),
             precommitmentHash: d.precommitmentHash.toString(),
             value: d.value.toString(),
             label: d.label.toString(),
@@ -702,7 +979,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
         onProgress?.('Building merkle proofs...')
 
         // 4. Get state tree root and depth from contract
-        const [stateRoot, stateTreeDepth] = await Promise.all([
+        const [contractStateRoot, stateTreeDepth] = await Promise.all([
           publicClient.readContract({
             address: contracts.pool as Address,
             abi: poolAbi,
@@ -715,8 +992,55 @@ export function PoolProvider({ children }: PoolProviderProps) {
           }) as Promise<bigint>,
         ])
 
-        // 5. Generate state proof
-        const stateProof = stateTree.generateProof(existingCommitmentHash)
+        // 5. Verify state tree matches on-chain root (handle indexer lag)
+        let finalStateTree = stateTree
+        let _finalCommitments = allCommitments
+        const computedRoot = stateTree.root
+
+        if (computedRoot !== contractStateRoot) {
+          console.warn(
+            '[MergeDeposit] State root mismatch - indexer may be behind',
+            '\n  Computed:',
+            computedRoot.toString(),
+            '\n  Contract:',
+            contractStateRoot.toString()
+          )
+          onProgress?.('State out of sync, refetching...')
+
+          // Refetch merkle leaves and rebuild tree
+          const freshCommitments = await merkleLeavesApi.getCommitments(contracts.pool)
+          const freshTree = await PoolMerkleTree.create(freshCommitments)
+
+          if (freshTree.root !== contractStateRoot) {
+            throw new Error(
+              'Pool state is out of sync. Please wait a few seconds for indexer to catch up and try again.'
+            )
+          }
+
+          console.log(
+            '[MergeDeposit] Refetch successful, using fresh state with',
+            freshCommitments.length,
+            'leaves'
+          )
+
+          // Verify commitment still exists in fresh tree
+          const freshCommitmentIndex = freshCommitments.findIndex(
+            (c) => c === existingCommitmentHash
+          )
+          if (freshCommitmentIndex === -1) {
+            throw new Error(
+              'Existing deposit commitment not found after refresh. Please try again.'
+            )
+          }
+
+          finalStateTree = freshTree
+          _finalCommitments = freshCommitments
+        }
+
+        const stateRoot = contractStateRoot
+
+        // 6. Generate state proof
+        const stateProof = finalStateTree.generateProof(existingCommitmentHash)
 
         // 6. Build ASP tree with our label and get proof
         const aspTree = await PoolMerkleTree.create([existingDeposit.label])
@@ -738,8 +1062,12 @@ export function PoolProvider({ children }: PoolProviderProps) {
         onProgress?.('Generating new secrets...')
 
         // 7. Generate new secrets for merged commitment
-        // Use a unique child index based on current deposits + 1
-        const childIndex = BigInt(deposits.length)
+        // Use derivationDepth + 1 to ensure unique childIndex
+        // This guarantees newNullifier != existingNullifier (circuit requirement)
+        const childIndex = existingDeposit.derivationDepth + 1n
+        console.log(
+          `[MergeDeposit] Using childIndex ${childIndex} for deposit with derivationDepth ${existingDeposit.derivationDepth}`
+        )
         const newSecrets = await createWithdrawalSecrets(
           masterNullifier,
           masterSecret,
@@ -747,10 +1075,25 @@ export function PoolProvider({ children }: PoolProviderProps) {
           childIndex
         )
 
-        // 8. Compute context for mergeData encoding
-        // Context = Poseidon(depositor) - similar to withdrawal context
-        const depositorBigInt = BigInt(address as string)
-        const context = await poseidonHash([depositorBigInt])
+        // 8. Encode mergeData and compute context
+        // mergeData = abi.encode(depositor)
+        // Context = keccak256(abi.encode(mergeData, SCOPE)) % SNARK_SCALAR_FIELD
+        const mergeData = encodeAbiParameters(
+          [{ name: 'depositor', type: 'address' }],
+          [address as Address]
+        )
+
+        console.error('🔴🔴🔴 MERGE DEPOSIT: About to compute context with:', {
+          mergeData,
+          poolScope: poolScope.toString(),
+        })
+
+        const context = await computeMergeDepositContext(mergeData, poolScope)
+
+        console.error('🔴🔴🔴 MERGE DEPOSIT: Context computed:', context.toString())
+        console.error(
+          '🔴🔴🔴 Expected: 11307924830650364530159500708242273320723539315232360156436850524595874837064'
+        )
 
         // 9. Build merge deposit proof input
         const proofInput: MergeDepositProofInput = {
@@ -786,14 +1129,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
         // 11. Format proof for contract
         const formattedProof = formatMergeDepositProofForContract(proof)
 
-        // 12. Encode mergeData (for context validation)
-        // mergeData should be the same data used to compute context
-        const mergeData = encodeAbiParameters(
-          [{ name: 'depositor', type: 'address' }],
-          [address as Address]
-        )
-
-        // 13. Build contract proof struct
+        // 12. Build contract proof struct
         const contractProof = {
           pA: formattedProof.pA as [bigint, bigint],
           pB: formattedProof.pB as [[bigint, bigint], [bigint, bigint]],
@@ -894,19 +1230,31 @@ export function PoolProvider({ children }: PoolProviderProps) {
         depositEvents
       )
 
-      // Filter out spent deposits by checking nullifiers
-      // A deposit is spent if its nullifier hash appears in pool withdrawals
-      const unspentDeposits = await filterUnspentDeposits(recovered)
+      // Convert RecoveredDeposit to PoolDeposit with derivationDepth = 0 (original deposits)
+      const depositsWithDepth: PoolDeposit[] = recovered.map((d) => ({
+        ...d,
+        derivationDepth: 0n, // Original deposits start at depth 0
+      }))
+
+      // Resolve active deposits (trace merge chains, filter withdrawals)
+      const activeDeposits = await resolveActiveDeposits(
+        depositsWithDepth,
+        masterNullifier,
+        masterSecret,
+        contracts.pool,
+        chainId ?? 5000
+      )
       console.log(
-        `[Pool] Filtered deposits: ${recovered.length} recovered, ${unspentDeposits.length} unspent`
+        `[Pool] Resolved deposits: ${recovered.length} recovered, ${activeDeposits.length} active`
       )
 
-      setDeposits(unspentDeposits)
+      setDeposits(activeDeposits)
 
-      // Save to localStorage (only unspent deposits)
+      // Save to localStorage (only active deposits)
       if (address && chainId) {
-        const stored: StoredDeposit[] = unspentDeposits.map((d) => ({
+        const stored: StoredDeposit[] = activeDeposits.map((d) => ({
           index: Number(d.index),
+          derivationDepth: Number(d.derivationDepth),
           precommitmentHash: d.precommitmentHash.toString(),
           value: d.value.toString(),
           label: d.label.toString(),
@@ -924,6 +1272,90 @@ export function PoolProvider({ children }: PoolProviderProps) {
       setIsRecovering(false)
     }
   }, [masterNullifier, masterSecret, poolScope, contracts, address, chainId])
+
+  /**
+   * Force a complete sync from chain.
+   * Clears local deposits and re-traces all chains from scratch.
+   * Use this when you suspect local state is out of sync.
+   */
+  const forceSync = useCallback(async () => {
+    console.log('[Pool] Force sync requested - clearing local state and re-syncing...')
+
+    // Clear local deposits first
+    setDeposits([])
+
+    // Clear localStorage cache
+    if (address && chainId) {
+      saveStoredDeposits(address, chainId, [])
+    }
+
+    // Wait a moment for indexer to be fresh
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Re-run full recovery
+    await recoverDeposits()
+
+    console.log('[Pool] Force sync complete')
+  }, [address, chainId, recoverDeposits])
+
+  /**
+   * Add a deposit directly to context (bypasses indexer lag).
+   * Used after a deposit transaction confirms to immediately update the UI
+   * without waiting for the indexer to catch up.
+   */
+  const addDeposit = useCallback(
+    (newDeposit: PoolDeposit) => {
+      setDeposits((prev) => {
+        // Avoid duplicates by checking precommitmentHash
+        if (prev.some((d) => d.precommitmentHash === newDeposit.precommitmentHash)) {
+          console.log('[Pool] Deposit already exists, skipping add:', newDeposit.index.toString())
+          return prev
+        }
+
+        // For merged deposits (derivationDepth > 0), replace the existing deposit with same label
+        if (newDeposit.derivationDepth > 0n) {
+          const existingIndex = prev.findIndex((d) => d.label === newDeposit.label)
+          if (existingIndex !== -1) {
+            console.log('[Pool] Replacing existing deposit with merged deposit:', {
+              oldValue: prev[existingIndex].value.toString(),
+              newValue: newDeposit.value.toString(),
+              label: newDeposit.label.toString(),
+              derivationDepth: newDeposit.derivationDepth.toString(),
+            })
+            const updated = [...prev]
+            updated[existingIndex] = newDeposit
+            return updated
+          }
+        }
+
+        console.log('[Pool] Adding deposit directly to context:', {
+          index: newDeposit.index.toString(),
+          value: newDeposit.value.toString(),
+          label: newDeposit.label.toString(),
+        })
+        return [...prev, newDeposit]
+      })
+
+      // Also save to localStorage
+      if (address && chainId) {
+        setDeposits((current) => {
+          const stored: StoredDeposit[] = current.map((d) => ({
+            index: Number(d.index),
+            derivationDepth: Number(d.derivationDepth),
+            precommitmentHash: d.precommitmentHash.toString(),
+            value: d.value.toString(),
+            label: d.label.toString(),
+            blockNumber: d.blockNumber.toString(),
+            txHash: d.txHash,
+            createdAt: Date.now(),
+          }))
+          saveStoredDeposits(address, chainId, stored)
+          return current
+        })
+      }
+    },
+    [address, chainId]
+  )
 
   /**
    * Clear pool session
@@ -955,6 +1387,8 @@ export function PoolProvider({ children }: PoolProviderProps) {
         deposit,
         mergeDeposit,
         recoverDeposits,
+        forceSync,
+        addDeposit,
         clearPoolSession,
         isDepositing,
         isMergeDepositing,

@@ -7,17 +7,7 @@
  */
 
 import type { HttpContext } from '@adonisjs/core/http'
-import ASPService from '#services/asp_service'
-
-// Singleton ASP service instance (same as used by the job)
-let aspServiceInstance: ASPService | null = null
-
-function getASPService(): ASPService {
-  if (!aspServiceInstance) {
-    aspServiceInstance = new ASPService()
-  }
-  return aspServiceInstance
-}
+import ASPService, { getSharedASPService } from '#services/asp_service'
 
 export default class AspController {
   /**
@@ -26,7 +16,7 @@ export default class AspController {
    */
   async status({ response }: HttpContext) {
     try {
-      const aspService = getASPService()
+      const aspService = getSharedASPService()
       const status = await aspService.getStatus()
 
       return response.json({
@@ -57,7 +47,7 @@ export default class AspController {
         })
       }
 
-      const aspService = getASPService()
+      const aspService = getSharedASPService()
 
       // Parse label as bigint
       let labelBigInt: bigint
@@ -113,7 +103,7 @@ export default class AspController {
         })
       }
 
-      const aspService = getASPService()
+      const aspService = getSharedASPService()
       const result = await aspService.rebuildFromDeposits()
 
       // Also update on-chain if needed

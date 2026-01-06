@@ -10,7 +10,19 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { parseEther, formatEther, isAddress, encodeAbiParameters, type Address } from 'viem'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
-import { Loader2, Shield, AlertCircle, Check, ArrowUpRight, Sparkles, Lock } from 'lucide-react'
+import {
+  Loader2,
+  Shield,
+  AlertCircle,
+  Check,
+  ArrowUpRight,
+  Sparkles,
+  Lock,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +35,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
-import { merkleLeavesApi, aspApi } from '@/lib/api'
+import { merkleLeavesApi, aspApi, healthApi, type PreflightResult } from '@/lib/api'
 import {
   computeCommitmentHash,
   createWithdrawalSecrets,
@@ -67,6 +79,101 @@ const _EMPTY_ASP_ROOT = BigInt(
 )
 
 /**
+ * Translate contract/technical errors to user-friendly messages
+ */
+function translateError(message: string): {
+  title: string
+  description: string
+  canRetry: boolean
+} {
+  if (message.includes('InvalidProof')) {
+    return {
+      title: 'Proof Verification Failed',
+      description: 'The ZK proof could not be verified. This may indicate a circuit mismatch.',
+      canRetry: false,
+    }
+  }
+  if (message.includes('UnknownStateRoot')) {
+    return {
+      title: 'State Not Synced',
+      description:
+        'Waiting for the pool state to sync. Please wait and try again in a few seconds.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('IncorrectASPRoot')) {
+    return {
+      title: 'Approval Not Synced',
+      description: 'Your deposit approval is syncing. Please wait 15 seconds and try again.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('ContextMismatch')) {
+    return {
+      title: 'Context Mismatch',
+      description: 'Transaction data does not match proof. Please try again.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('InvalidTreeDepth')) {
+    return {
+      title: 'Tree Configuration Error',
+      description: 'The tree depth exceeds the maximum allowed.',
+      canRetry: false,
+    }
+  }
+  if (message.includes('InvalidProcessooor')) {
+    return {
+      title: 'Invalid Processor',
+      description: 'The processor address is incorrect.',
+      canRetry: false,
+    }
+  }
+  if (message.includes('NullifierAlreadyUsed') || message.includes('NullifierSpent')) {
+    return {
+      title: 'Already Withdrawn',
+      description: 'This deposit has already been withdrawn or merged.',
+      canRetry: false,
+    }
+  }
+  if (message.includes('User rejected') || message.includes('user rejected')) {
+    return {
+      title: 'Transaction Cancelled',
+      description: 'You cancelled the transaction.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('State tree mismatch')) {
+    return {
+      title: 'State Syncing',
+      description: 'The pool state is still syncing. Please wait a few seconds and try again.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('ASP service not ready')) {
+    return {
+      title: 'Approval Service Starting',
+      description: 'The approval service is initializing. Please wait and try again.',
+      canRetry: true,
+    }
+  }
+  if (message.includes('needs funding')) {
+    return {
+      title: 'Relayer Needs Funding',
+      description: 'The relayer account needs to be funded. Please contact support.',
+      canRetry: false,
+    }
+  }
+
+  // Default fallback
+  return {
+    title: 'Withdrawal Failed',
+    description: message,
+    canRetry: true,
+  }
+}
+
+/**
  * Compute optimal withdrawal plan using greedy algorithm.
  * Returns list of (deposit, amount) pairs to withdraw.
  */
@@ -100,15 +207,8 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   const { address } = useAccount()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  const {
-    deposits,
-    totalBalance,
-    masterNullifier,
-    masterSecret,
-    poolScope,
-    contracts,
-    recoverDeposits,
-  } = usePoolContext()
+  const { deposits, totalBalance, masterNullifier, masterSecret, poolScope, contracts, forceSync } =
+    usePoolContext()
 
   const [step, setStep] = useState<Step>('amount')
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -122,6 +222,12 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   const [useRelayer, setUseRelayer] = useState(true) // Default to private
   const [relayerQuote, setRelayerQuote] = useState<RelayerQuote | null>(null)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+
+  // Pre-flight state
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null)
+  const [isLoadingPreflight, setIsLoadingPreflight] = useState(false)
+  const [preflightError, setPreflightError] = useState<string | null>(null)
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
 
   const parsedAmount = withdrawAmount ? parseEther(withdrawAmount) : 0n
   const isValidAmount = parsedAmount > 0n && parsedAmount <= totalBalance
@@ -144,6 +250,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
     setCurrentTxIndex(0)
     setProofProgress('')
     setRelayerQuote(null)
+    setPreflight(null)
+    setIsLoadingPreflight(false)
+    setPreflightError(null)
+    setRetryCountdown(null)
   }, [])
 
   // Fetch relayer quote when amount changes and relayer is enabled
@@ -185,6 +295,61 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
     const timer = setTimeout(fetchQuote, 500)
     return () => clearTimeout(timer)
   }, [useRelayer, isValidAmount, parsedAmount])
+
+  // Run preflight check when entering review step
+  const runPreflightCheck = useCallback(async () => {
+    if (!contracts || !withdrawalPlan.length) return
+
+    setIsLoadingPreflight(true)
+    setPreflightError(null)
+    setRetryCountdown(null)
+
+    try {
+      // Use the first deposit's label for preflight check
+      const firstDeposit = withdrawalPlan[0].deposit
+      const result = await healthApi.preflight('privatesend', {
+        poolAddress: contracts.pool,
+        depositLabel: firstDeposit.label.toString(),
+      })
+
+      setPreflight(result)
+
+      if (!result.canProceed && result.retryAfterMs) {
+        // Start countdown timer
+        setRetryCountdown(Math.ceil(result.retryAfterMs / 1000))
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Preflight check failed'
+      setPreflightError(message)
+    } finally {
+      setIsLoadingPreflight(false)
+    }
+  }, [contracts, withdrawalPlan])
+
+  // Countdown timer for retry
+  useEffect(() => {
+    if (retryCountdown === null || retryCountdown <= 0) return
+
+    const timer = setTimeout(() => {
+      setRetryCountdown(retryCountdown - 1)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [retryCountdown])
+
+  // Auto-retry preflight when countdown reaches 0
+  useEffect(() => {
+    if (retryCountdown === 0 && step === 'review') {
+      runPreflightCheck()
+    }
+  }, [retryCountdown, step, runPreflightCheck])
+
+  // Run preflight when entering review step
+  useEffect(() => {
+    if (step === 'review') {
+      runPreflightCheck()
+    }
+  }, [step, runPreflightCheck])
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -552,7 +717,15 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
           `Transaction ${i + 1}/${withdrawalPlan.length}: Generating proof for ${formatEther(plan.withdrawAmount)} MNT...`
         )
 
-        const hash = await executeWithdrawal(plan, allCommitments, BigInt(i))
+        // Use derivationDepth + 1 as childIndex for new secrets
+        // This ensures newNullifier != existingNullifier (circuit requirement)
+        // derivationDepth tracks how many times this commitment chain has been derived
+        // (0 = original deposit, 1 = after first withdrawal, etc.)
+        const nextChildIndex = plan.deposit.derivationDepth + 1n + BigInt(i)
+        console.log(
+          `[Withdraw] Using childIndex ${nextChildIndex} for deposit with derivationDepth ${plan.deposit.derivationDepth}`
+        )
+        const hash = await executeWithdrawal(plan, allCommitments, nextChildIndex)
         hashes.push(hash)
         setTxHashes([...hashes])
 
@@ -570,43 +743,42 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
       setStep('success')
       onSuccess?.(hashes[hashes.length - 1])
 
-      // Refresh deposits
-      recoverDeposits().catch(console.error)
+      // Force full sync after withdrawal to track any change commitments
+      setTimeout(() => {
+        forceSync().catch(console.error)
+      }, 2000) // Wait for indexer to catch up
     } catch (err) {
       console.error('Withdrawal error:', err)
 
-      // Try to decode the actual revert reason
-      let message = 'Withdrawal failed'
-      if (err instanceof Error) {
-        message = err.message
+      // Translate error to user-friendly message
+      const rawMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      const translated = translateError(rawMessage)
 
-        // Check for common contract errors
-        if (message.includes('InvalidProof')) {
-          message =
-            'InvalidProof: ZK proof verification failed. The circuit zkey may not match the deployed verifier contract.'
-        } else if (message.includes('UnknownStateRoot')) {
-          message = 'UnknownStateRoot: The state root is not in the contract history.'
-        } else if (message.includes('IncorrectASPRoot')) {
-          message = 'IncorrectASPRoot: ASP root does not match the latest on-chain root.'
-        } else if (message.includes('ContextMismatch')) {
-          message = 'ContextMismatch: The context hash does not match expected value.'
-        } else if (message.includes('InvalidTreeDepth')) {
-          message = 'InvalidTreeDepth: Tree depth exceeds maximum allowed.'
-        } else if (message.includes('InvalidProcessooor')) {
-          message = 'InvalidProcessooor: Wrong processor address.'
-        } else if (message.includes('User rejected')) {
-          message = 'Transaction rejected by user'
-        }
+      console.error('[Withdraw] Error:', rawMessage)
+      console.error('[Withdraw] Translated:', translated)
 
-        console.error('[Withdraw] Decoded error:', message)
-      }
-
-      setError(message)
+      setError(`${translated.title}: ${translated.description}`)
       setStep('review') // Go back to review on error
+
+      // If it's a sync-related error, trigger a preflight refresh
+      if (translated.canRetry) {
+        // Short delay then re-run preflight
+        setTimeout(() => {
+          runPreflightCheck()
+        }, 2000)
+      }
     } finally {
       setProofProgress('')
     }
-  }, [contracts, publicClient, withdrawalPlan, executeWithdrawal, onSuccess, recoverDeposits])
+  }, [
+    contracts,
+    publicClient,
+    withdrawalPlan,
+    executeWithdrawal,
+    onSuccess,
+    forceSync,
+    runPreflightCheck,
+  ])
 
   const handleContinue = useCallback(() => {
     setError(null)
@@ -722,6 +894,99 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
           {/* Review Step */}
           {step === 'review' && (
             <div className="space-y-4">
+              {/* Sync Status Indicator */}
+              <div
+                className={`rounded-lg border p-3 ${
+                  isLoadingPreflight
+                    ? 'border-slate-500/20 bg-slate-500/5'
+                    : preflight?.canProceed
+                      ? 'border-emerald-500/20 bg-emerald-500/5'
+                      : preflightError || !preflight?.canProceed
+                        ? 'border-amber-500/20 bg-amber-500/5'
+                        : 'border-slate-500/20 bg-slate-500/5'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {isLoadingPreflight ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                    ) : preflight?.canProceed ? (
+                      <CheckCircle className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-amber-500" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {isLoadingPreflight
+                        ? 'Checking sync status...'
+                        : preflight?.canProceed
+                          ? 'Ready to withdraw'
+                          : 'Waiting for sync'}
+                    </span>
+                  </div>
+                  {!isLoadingPreflight && !preflight?.canProceed && (
+                    <button
+                      onClick={runPreflightCheck}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-300"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Refresh
+                    </button>
+                  )}
+                </div>
+
+                {/* Sync check details */}
+                {preflight && !isLoadingPreflight && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.indexerSynced ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">Indexer</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.aspSynced ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">ASP Tree</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.stateTreeValid ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">State Tree</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {preflight.checks.labelExists ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span className="text-muted-foreground">Deposit</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error/Warning messages */}
+                {preflight && !preflight.canProceed && preflight.errors.length > 0 && (
+                  <div className="mt-2 text-xs text-amber-400">
+                    {preflight.errors[0]}
+                    {retryCountdown !== null && retryCountdown > 0 && (
+                      <span className="ml-1 text-slate-400">(retry in {retryCountdown}s)</span>
+                    )}
+                  </div>
+                )}
+
+                {preflightError && (
+                  <div className="mt-2 text-xs text-red-400">{preflightError}</div>
+                )}
+              </div>
+
               {/* Privacy Mode Toggle */}
               <div className="bg-muted rounded-lg p-4">
                 <div className="flex items-center justify-between">
@@ -942,6 +1207,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                 disabled={
                   (step === 'amount' && !isValidAmount) ||
                   (step === 'recipient' && !isValidRecipient) ||
+                  (step === 'review' && (isLoadingPreflight || !preflight?.canProceed)) ||
                   isExecuting
                 }
               >
@@ -950,6 +1216,13 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
                   </>
+                ) : step === 'review' && isLoadingPreflight ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : step === 'review' && !preflight?.canProceed ? (
+                  'Waiting for Sync...'
                 ) : step === 'review' ? (
                   `Withdraw (${totalTxCount} TX${totalTxCount > 1 ? 's' : ''})`
                 ) : (

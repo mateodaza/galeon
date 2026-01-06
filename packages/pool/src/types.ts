@@ -35,6 +35,30 @@ export interface DepositEvent {
 }
 
 /**
+ * Merge deposit event from chain
+ * Represents a merge deposit that spent an existing commitment
+ */
+export interface MergeDepositEvent {
+  existingNullifierHash: bigint // Hash of the nullifier that was spent
+  newCommitment: bigint // New commitment hash created
+  depositValue: bigint // Amount added to the existing value
+  blockNumber: bigint
+  txHash: `0x${string}`
+}
+
+/**
+ * Withdrawal event from chain
+ * Represents a withdrawal that spent an existing commitment
+ */
+export interface WithdrawalEvent {
+  spentNullifier: bigint // Hash of the nullifier that was spent
+  newCommitment: bigint // New commitment hash created (for remaining balance)
+  withdrawnValue: bigint // Amount withdrawn
+  blockNumber: bigint
+  txHash: `0x${string}`
+}
+
+/**
  * Recovered deposit with full secrets
  */
 export interface RecoveredDeposit {

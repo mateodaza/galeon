@@ -92,8 +92,10 @@ export class ProverClient {
       throw new Error('ProverClient requires browser environment')
     }
 
-    // Use provided URL or default to same-origin worker
-    const workerUrl = this.workerUrl ?? new URL('./prover.worker.js', import.meta.url)
+    // Use provided URL or default worker from public folder
+    // Note: Avoid using `new URL('./...', import.meta.url)` as it creates file:// URLs
+    // that break Turbopack's NFT asset tracing during build
+    const workerUrl = this.workerUrl ?? new URL('/prover.worker.js', window.location.origin)
     this.worker = new Worker(workerUrl, { type: 'module' })
 
     return this.worker

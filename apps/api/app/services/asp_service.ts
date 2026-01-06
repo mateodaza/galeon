@@ -59,6 +59,18 @@ export const MAX_ASP_TREE_DEPTH = 32
 /** Placeholder IPFS CID for hackathon (production would store tree data) */
 const PLACEHOLDER_IPFS_CID = 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi'
 
+/** Minimum balance required to submit on-chain update (0.01 MNT) */
+const MIN_BALANCE_FOR_UPDATE = BigInt('10000000000000000')
+
+/** Default retry configuration */
+const DEFAULT_MAX_RETRIES = 3
+const BASE_RETRY_DELAY_MS = 5000
+
+/** Sleep helper for retry delays */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /** Merkle proof structure for withdrawal proofs */
 export interface ASPMerkleProof {
   root: bigint
@@ -135,6 +147,46 @@ export default class ASPService {
   }
 
   /**
+   * Get postman account address
+   */
+  getPostmanAddress(): `0x${string}` | null {
+    if (!ASP_POSTMAN_PRIVATE_KEY) return null
+    return privateKeyToAccount(ASP_POSTMAN_PRIVATE_KEY).address
+  }
+
+  /**
+   * Get postman account balance
+   */
+  async getPostmanBalance(): Promise<bigint> {
+    const address = this.getPostmanAddress()
+    if (!address) {
+      throw new Error('ASP_POSTMAN_PRIVATE_KEY not configured')
+    }
+    const client = this.getPublicClient()
+    return client.getBalance({ address })
+  }
+
+  /**
+   * Check if postman has sufficient balance for update
+   */
+  async checkPostmanBalance(): Promise<{ sufficient: boolean; balance: bigint; required: bigint }> {
+    try {
+      const balance = await this.getPostmanBalance()
+      return {
+        sufficient: balance >= MIN_BALANCE_FOR_UPDATE,
+        balance,
+        required: MIN_BALANCE_FOR_UPDATE,
+      }
+    } catch {
+      return {
+        sufficient: false,
+        balance: 0n,
+        required: MIN_BALANCE_FOR_UPDATE,
+      }
+    }
+  }
+
+  /**
    * Get current ASP tree root
    */
   get root(): bigint {
@@ -177,7 +229,7 @@ export default class ASPService {
     const limit = 500
     let hasMore = true
 
-    console.log('[ASP] Rebuilding tree from deposits...')
+    // Rebuild tree from deposits (silent - job handles logging)
 
     // Fetch all deposits in order (by block_number, log_index)
     while (hasMore) {
@@ -187,7 +239,7 @@ export default class ASPService {
         offset,
       })
 
-      console.log(`[ASP] Fetched ${result.data.length} deposits (offset: ${offset})`)
+      // Silently process deposits
 
       for (const deposit of result.data) {
         const labelBigInt = BigInt(deposit.label)
@@ -209,9 +261,6 @@ export default class ASPService {
     // Rebuild tree with all labels
     if (labels.length > 0) {
       this.tree.insertMany(labels)
-      console.log(`[ASP] Inserted ${labels.length} labels, root: ${this.root}`)
-    } else {
-      console.log('[ASP] No labels found to insert')
     }
 
     return { labelsAdded: labels.length, root: this.root }
@@ -285,7 +334,12 @@ export default class ASPService {
   /**
    * Update the on-chain ASP root if different from current tree root
    */
-  async updateOnChainRoot(): Promise<{ updated: boolean; txHash?: string; newRoot: bigint }> {
+  async updateOnChainRoot(): Promise<{
+    updated: boolean
+    txHash?: string
+    newRoot: bigint
+    error?: string
+  }> {
     if (!ENTRYPOINT_ADDRESS) {
       throw new Error('ENTRYPOINT_ADDRESS not configured')
     }
@@ -296,6 +350,18 @@ export default class ASPService {
     // Skip if roots match or tree is empty
     if (localRoot === 0n || currentOnChainRoot === localRoot) {
       return { updated: false, newRoot: localRoot }
+    }
+
+    // Check postman balance before attempting update
+    const balanceCheck = await this.checkPostmanBalance()
+    if (!balanceCheck.sufficient) {
+      const address = this.getPostmanAddress()
+      console.error(
+        `[ASP] Postman balance insufficient: ${balanceCheck.balance} < ${balanceCheck.required}`
+      )
+      throw new Error(
+        `ASP postman account needs funding. Address: ${address}, Balance: ${balanceCheck.balance}, Required: ${balanceCheck.required}`
+      )
     }
 
     const walletClient = this.getWalletClient()
@@ -310,9 +376,61 @@ export default class ASPService {
     })
 
     // Wait for confirmation
-    await publicClient.waitForTransactionReceipt({ hash })
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error('ASP root update transaction reverted')
+    }
 
     return { updated: true, txHash: hash, newRoot: localRoot }
+  }
+
+  /**
+   * Update on-chain root with automatic retry on failure
+   */
+  async updateOnChainRootWithRetry(maxRetries: number = DEFAULT_MAX_RETRIES): Promise<{
+    updated: boolean
+    txHash?: string
+    newRoot: bigint
+    attempts: number
+    error?: string
+  }> {
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.updateOnChainRoot()
+        return { ...result, attempts: attempt }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+
+        // Don't retry on configuration errors
+        if (
+          lastError.message.includes('not configured') ||
+          lastError.message.includes('needs funding')
+        ) {
+          return {
+            updated: false,
+            newRoot: this.root,
+            attempts: attempt,
+            error: lastError.message,
+          }
+        }
+
+        // Wait before retrying (exponential backoff)
+        if (attempt < maxRetries) {
+          const delay = BASE_RETRY_DELAY_MS * attempt
+          await sleep(delay)
+        }
+      }
+    }
+
+    return {
+      updated: false,
+      newRoot: this.root,
+      attempts: maxRetries,
+      error: lastError?.message || 'Unknown error after max retries',
+    }
   }
 
   /**
@@ -381,4 +499,18 @@ export default class ASPService {
       entrypointAddress: ENTRYPOINT_ADDRESS ?? null,
     }
   }
+}
+
+/**
+ * Shared singleton instance of ASP service.
+ * IMPORTANT: All consumers (controllers, jobs, preflight) MUST use this
+ * to ensure they're all working with the same in-memory tree state.
+ */
+let sharedInstance: ASPService | null = null
+
+export function getSharedASPService(): ASPService {
+  if (!sharedInstance) {
+    sharedInstance = new ASPService()
+  }
+  return sharedInstance
 }

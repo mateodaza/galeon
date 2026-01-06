@@ -1,5 +1,5 @@
 import { Job } from 'adonisjs-jobs'
-import ASPService from '#services/asp_service'
+import ASPService, { getSharedASPService } from '#services/asp_service'
 
 /**
  * UpdateASPRoot Job
@@ -15,6 +15,9 @@ import ASPService from '#services/asp_service'
  * Production: would check depositor addresses against sanctions lists before approval.
  *
  * Schedule: Every 30 seconds (configured in start/scheduler.ts)
+ *
+ * IMPORTANT: Uses shared ASP service singleton to ensure all components
+ * (controller, preflight, health) see the same tree state.
  */
 
 export interface UpdateASPRootPayload {
@@ -22,18 +25,16 @@ export interface UpdateASPRootPayload {
   aspService?: ASPService // For testing - allows injecting a mock
 }
 
-// Singleton ASP service instance (persists tree state between job runs)
-let aspServiceInstance: ASPService | null = null
+// Track if we've done the initial rebuild
 let initialized = false
 
-function getASPService(payload?: UpdateASPRootPayload): ASPService {
+function getASPServiceForJob(payload?: UpdateASPRootPayload): ASPService {
+  // Allow mock injection for tests
   if (payload?.aspService) {
     return payload.aspService
   }
-  if (!aspServiceInstance) {
-    aspServiceInstance = new ASPService()
-  }
-  return aspServiceInstance
+  // Use shared singleton for production
+  return getSharedASPService()
 }
 
 export default class UpdateASPRoot extends Job {
@@ -44,7 +45,7 @@ export default class UpdateASPRoot extends Job {
       return
     }
 
-    const aspService = getASPService(payload)
+    const aspService = getASPServiceForJob(payload)
 
     // Initialize on first run or if forced
     if (!initialized || payload.forceRebuild) {

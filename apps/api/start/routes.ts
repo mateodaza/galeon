@@ -20,6 +20,7 @@ const RegistryController = () => import('#controllers/registry_controller')
 const AspController = () => import('#controllers/asp_controller')
 const PoolRelayController = () => import('#controllers/pool_relay_controller')
 const NullifiersController = () => import('#controllers/nullifiers_controller')
+const HealthController = () => import('#controllers/health_controller')
 
 // Health check
 router.get('/', async () => {
@@ -34,6 +35,7 @@ router
 
     // Pool deposits (public - used for deposit recovery)
     router.get('/deposits', [DepositsController, 'index'])
+    router.get('/deposits/merges', [DepositsController, 'merges'])
 
     // Nullifiers (public - check if a nullifier has been spent)
     router.get('/nullifiers/:hex', [NullifiersController, 'show'])
@@ -115,5 +117,14 @@ router
         router.post('/request', [PoolRelayController, 'request'])
       })
       .prefix('/relayer')
+
+    // Health routes (public - sync status and pre-flight checks)
+    router
+      .group(() => {
+        router.get('/status', [HealthController, 'status'])
+        router.get('/preflight/:operation', [HealthController, 'preflight'])
+        router.get('/indexer', [HealthController, 'indexer'])
+      })
+      .prefix('/health')
   })
   .prefix('/api/v1')

@@ -74,7 +74,7 @@ const RELAYER_FEE_BPS = Number.parseInt(env.get('RELAYER_FEE_BPS') || '100') // 
 const MIN_WITHDRAW_AMOUNT = BigInt(env.get('MIN_WITHDRAW_AMOUNT') || '10000000000000000') // 0.01 MNT
 const MAX_GAS_PRICE = BigInt(env.get('MAX_GAS_PRICE') || '100000000000') // 100 gwei
 
-// Entrypoint ABI (minimal for relay function)
+// Entrypoint ABI (minimal for relay function + reads)
 const ENTRYPOINT_ABI = [
   {
     type: 'function',
@@ -104,6 +104,32 @@ const ENTRYPOINT_ABI = [
     stateMutability: 'nonpayable',
   },
 ] as const
+
+// ABI for reading on-chain roots
+const ENTRYPOINT_READ_ABI = [
+  {
+    type: 'function',
+    name: 'latestRoot',
+    inputs: [],
+    outputs: [{ name: '_root', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const
+
+const POOL_ABI = [
+  {
+    type: 'function',
+    name: 'currentRoot',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const
+
+// Pool addresses per chain
+const POOL_ADDRESSES: Record<number, Address> = {
+  5000: (env.get('POOL_ADDRESS') as Address) || '0x0000000000000000000000000000000000000000',
+}
 
 // Native asset address (for fee calculations)
 const NATIVE_ASSET = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
@@ -356,6 +382,46 @@ export default class PoolRelayService {
       const walletClient = this.getWalletClient(chainId)
       const publicClient = this.getPublicClient(chainId)
 
+      // ===== DEBUG: Verify proof roots match on-chain =====
+      // pubSignals: [newCommitment, nullifierHash, withdrawnValue, stateRoot, stateTreeDepth, ASPRoot, ASPTreeDepth, context]
+      const proofStateRoot = proof.pubSignals[3]
+      const proofASPRoot = proof.pubSignals[5]
+
+      const poolAddress = POOL_ADDRESSES[chainId]
+      if (poolAddress && poolAddress !== '0x0000000000000000000000000000000000000000') {
+        const [onChainStateRoot, onChainASPRoot] = await Promise.all([
+          publicClient.readContract({
+            address: poolAddress,
+            abi: POOL_ABI,
+            functionName: 'currentRoot',
+          }),
+          publicClient.readContract({
+            address: entrypoint,
+            abi: ENTRYPOINT_READ_ABI,
+            functionName: 'latestRoot',
+          }),
+        ])
+
+        if (proofStateRoot !== onChainStateRoot) {
+          return {
+            success: false,
+            error: `State root mismatch: proof has ${proofStateRoot}, on-chain has ${onChainStateRoot}`,
+            requestId,
+            timestamp,
+          }
+        }
+
+        if (proofASPRoot !== onChainASPRoot) {
+          return {
+            success: false,
+            error: `ASP root mismatch: proof has ${proofASPRoot}, on-chain has ${onChainASPRoot}`,
+            requestId,
+            timestamp,
+          }
+        }
+      }
+      // ===== END DEBUG =====
+
       // Encode function call
       const data = encodeFunctionData({
         abi: ENTRYPOINT_ABI,
@@ -373,17 +439,12 @@ export default class PoolRelayService {
       // Add 20% buffer for safety
       const gasLimit = (gasEstimate * 120n) / 100n
 
-      console.log(`[PoolRelay] Relaying withdrawal for ${request.scope}`)
-      console.log(`[PoolRelay] Gas estimate: ${gasEstimate}, limit: ${gasLimit}`)
-
       // Send transaction
       const hash = await walletClient.sendTransaction({
         to: entrypoint,
         data,
         gas: gasLimit,
       })
-
-      console.log(`[PoolRelay] Transaction sent: ${hash}`)
 
       // Wait for confirmation
       const receipt = await publicClient.waitForTransactionReceipt({
@@ -400,8 +461,6 @@ export default class PoolRelayService {
         }
       }
 
-      console.log(`[PoolRelay] Transaction confirmed: ${hash}`)
-
       return {
         success: true,
         txHash: hash,
@@ -410,7 +469,6 @@ export default class PoolRelayService {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      console.error(`[PoolRelay] Relay failed:`, err)
 
       return {
         success: false,

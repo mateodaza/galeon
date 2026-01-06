@@ -20,6 +20,11 @@ import {
   Wallet,
   Anchor,
   ChevronRight,
+  ChevronDown,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout'
 import { getTxExplorerUrl } from '@/lib/chains'
@@ -58,6 +63,11 @@ export default function CollectPage() {
     collectToPool,
     hasKeys,
     hasPoolKeys,
+    willMergeDeposit,
+    preflight,
+    isLoadingPreflight,
+    runPoolPreflight,
+    calculatePoolDepositStats,
   } = useCollection()
 
   // Group payments by port
@@ -92,6 +102,7 @@ export default function CollectPage() {
   const [destination, setDestination] = useState<'pool' | 'external'>('pool')
   const [externalAddress, setExternalAddress] = useState('')
   const [amountInput, setAmountInput] = useState('')
+  const [isDustExpanded, setIsDustExpanded] = useState(false)
   const hasScanned = useRef(false)
   const prevHasKeys = useRef(hasKeys)
 
@@ -112,8 +123,49 @@ export default function CollectPage() {
     }
   }, [hasKeys, isScanning, scan])
 
-  // Calculate max based on destination
-  const maxForPool = parseFloat(totalVerifiedBalanceFormatted) || 0
+  // Run preflight when destination is pool and we have merge deposit scenario
+  useEffect(() => {
+    if (destination === 'pool' && willMergeDeposit && hasPoolDepositable && payments.length > 0) {
+      runPoolPreflight()
+    }
+  }, [destination, willMergeDeposit, hasPoolDepositable, payments.length, runPoolPreflight])
+
+  // Retry countdown for preflight
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
+
+  // Start countdown when preflight fails
+  useEffect(() => {
+    if (preflight && !preflight.canProceed && preflight.retryAfterMs) {
+      setRetryCountdown(Math.ceil(preflight.retryAfterMs / 1000))
+    } else {
+      setRetryCountdown(null)
+    }
+  }, [preflight])
+
+  // Countdown timer
+  useEffect(() => {
+    if (retryCountdown === null || retryCountdown <= 0) return
+    const timer = setTimeout(() => {
+      setRetryCountdown(retryCountdown - 1)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [retryCountdown])
+
+  // Auto-retry preflight when countdown reaches 0
+  useEffect(() => {
+    if (retryCountdown === 0 && destination === 'pool') {
+      runPoolPreflight()
+    }
+  }, [retryCountdown, destination, runPoolPreflight])
+
+  // Calculate pool deposit stats using the hook's utility function
+  const poolStats = useMemo(
+    () => calculatePoolDepositStats(payments),
+    [calculatePoolDepositStats, payments]
+  )
+
+  // Calculate max based on destination (pool max accounts for gas costs)
+  const maxForPool = parseFloat(poolStats.totalMaxDepositFormatted) || 0
   const maxForExternal = parseFloat(totalBalanceFormatted) || 0
   const maxAmount = destination === 'pool' ? maxForPool : maxForExternal
 
@@ -443,6 +495,17 @@ export default function CollectPage() {
                       be deposited.
                     </p>
                   )}
+
+                  {/* All-ports notice */}
+                  {portGroups.length > 1 && (
+                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5">
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        <span className="font-medium">📍 All ports:</span> This will pick funds from
+                        any of your {portGroups.length} ports. Click on a specific port above to
+                        collect from just that port.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Amount input */}
@@ -480,12 +543,105 @@ export default function CollectPage() {
                   )}
                   <p className="text-muted-foreground mt-1 text-xs">
                     {destination === 'pool'
-                      ? `Max pool deposit: ${totalVerifiedBalanceFormatted} MNT (verified balance)`
+                      ? poolStats.paymentsCanDeposit > 0
+                        ? poolStats.paymentsTooSmall > 0
+                          ? `${poolStats.paymentsCanDeposit}/${poolStats.totalPayments} payments can deposit · Max: ${maxForPool.toFixed(4)} MNT (${poolStats.paymentsTooSmall} skipped - too small for ~${poolStats.gasCostPerDepositFormatted} gas)`
+                          : `Max: ${maxForPool.toFixed(4)} MNT from ${poolStats.paymentsCanDeposit} payment${poolStats.paymentsCanDeposit > 1 ? 's' : ''} (after ~${poolStats.gasCostPerDepositFormatted} gas each)`
+                        : `No payments have enough balance for gas (~${poolStats.gasCostPerDepositFormatted} MNT needed per tx)`
                       : amountInput
                         ? `Sending from 1 stealth address`
                         : `Leave empty to send ALL (${totalBalanceFormatted} MNT) from ${payments.length} address${payments.length > 1 ? 'es' : ''}`}
                   </p>
                 </div>
+
+                {/* Sync Status for Pool Deposits (Merge) */}
+                {destination === 'pool' && willMergeDeposit && (
+                  <div
+                    className={`mt-4 rounded-lg border p-3 ${
+                      isLoadingPreflight
+                        ? 'border-slate-500/20 bg-slate-500/5'
+                        : preflight?.canProceed
+                          ? 'border-emerald-500/20 bg-emerald-500/5'
+                          : 'border-amber-500/20 bg-amber-500/5'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isLoadingPreflight ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        ) : preflight?.canProceed ? (
+                          <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-amber-500" />
+                        )}
+                        <span className="text-sm font-medium">
+                          {isLoadingPreflight
+                            ? 'Checking sync status...'
+                            : preflight?.canProceed
+                              ? 'Ready to merge deposit'
+                              : 'Waiting for sync'}
+                        </span>
+                      </div>
+                      {!isLoadingPreflight && !preflight?.canProceed && (
+                        <button
+                          onClick={runPoolPreflight}
+                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-300"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Refresh
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Sync check details */}
+                    {preflight && !isLoadingPreflight && (
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {preflight.checks.indexerSynced ? (
+                            <CheckCircle className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-amber-500" />
+                          )}
+                          <span className="text-muted-foreground">Indexer</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {preflight.checks.aspSynced ? (
+                            <CheckCircle className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-amber-500" />
+                          )}
+                          <span className="text-muted-foreground">ASP Tree</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {preflight.checks.stateTreeValid ? (
+                            <CheckCircle className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-amber-500" />
+                          )}
+                          <span className="text-muted-foreground">State Tree</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {preflight.checks.labelExists ? (
+                            <CheckCircle className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-amber-500" />
+                          )}
+                          <span className="text-muted-foreground">Deposit</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error/Warning messages */}
+                    {preflight && !preflight.canProceed && preflight.errors.length > 0 && (
+                      <div className="mt-2 text-xs text-amber-400">
+                        {preflight.errors[0]}
+                        {retryCountdown !== null && retryCountdown > 0 && (
+                          <span className="ml-1 text-slate-400">(retry in {retryCountdown}s)</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Action button */}
                 <Button
@@ -496,7 +652,10 @@ export default function CollectPage() {
                     payments.length === 0 ||
                     !isValidAddress ||
                     !isValidAmount ||
-                    (destination === 'external' && !externalAddress)
+                    (destination === 'external' && !externalAddress) ||
+                    (destination === 'pool' &&
+                      willMergeDeposit &&
+                      (isLoadingPreflight || !preflight?.canProceed))
                   }
                   size="lg"
                   className={`mt-4 w-full ${
@@ -507,6 +666,16 @@ export default function CollectPage() {
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       {destination === 'pool' ? 'Depositing...' : 'Sending...'}
+                    </>
+                  ) : destination === 'pool' && willMergeDeposit && isLoadingPreflight ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking sync...
+                    </>
+                  ) : destination === 'pool' && willMergeDeposit && !preflight?.canProceed ? (
+                    <>
+                      <Clock className="mr-2 h-4 w-4" />
+                      Waiting for Sync...
                     </>
                   ) : destination === 'pool' ? (
                     <>
@@ -549,51 +718,67 @@ export default function CollectPage() {
         </CardContent>
       </Card>
 
-      {/* Dust payments section - below minimum threshold */}
+      {/* Dust payments section - collapsible */}
       {dustPayments.length > 0 && (
         <Card className="mt-6 border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/10">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              <div className="flex-1">
+          <CardContent className="pb-4 pt-4">
+            <button
+              onClick={() => setIsDustExpanded(!isDustExpanded)}
+              className="flex w-full items-center gap-3 text-left"
+            >
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-amber-800 dark:text-amber-200">
                   {dustPayments.length} Payment{dustPayments.length > 1 ? 's' : ''} Below Minimum
                 </h3>
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300/70">
+                {!isDustExpanded && (
+                  <p className="truncate text-xs text-amber-700 dark:text-amber-300/70">
+                    Too small to collect economically
+                  </p>
+                )}
+              </div>
+              <p className="shrink-0 font-semibold text-amber-800 dark:text-amber-200">
+                {totalDustBalanceFormatted} MNT
+              </p>
+              <ChevronDown
+                className={`h-5 w-5 shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${
+                  isDustExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isDustExpanded && (
+              <>
+                <p className="mt-3 text-sm text-amber-700 dark:text-amber-300/70">
                   These payments have less than {minimumCollectableFormatted} MNT and would cost
                   more in gas to collect than they&apos;re worth on Mantle L2.
                 </p>
-              </div>
-              <p className="font-semibold text-amber-800 dark:text-amber-200">
-                {totalDustBalanceFormatted} MNT
-              </p>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {dustPayments.map((payment, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-lg bg-amber-100 p-3 dark:bg-amber-900/20"
-                >
-                  <div>
-                    <p className="font-mono text-sm text-amber-800 dark:text-amber-200/80">
-                      {payment.stealthAddress.slice(0, 10)}...{payment.stealthAddress.slice(-8)}
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-300/50">
-                      Block #{payment.blockNumber.toString()}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-amber-800 dark:text-amber-200/80">
-                    {payment.balanceFormatted} MNT
-                  </p>
+                <div className="mt-3 space-y-2">
+                  {dustPayments.map((payment, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-amber-100 p-3 dark:bg-amber-900/20"
+                    >
+                      <div>
+                        <p className="font-mono text-sm text-amber-800 dark:text-amber-200/80">
+                          {payment.stealthAddress.slice(0, 10)}...{payment.stealthAddress.slice(-8)}
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-300/50">
+                          Block #{payment.blockNumber.toString()}
+                        </p>
+                      </div>
+                      <p className="font-semibold text-amber-800 dark:text-amber-200/80">
+                        {payment.balanceFormatted} MNT
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            <p className="mt-4 text-xs text-amber-600 dark:text-amber-300/50">
-              Tip: Send at least {minimumCollectableFormatted} MNT per payment to cover
-              Mantle&apos;s L1 data costs.
-            </p>
+                <p className="mt-4 text-xs text-amber-600 dark:text-amber-300/50">
+                  Tip: Send at least {minimumCollectableFormatted} MNT per payment to cover
+                  Mantle&apos;s L1 data costs.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

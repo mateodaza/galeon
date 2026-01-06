@@ -438,6 +438,29 @@ export default class PonderService {
   }
 
   /**
+   * Find a merge deposit by the nullifier hash it spent
+   * @param nullifierHash - The existing nullifier hash that was spent
+   * @param chainId - Optional chain ID filter
+   * @returns The merge deposit record if found, null otherwise
+   */
+  async findMergeDepositByNullifier(
+    nullifierHash: string,
+    chainId?: number
+  ): Promise<PonderPoolMergeDeposit | null> {
+    const query = db
+      .connection(this.connection)
+      .from('pool_merge_deposits')
+      .where('existing_nullifier_hash', nullifierHash.toLowerCase())
+
+    if (chainId !== undefined) {
+      query.where('chain_id', chainId)
+    }
+
+    const result = await query.first()
+    return result ? this.mapPoolMergeDeposit(result) : null
+  }
+
+  /**
    * Check if a nullifier has been spent (used in a withdrawal)
    * @param nullifierHash - The nullifier hash as hex string
    * @param chainId - Optional chain ID filter

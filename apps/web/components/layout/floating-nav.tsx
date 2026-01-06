@@ -151,6 +151,6 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
  */
 export const dashboardNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/send', label: 'Send' },
   { href: '/receive', label: 'Receive' },
+  { href: '/pay', label: 'Pay' },
 ]

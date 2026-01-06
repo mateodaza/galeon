@@ -54,6 +54,8 @@ export type {
   Precommitment,
   PoolDeposit,
   DepositEvent,
+  MergeDepositEvent,
+  WithdrawalEvent,
   RecoveredDeposit,
   PoolAccountState,
   WithdrawalSecrets,
@@ -72,6 +74,7 @@ export {
   poseidonHash,
   bytesToFieldElement,
   computeWithdrawalContext,
+  computeMergeDepositContext,
 } from './crypto.js'
 
 // Key derivation
@@ -86,7 +89,14 @@ export {
 } from './commitments.js'
 
 // Recovery
-export { recoverPoolDeposits, createPoolAccount } from './recovery.js'
+export {
+  recoverPoolDeposits,
+  createPoolAccount,
+  recoverMergeDeposit,
+  recoverWithdrawalChange,
+  traceMergeChain,
+  type TraceMergeChainResult,
+} from './recovery.js'
 
 // Merkle Tree
 export {
