@@ -11,8 +11,8 @@
 /** API base URL - defaults to localhost in development */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'
 
-/** Indexer API URL - Ponder indexer for on-chain data (Ponder REST API runs on 42070) */
-export const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:42070'
+/** Indexer API URL - Ponder indexer for on-chain data (Ponder REST API runs on 42069) */
+export const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:42069'
 
 /** Token storage keys */
 const ACCESS_TOKEN_KEY = 'galeon-access-token'
