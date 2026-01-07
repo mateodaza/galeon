@@ -7,8 +7,10 @@ import type { TaxSummaryReport } from '#services/compliance_service'
 
 // pdfmake 0.3.0 has double-wrapped exports
 const PdfPrinter = printerModule.default
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pdfmake = pdfmakeSingleton as any
+const pdfmake = pdfmakeSingleton as unknown as {
+  virtualfs: { writeFileSync: (path: string, data: string) => void }
+  urlResolver: () => unknown
+}
 
 // pdfmake type definitions
 // Using inline types since pdfmake/interfaces may not resolve in pnpm monorepo

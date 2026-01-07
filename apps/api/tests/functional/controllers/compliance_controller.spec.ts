@@ -660,7 +660,7 @@ test.group('ComplianceController', (group) => {
     assert.equal(response.header('content-type'), 'application/pdf')
 
     // PDF should have content length > 0
-    const contentLength = parseInt(response.header('content-length') ?? '0', 10)
+    const contentLength = Number.parseInt(response.header('content-length') ?? '0', 10)
     assert.isAbove(contentLength, 0)
   })
 
