@@ -35,6 +35,7 @@ import {IGaleonPrivacyPool} from "./interfaces/IGaleonPrivacyPool.sol";
 contract GaleonEntrypoint is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, IGaleonEntrypoint {
     using SafeERC20 for IERC20;
     using ProofLib for ProofLib.WithdrawProof;
+    using ProofLib for ProofLib.MergeDepositProof;
 
     // ============ Constants ============
 
@@ -188,6 +189,36 @@ contract GaleonEntrypoint is AccessControlUpgradeable, UUPSUpgradeable, Reentran
         if (_balanceBefore > _balanceAfter) revert InvalidPoolState();
 
         emit WithdrawalRelayed(msg.sender, _data.recipient, _asset, _withdrawnAmount, _feeAmount);
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                          MERGE DEPOSIT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IGaleonEntrypoint
+    function mergeDeposit(
+        bytes calldata _mergeData,
+        ProofLib.MergeDepositProof calldata _proof,
+        uint256 _scope
+    ) external payable nonReentrant {
+        // Get pool by scope
+        IGaleonPrivacyPool _pool = scopeToPool[_scope];
+        if (address(_pool) == address(0)) revert PoolNotFound();
+
+        // Get deposit value from proof
+        uint256 _depositValue = _proof.md_depositValue();
+
+        // Check minimum deposit amount
+        IERC20 _asset = IERC20(_pool.ASSET());
+        AssetConfig memory _config = assetConfig[_asset];
+        if (_depositValue < _config.minimumDepositAmount) revert MinimumDepositAmount();
+
+        // Forward to pool (value for native asset, 0 for ERC20)
+        // Note: No vetting fee for mergeDeposit - the depositValue is baked into the ZK proof
+        uint256 _nativeValue = address(_asset) == Constants.NATIVE_ASSET ? _depositValue : 0;
+        _pool.mergeDeposit{value: _nativeValue}(msg.sender, _mergeData, _proof);
+
+        emit MergeDeposited(msg.sender, _pool, _proof.md_newCommitmentHash(), _depositValue);
     }
 
     /*///////////////////////////////////////////////////////////////

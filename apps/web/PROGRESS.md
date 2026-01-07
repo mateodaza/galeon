@@ -1,7 +1,7 @@
 # Frontend (apps/web) Progress
 
 > Next.js 16 + React 19 frontend with Reown AppKit
-> Last updated: 2025-12-31
+> Last updated: 2026-01-03
 
 ## Setup
 
@@ -99,10 +99,17 @@
 - [x] Port status badges (pending/confirmed states)
 - [x] Payment link visibility based on confirmed status
 
+## Collection Improvements (2026-01-03)
+
+- [x] Auto-pagination for announcements API (handles large datasets)
+- [x] Removed debug console.log statements (production cleanup)
+- [x] Removed unused imports (computeViewTag, deriveStealthPrivateKey)
+- [x] Auto-scan on page load when keys are available
+- [x] Removed manual "Scan Now" button (auto-scan handles it)
+
 **Next Steps:**
 
 1. Integrate GaleonTender for batch collection (gas savings)
 2. Add tenderAbi to contracts.ts and update useCollection
-3. Replace event scanning with Ponder indexer
-4. Add SSE for real-time payment notifications
-5. Receipt claim flow (claim → backend verifies via Ponder)
+3. Add SSE for real-time payment notifications
+4. Receipt claim flow (claim → backend verifies via Ponder)

@@ -63,6 +63,7 @@
     "@adonisjs/lucid": "^21.6.1",
     "@adonisjs/redis": "^9.2.0",
     "@adonisjs/transmit": "^0.5.0",
+    "@galeon/config": "workspace:*",
     "@galeon/stealth": "workspace:*",
     "@maximemrf/adonisjs-jwt": "^0.6.1",
     "@vinejs/vine": "^3.0.1",
@@ -75,7 +76,9 @@
     "pg": "^8.14.0",
     "reflect-metadata": "^0.2.2",
     "siwe": "^2.3.2",
-    "viem": "^2.43.3"
+    "viem": "^2.43.3",
+    "@zk-kit/lean-imt": "2.2.4",
+    "poseidon-lite": "0.3.0"
   },
   "hotHook": {
     "boundaries": [

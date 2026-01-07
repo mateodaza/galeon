@@ -10,6 +10,8 @@
 import type {
   WithdrawalProofInput,
   WithdrawalProof,
+  MergeDepositProofInput,
+  MergeDepositProof,
   CircuitArtifacts,
   ProverStatus,
 } from './types.js'
@@ -25,6 +27,12 @@ export const DEFAULT_WITHDRAW_ARTIFACTS: CircuitArtifacts = {
 export const DEFAULT_COMMITMENT_ARTIFACTS: CircuitArtifacts = {
   wasmPath: '/circuits/commitment.wasm',
   zkeyPath: '/circuits/commitment_final.zkey',
+}
+
+/** Default merge deposit circuit artifacts paths (for O(1) withdrawals) */
+export const DEFAULT_MERGE_DEPOSIT_ARTIFACTS: CircuitArtifacts = {
+  wasmPath: '/circuits/mergeDeposit.wasm',
+  zkeyPath: '/circuits/mergeDeposit_final.zkey',
 }
 
 /** @deprecated Use DEFAULT_WITHDRAW_ARTIFACTS instead */
@@ -213,4 +221,135 @@ export function encodeProofAsBytes(proof: WithdrawalProof): `0x${string}` {
   const hex = parts.map((n) => n.toString(16).padStart(64, '0')).join('')
 
   return `0x${hex}` as `0x${string}`
+}
+
+/**
+ * Prepare merge deposit proof inputs for snarkjs.
+ * Converts bigints to strings and pads arrays to max depth.
+ *
+ * @param input - Merge deposit proof input
+ * @returns Circuit inputs as string map
+ */
+export function prepareMergeDepositInputs(
+  input: MergeDepositProofInput
+): Record<string, string | string[]> {
+  // Pad siblings arrays to MAX_TREE_DEPTH
+  const paddedStateSiblings = [...input.stateSiblings]
+  while (paddedStateSiblings.length < MAX_TREE_DEPTH) {
+    paddedStateSiblings.push(BigInt(0))
+  }
+
+  const paddedASPSiblings = [...input.ASPSiblings]
+  while (paddedASPSiblings.length < MAX_TREE_DEPTH) {
+    paddedASPSiblings.push(BigInt(0))
+  }
+
+  return {
+    // Public inputs
+    depositValue: input.depositValue.toString(),
+    stateRoot: input.stateRoot.toString(),
+    stateTreeDepth: input.stateTreeDepth.toString(),
+    ASPRoot: input.ASPRoot.toString(),
+    ASPTreeDepth: input.ASPTreeDepth.toString(),
+    context: input.context.toString(),
+
+    // Private inputs
+    label: input.label.toString(),
+    existingValue: input.existingValue.toString(),
+    existingNullifier: input.existingNullifier.toString(),
+    existingSecret: input.existingSecret.toString(),
+    newNullifier: input.newNullifier.toString(),
+    newSecret: input.newSecret.toString(),
+    stateSiblings: paddedStateSiblings.map((s) => s.toString()),
+    stateIndex: input.stateIndex.toString(),
+    ASPSiblings: paddedASPSiblings.map((s) => s.toString()),
+    ASPIndex: input.ASPIndex.toString(),
+  }
+}
+
+/**
+ * Generate a merge deposit proof using snarkjs.
+ * Merges a new deposit into an existing commitment for O(1) withdrawals.
+ *
+ * @param input - Merge deposit proof input
+ * @param artifacts - Circuit artifacts paths
+ * @param onProgress - Optional progress callback
+ * @returns Generated proof
+ */
+export async function generateMergeDepositProof(
+  input: MergeDepositProofInput,
+  artifacts: CircuitArtifacts = DEFAULT_MERGE_DEPOSIT_ARTIFACTS,
+  onProgress?: (status: ProverStatus) => void
+): Promise<MergeDepositProof> {
+  onProgress?.({ stage: 'loading', message: 'Loading merge deposit circuit...' })
+
+  // Dynamic import snarkjs for browser compatibility
+  const snarkjs = await import('snarkjs')
+
+  // Prepare inputs
+  const circuitInputs = prepareMergeDepositInputs(input)
+
+  onProgress?.({ stage: 'computing', message: 'Generating witness...', progress: 10 })
+
+  try {
+    // Generate proof
+    onProgress?.({ stage: 'computing', message: 'Computing merge deposit proof...', progress: 30 })
+
+    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+      circuitInputs,
+      artifacts.wasmPath,
+      artifacts.zkeyPath
+    )
+
+    onProgress?.({ stage: 'computing', message: 'Computing commitments...', progress: 90 })
+
+    // Compute the expected output hashes for verification
+    const existingNullifierHash = await poseidonHash([input.existingNullifier])
+
+    // New commitment: Poseidon(mergedValue, label, Poseidon(newNullifier, newSecret))
+    const newPrecommitment = await poseidonHash([input.newNullifier, input.newSecret])
+    const mergedValue = input.existingValue + input.depositValue
+    const newCommitmentHash = await poseidonHash([mergedValue, input.label, newPrecommitment])
+
+    const result: MergeDepositProof = {
+      proof: proof as MergeDepositProof['proof'],
+      publicSignals,
+      newCommitmentHash,
+      existingNullifierHash,
+    }
+
+    onProgress?.({ stage: 'done', proof: result as unknown as WithdrawalProof })
+
+    return result
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Merge deposit proof generation failed'
+    onProgress?.({ stage: 'error', error: message })
+    throw new Error(`Merge deposit proof generation failed: ${message}`)
+  }
+}
+
+/**
+ * Format merge deposit proof for on-chain submission.
+ * Converts snarkjs proof format to Solidity calldata.
+ *
+ * @param proof - Generated proof
+ * @returns Formatted calldata for contract
+ */
+export function formatMergeDepositProofForContract(proof: MergeDepositProof): {
+  pA: [bigint, bigint]
+  pB: [[bigint, bigint], [bigint, bigint]]
+  pC: [bigint, bigint]
+  publicSignals: bigint[]
+} {
+  const p = proof.proof
+
+  return {
+    pA: [BigInt(p.pi_a[0]), BigInt(p.pi_a[1])],
+    pB: [
+      [BigInt(p.pi_b[0][1]), BigInt(p.pi_b[0][0])],
+      [BigInt(p.pi_b[1][1]), BigInt(p.pi_b[1][0])],
+    ],
+    pC: [BigInt(p.pi_c[0]), BigInt(p.pi_c[1])],
+    publicSignals: proof.publicSignals.map((s) => BigInt(s)),
+  }
 }

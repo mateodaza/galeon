@@ -155,6 +155,10 @@ describe('View Tag', () => {
 })
 
 describe('Announcement Scanning', () => {
+  // Test portId for metadata building
+  const TEST_PORT_ID =
+    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as `0x${string}`
+
   it('should find matching announcement', () => {
     const keys = deriveStealthKeys(TEST_SIGNATURE)
     const ephemeralKey = hexToBytes(
@@ -164,10 +168,10 @@ describe('Announcement Scanning', () => {
     // Generate stealth address
     const generated = generateStealthAddressDeterministic(keys.stealthMetaAddress, ephemeralKey)
 
-    // Build metadata
+    // Build metadata (Galeon format: viewTag + receiptHash + portId)
     const receiptHash =
       '0x1111111111111111111111111111111111111111111111111111111111111111' as `0x${string}`
-    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash)
+    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash, TEST_PORT_ID)
 
     // Create announcement
     const announcement: Announcement = {
@@ -188,6 +192,7 @@ describe('Announcement Scanning', () => {
     expect(payments.length).toBe(1)
     expect(payments[0].stealthAddress.toLowerCase()).toBe(generated.stealthAddress.toLowerCase())
     expect(payments[0].receiptHash).toBe(receiptHash)
+    expect(payments[0].portId).toBe(TEST_PORT_ID.toLowerCase())
   })
 
   it('should not find non-matching announcement', () => {
@@ -203,7 +208,7 @@ describe('Announcement Scanning', () => {
 
     const receiptHash =
       '0x3333333333333333333333333333333333333333333333333333333333333333' as `0x${string}`
-    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash)
+    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash, TEST_PORT_ID)
 
     const announcement: Announcement = {
       stealthAddress: generated.stealthAddress,
@@ -233,7 +238,7 @@ describe('Announcement Scanning', () => {
 
     const receiptHash =
       '0x5555555555555555555555555555555555555555555555555555555555555555' as `0x${string}`
-    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash)
+    const metadata = buildAnnouncementMetadata(generated.viewTag, receiptHash, TEST_PORT_ID)
 
     const announcement: Announcement = {
       stealthAddress: generated.stealthAddress,
@@ -247,6 +252,7 @@ describe('Announcement Scanning', () => {
 
     expect(payment).not.toBeNull()
     expect(payment!.stealthAddress.toLowerCase()).toBe(generated.stealthAddress.toLowerCase())
+    expect(payment!.portId).toBe(TEST_PORT_ID.toLowerCase())
   })
 })
 

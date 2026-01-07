@@ -54,17 +54,28 @@ export type {
   Precommitment,
   PoolDeposit,
   DepositEvent,
+  MergeDepositEvent,
+  WithdrawalEvent,
   RecoveredDeposit,
   PoolAccountState,
   WithdrawalSecrets,
   WithdrawalProofInput,
   WithdrawalProof,
+  MergeDepositProofInput,
+  MergeDepositProof,
   CircuitArtifacts,
   ProverStatus,
 } from './types.js'
 
 // Crypto (browser-only)
-export { SNARK_SCALAR_FIELD, getPoseidon, poseidonHash, bytesToFieldElement } from './crypto.js'
+export {
+  SNARK_SCALAR_FIELD,
+  getPoseidon,
+  poseidonHash,
+  bytesToFieldElement,
+  computeWithdrawalContext,
+  computeMergeDepositContext,
+} from './crypto.js'
 
 // Key derivation
 export { POOL_SIGN_MESSAGE, derivePoolMasterKeys } from './keys.js'
@@ -78,7 +89,14 @@ export {
 } from './commitments.js'
 
 // Recovery
-export { recoverPoolDeposits, createPoolAccount } from './recovery.js'
+export {
+  recoverPoolDeposits,
+  createPoolAccount,
+  recoverMergeDeposit,
+  recoverWithdrawalChange,
+  traceMergeChain,
+  type TraceMergeChainResult,
+} from './recovery.js'
 
 // Merkle Tree
 export {
@@ -92,9 +110,13 @@ export {
 export {
   DEFAULT_WITHDRAW_ARTIFACTS,
   DEFAULT_COMMITMENT_ARTIFACTS,
+  DEFAULT_MERGE_DEPOSIT_ARTIFACTS,
   DEFAULT_CIRCUIT_ARTIFACTS, // deprecated alias
   prepareCircuitInputs,
   generateWithdrawalProof,
+  prepareMergeDepositInputs,
+  generateMergeDepositProof,
+  formatMergeDepositProofForContract,
   verifyProofLocally,
   formatProofForContract,
   encodeProofAsBytes,

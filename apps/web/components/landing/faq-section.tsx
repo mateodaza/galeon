@@ -12,34 +12,39 @@ interface FaqItem {
 
 const faqItems: FaqItem[] = [
   {
-    question: 'What are stealth addresses?',
+    question: 'How does receiving privately work?',
     answer:
-      'One-time payment destinations generated from a public meta-address. Each payment creates a unique address only you can spend from, breaking on-chain links to your identity.',
+      'Create a Port (payment link) and share it. Each payment generates a unique stealth address — only you can find and spend from it. Ports can be permanent for ongoing use or one-time for single payments.',
+  },
+  {
+    question: 'How does sending privately work?',
+    answer:
+      'Deposit funds to the Privacy Pool, then withdraw to any address using a ZK proof. The proof cryptographically breaks the link between your deposit and withdrawal — no one can trace where the money went.',
+  },
+  {
+    question: 'Why do I need both stealth addresses AND Privacy Pool?',
+    answer:
+      'Stealth addresses hide who received a payment (receiving privacy). But when you spend those funds, the trail continues. The Privacy Pool breaks that forward trail — hiding what you do with the money (spending privacy). You need both for complete financial privacy.',
+  },
+  {
+    question: 'What about compliance and taxes?',
+    answer:
+      'Generate a Shipwreck report to prove specific transactions without exposing your full history. Show exactly what you need for audits, taxes, or disputes — nothing more.',
   },
   {
     question: 'Do payers need special wallets?',
     answer:
-      'No. Payers use standard EVM transactions — any wallet works. The stealth address is generated client-side when they open your payment link.',
-  },
-  {
-    question: 'Is this compliant with regulations?',
-    answer:
-      'Yes. On-chain receipts prove payment without revealing your address. You control what to disclose for compliance, accounting, or disputes.',
+      'No. Payers use any standard wallet. The stealth address is generated automatically when they open your payment link.',
   },
   {
     question: 'Is my private key stored anywhere?',
     answer:
-      'Never. Your spending key is derived on-demand from your wallet signature. Galeon only stores your public meta-address on-chain.',
+      'Never. Your spending key is derived on-demand from your wallet signature. Galeon never stores or transmits your private keys.',
   },
   {
-    question: 'What chains are supported?',
+    question: 'Why Mantle?',
     answer:
-      'Built on Mantle L2 for low fees and fast confirmations. EIP-5564 works on any EVM chain, so expansion is straightforward.',
-  },
-  {
-    question: 'How do I collect my funds?',
-    answer:
-      'Your viewing key scans the blockchain for payments. Once detected, derive the spending key for that stealth address and transfer funds to any wallet.',
+      'Privacy on Ethereum mainnet costs $50+ per transaction. On Mantle, it costs cents. We believe privacy should be accessible to everyone, not just whales.',
   },
 ]
 

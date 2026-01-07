@@ -100,6 +100,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Track if wallet was ever connected to distinguish initial load from disconnect
   const wasConnectedRef = useRef(false)
+  // Track the authenticated address to detect wallet switches
+  const authenticatedAddressRef = useRef<string | null>(null)
+  // Track previous address for account switch detection (independent of auth state)
+  const previousAddressRef = useRef<string | undefined>(undefined)
 
   /**
    * Check for existing valid session on mount
@@ -122,6 +126,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (result) {
           console.log('[Auth] Session restored successfully', { userId: result.user.id })
           setUser(result.user)
+          // Track the authenticated address from the restored session
+          authenticatedAddressRef.current = result.user.walletAddress
         } else {
           console.log('[Auth] Refresh returned null, clearing tokens')
           tokenStorage.clearTokens()
@@ -151,8 +157,59 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('[Auth] Wallet disconnected, clearing session')
       setUser(null)
       tokenStorage.clearTokens()
+      authenticatedAddressRef.current = null
     }
   }, [isConnected])
+
+  /**
+   * Auto-logout when wallet address changes (user switches accounts)
+   * Handles both:
+   * 1. Initial mismatch: session restored for wallet B, but connected to wallet A
+   * 2. Account switch: connected to A, user switches to C in the wallet provider
+   */
+  useEffect(() => {
+    // Skip during initial loading to allow session restoration
+    if (isLoading) {
+      return
+    }
+
+    // Check 1: Session restored for different wallet than currently connected
+    // This handles the case where user switched wallets before page refresh
+    if (
+      user &&
+      address &&
+      authenticatedAddressRef.current &&
+      authenticatedAddressRef.current.toLowerCase() !== address.toLowerCase()
+    ) {
+      console.log('[Auth] Session wallet mismatch, clearing session', {
+        sessionWallet: authenticatedAddressRef.current,
+        connectedWallet: address,
+      })
+      setUser(null)
+      tokenStorage.clearTokens()
+      authenticatedAddressRef.current = null
+      previousAddressRef.current = address
+      return
+    }
+
+    // Check 2: Detect account switch in wallet provider
+    if (
+      previousAddressRef.current &&
+      address &&
+      previousAddressRef.current.toLowerCase() !== address.toLowerCase()
+    ) {
+      console.log('[Auth] Account switched, clearing session', {
+        previous: previousAddressRef.current,
+        current: address,
+      })
+      setUser(null)
+      tokenStorage.clearTokens()
+      authenticatedAddressRef.current = null
+    }
+
+    // Update tracking ref
+    previousAddressRef.current = address
+  }, [address, isLoading, user])
 
   /**
    * Sign in with SIWE
@@ -225,8 +282,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       tokenStorage.setTokens(tokens)
 
-      // 6. Set user
+      // 6. Set user and track authenticated address
       setUser(data.user)
+      authenticatedAddressRef.current = address
 
       return true
     } catch (err) {
@@ -251,6 +309,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       tokenStorage.clearTokens()
       setUser(null)
+      authenticatedAddressRef.current = null
     }
   }, [])
 

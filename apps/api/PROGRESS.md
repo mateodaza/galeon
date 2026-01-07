@@ -1,7 +1,7 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2026-01-03 (Removed fog payments feature)
+> Last updated: 2026-01-04
 
 ## Setup
 
@@ -92,28 +92,29 @@
 
 ## API Endpoints (RESTful)
 
-| Resource    | Method | Path                              | Auth      | Description                  |
-| ----------- | ------ | --------------------------------- | --------- | ---------------------------- |
-| Health      | GET    | `/`                               | Public    | Health check                 |
-| Auth        | GET    | `/api/v1/auth/nonce`              | Public    | Get SIWE nonce               |
-| Auth        | POST   | `/api/v1/auth/verify`             | Public    | Login (access + refresh JWT) |
-| Auth        | POST   | `/api/v1/auth/refresh`            | Public    | Refresh access token         |
-| Auth        | POST   | `/api/v1/auth/logout`             | JWT       | Logout (blacklist + revoke)  |
-| Ports       | GET    | `/api/v1/ports`                   | JWT       | List ports                   |
-| Ports       | POST   | `/api/v1/ports`                   | JWT       | Create port                  |
-| Ports       | GET    | `/api/v1/ports/:id`               | JWT       | Get port                     |
-| Ports       | PATCH  | `/api/v1/ports/:id`               | JWT       | Update port                  |
-| Ports       | DELETE | `/api/v1/ports/:id`               | JWT       | Archive port                 |
-| Receipts    | GET    | `/api/v1/receipts`                | JWT       | List receipts                |
-| Receipts    | POST   | `/api/v1/receipts`                | JWT       | Create pending receipt       |
-| Receipts    | GET    | `/api/v1/receipts/stats`          | JWT       | Receipt statistics           |
-| Receipts    | GET    | `/api/v1/receipts/:id`            | JWT       | Get receipt                  |
-| Collections | GET    | `/api/v1/collections`             | JWT       | List collections             |
-| Collections | POST   | `/api/v1/collections`             | JWT       | Initiate collection          |
-| Collections | GET    | `/api/v1/collections/:id`         | JWT       | Get collection               |
-| Collections | POST   | `/api/v1/collections/:id/execute` | JWT       | Execute collection           |
-| Webhooks    | POST   | `/api/v1/webhooks/alchemy`        | Webhook\* | Alchemy events               |
-| Webhooks    | POST   | `/api/v1/webhooks/manual`         | Webhook\* | Manual announcement          |
+| Resource      | Method | Path                              | Auth      | Description                    |
+| ------------- | ------ | --------------------------------- | --------- | ------------------------------ |
+| Health        | GET    | `/`                               | Public    | Health check                   |
+| Announcements | GET    | `/api/v1/announcements`           | Public    | List announcements (paginated) |
+| Auth          | GET    | `/api/v1/auth/nonce`              | Public    | Get SIWE nonce                 |
+| Auth          | POST   | `/api/v1/auth/verify`             | Public    | Login (access + refresh JWT)   |
+| Auth          | POST   | `/api/v1/auth/refresh`            | Public    | Refresh access token           |
+| Auth          | POST   | `/api/v1/auth/logout`             | JWT       | Logout (blacklist + revoke)    |
+| Ports         | GET    | `/api/v1/ports`                   | JWT       | List ports                     |
+| Ports         | POST   | `/api/v1/ports`                   | JWT       | Create port                    |
+| Ports         | GET    | `/api/v1/ports/:id`               | JWT       | Get port                       |
+| Ports         | PATCH  | `/api/v1/ports/:id`               | JWT       | Update port                    |
+| Ports         | DELETE | `/api/v1/ports/:id`               | JWT       | Archive port                   |
+| Receipts      | GET    | `/api/v1/receipts`                | JWT       | List receipts                  |
+| Receipts      | POST   | `/api/v1/receipts`                | JWT       | Create pending receipt         |
+| Receipts      | GET    | `/api/v1/receipts/stats`          | JWT       | Receipt statistics             |
+| Receipts      | GET    | `/api/v1/receipts/:id`            | JWT       | Get receipt                    |
+| Collections   | GET    | `/api/v1/collections`             | JWT       | List collections               |
+| Collections   | POST   | `/api/v1/collections`             | JWT       | Initiate collection            |
+| Collections   | GET    | `/api/v1/collections/:id`         | JWT       | Get collection                 |
+| Collections   | POST   | `/api/v1/collections/:id/execute` | JWT       | Execute collection             |
+| Webhooks      | POST   | `/api/v1/webhooks/alchemy`        | Webhook\* | Alchemy events                 |
+| Webhooks      | POST   | `/api/v1/webhooks/manual`         | Webhook\* | Manual announcement            |
 
 \*Webhook auth middleware pending
 
@@ -149,6 +150,14 @@
 
 **Flow:** Frontend claims → API stores pending → Job verifies → Confirmed/Rejected
 
+## Announcements API (2026-01-03)
+
+- [x] `GET /api/v1/announcements` - Public endpoint for payment scanning
+- [x] Pagination support (limit/offset with max 1000, default 500)
+- [x] Query filters: `viewTag`, `stealthAddress`, `chainId`
+- [x] Returns `{ data, hasMore, limit, offset }` for frontend auto-pagination
+- [x] AnnouncementsController with PonderService integration
+
 ## Port Creation Intent Pattern (2025-12-31)
 
 Frontend-backend integration for port creation:
@@ -165,6 +174,63 @@ Frontend-backend integration for port creation:
 - `confirmed` - Transaction confirmed, `indexerPortId` stored
 
 **Future:** Reconciliation job to verify pending ports against Ponder indexer.
+
+## Phase 12: ASP Auto-Approve Service (2026-01-04)
+
+### Overview
+
+The ASP (Association Set Provider) service auto-approves deposit labels into a Merkle tree and updates the on-chain root. This enables O(1) withdrawals by proving membership in the ASP tree.
+
+### Implementation
+
+- [x] Add `poseidon-lite` and `@zk-kit/lean-imt` dependencies
+- [x] Create `ASPService` (`app/services/asp_service.ts`)
+  - LeanIMT tree with Poseidon hash
+  - Rebuild from existing deposits on startup
+  - Process new deposits and add labels
+  - Update on-chain root via `Entrypoint.updateRoot()`
+  - Generate ASP Merkle proofs for withdrawal circuits
+- [x] Create `UpdateASPRoot` job (`app/jobs/update_asp_root.ts`)
+- [x] Schedule job every 30 seconds
+- [x] Add env variables: `ENTRYPOINT_ADDRESS`, `ASP_POSTMAN_PRIVATE_KEY`
+
+### Configuration
+
+```env
+# ASP service (requires ASP_POSTMAN role on Entrypoint contract)
+ENTRYPOINT_ADDRESS=0x54BA91d29f84B8bAd161880798877e59f2999f7a
+
+# Optional: Falls back to RELAYER_PRIVATE_KEY if not set
+# ASP_POSTMAN_PRIVATE_KEY=0x...
+```
+
+> **Note**: If `ASP_POSTMAN_PRIVATE_KEY` is not set, the service will use `RELAYER_PRIVATE_KEY` as a fallback. This works when the same account has both roles (typical for hackathon setup).
+
+### Flow
+
+1. Scheduler triggers `UpdateASPRoot` job every 30 seconds
+2. On first run, rebuilds tree from all existing deposits (via PonderService)
+3. On subsequent runs, processes only new deposits since last check
+4. For hackathon: auto-approves ALL labels (no blocklist check)
+5. Production: would check depositor addresses against sanctions lists
+6. If tree root changed, calls `Entrypoint.updateRoot(root, ipfsCID)`
+
+### API Endpoints
+
+The ASP service exposes these public endpoints for withdrawal proofs:
+
+| Method | Endpoint                   | Description                            |
+| ------ | -------------------------- | -------------------------------------- |
+| GET    | `/api/v1/asp/status`       | Get ASP tree status and sync info      |
+| GET    | `/api/v1/asp/proof/:label` | Get Merkle proof for a deposit label   |
+| POST   | `/api/v1/asp/rebuild`      | Force rebuild tree and update on-chain |
+
+### Notes
+
+- Singleton ASP service instance persists tree state between job runs
+- Uses `poseidon-lite` (pure JS, Node.js compatible) instead of `maci-crypto` (browser-only)
+- IPFS CID is placeholder for hackathon; production would store actual tree data
+- ASP_POSTMAN_PRIVATE_KEY falls back to RELAYER_PRIVATE_KEY if not set
 
 ## Notes
 

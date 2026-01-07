@@ -48,6 +48,7 @@ export interface ScannedPayment {
   amount: bigint
   token: `0x${string}` | null
   receiptHash: `0x${string}`
+  portId: `0x${string}` | null
   txHash: `0x${string}`
   blockNumber: bigint
 }

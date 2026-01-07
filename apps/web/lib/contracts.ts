@@ -1,213 +1,54 @@
 /**
  * Contract ABIs and addresses for Galeon.
  *
- * Includes typed exports for use with wagmi hooks.
+ * Re-exports from @galeon/config for backwards compatibility.
  */
 
-import { type Abi } from 'viem'
+// Re-export everything from centralized config
+export {
+  // Chain config
+  SUPPORTED_CHAIN_IDS,
+  DEFAULT_CHAIN_ID,
+  CHAINS,
+  RPC_URLS,
+  EXPLORER_URLS,
+  CHAIN_NAMES,
+  getChain,
+  getRpcUrl,
+  getTxExplorerUrl,
+  getAddressExplorerUrl,
+  isSupportedChain,
+  type SupportedChainId,
+  // Contracts
+  CONTRACTS,
+  getContracts,
+  getStealthContracts,
+  getPoolContracts,
+  NATIVE_TOKEN,
+  SCHEME_ID,
+  type ChainContracts,
+  type StealthContracts,
+  type PoolContracts,
+  // ABIs
+  galeonRegistryAbi,
+  announcerAbi,
+  registryAbi,
+  entrypointAbi,
+  poolAbi,
+} from '@galeon/config'
 
-/**
- * Contract addresses on Mantle Mainnet.
- */
-export const CONTRACTS = {
-  5000: {
-    galeonRegistry: '0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D' as const,
-    announcer: '0x8C04238c49e22EB687ad706bEe645698ccF41153' as const,
-    registry: '0xE6586103756082bf3E43D3BB73f9fE479f0BDc22' as const,
-  },
-  5003: {
-    galeonRegistry: '0x0000000000000000000000000000000000000000' as const,
-    announcer: '0x0000000000000000000000000000000000000000' as const,
-    registry: '0x0000000000000000000000000000000000000000' as const,
-  },
-} as const
-
-/**
- * GaleonRegistry ABI - Main contract for payments and Port management.
- */
-export const galeonRegistryAbi = [
-  // Constants
-  {
-    type: 'function',
-    name: 'SCHEME_ID',
-    inputs: [],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  // Port management
-  {
-    type: 'function',
-    name: 'registerPort',
-    inputs: [
-      { name: 'portId', type: 'bytes32' },
-      { name: 'name', type: 'string' },
-      { name: 'stealthMetaAddress', type: 'bytes' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'deactivatePort',
-    inputs: [{ name: 'portId', type: 'bytes32' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'getPortMetaAddress',
-    inputs: [{ name: 'portId', type: 'bytes32' }],
-    outputs: [{ type: 'bytes' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'portOwners',
-    inputs: [{ name: 'portId', type: 'bytes32' }],
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'portActive',
-    inputs: [{ name: 'portId', type: 'bytes32' }],
-    outputs: [{ type: 'bool' }],
-    stateMutability: 'view',
-  },
-  // Native payments (portId required for verified balance tracking)
-  {
-    type: 'function',
-    name: 'payNative',
-    inputs: [
-      { name: 'portId', type: 'bytes32' },
-      { name: 'stealthAddress', type: 'address' },
-      { name: 'ephemeralPubKey', type: 'bytes' },
-      { name: 'viewTag', type: 'bytes1' },
-      { name: 'receiptHash', type: 'bytes32' },
-    ],
-    outputs: [],
-    stateMutability: 'payable',
-  },
-  // Token payments (portId required for verified balance tracking)
-  {
-    type: 'function',
-    name: 'payToken',
-    inputs: [
-      { name: 'portId', type: 'bytes32' },
-      { name: 'token', type: 'address' },
-      { name: 'stealthAddress', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'ephemeralPubKey', type: 'bytes' },
-      { name: 'viewTag', type: 'bytes1' },
-      { name: 'receiptHash', type: 'bytes32' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  // Events
-  {
-    type: 'event',
-    name: 'PortRegistered',
-    inputs: [
-      { name: 'owner', type: 'address', indexed: true },
-      { name: 'portId', type: 'bytes32', indexed: true },
-      { name: 'name', type: 'string', indexed: false },
-      { name: 'stealthMetaAddress', type: 'bytes', indexed: false },
-    ],
-  },
-  {
-    type: 'event',
-    name: 'PortDeactivated',
-    inputs: [
-      { name: 'owner', type: 'address', indexed: true },
-      { name: 'portId', type: 'bytes32', indexed: true },
-    ],
-  },
-  {
-    type: 'event',
-    name: 'ReceiptAnchored',
-    inputs: [
-      { name: 'stealthAddress', type: 'address', indexed: true },
-      { name: 'receiptHash', type: 'bytes32', indexed: true },
-      { name: 'payer', type: 'address', indexed: true },
-      { name: 'amount', type: 'uint256', indexed: false },
-      { name: 'token', type: 'address', indexed: false },
-      { name: 'timestamp', type: 'uint256', indexed: false },
-    ],
-  },
-] as const satisfies Abi
-
-/**
- * ERC5564Announcer ABI - Stealth payment announcements.
- */
-export const announcerAbi = [
-  {
-    type: 'function',
-    name: 'announce',
-    inputs: [
-      { name: 'schemeId', type: 'uint256' },
-      { name: 'stealthAddress', type: 'address' },
-      { name: 'ephemeralPubKey', type: 'bytes' },
-      { name: 'metadata', type: 'bytes' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'Announcement',
-    inputs: [
-      { name: 'schemeId', type: 'uint256', indexed: true },
-      { name: 'stealthAddress', type: 'address', indexed: true },
-      { name: 'caller', type: 'address', indexed: true },
-      { name: 'ephemeralPubKey', type: 'bytes', indexed: false },
-      { name: 'metadata', type: 'bytes', indexed: false },
-    ],
-  },
-] as const satisfies Abi
-
-/**
- * ERC6538Registry ABI - Stealth meta-address registry.
- */
-export const registryAbi = [
-  {
-    type: 'function',
-    name: 'registerKeys',
-    inputs: [
-      { name: 'schemeId', type: 'uint256' },
-      { name: 'stealthMetaAddress', type: 'bytes' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stealthMetaAddressOf',
-    inputs: [
-      { name: 'registrant', type: 'address' },
-      { name: 'schemeId', type: 'uint256' },
-    ],
-    outputs: [{ type: 'bytes' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'StealthMetaAddressSet',
-    inputs: [
-      { name: 'registrant', type: 'address', indexed: true },
-      { name: 'schemeId', type: 'uint256', indexed: true },
-      { name: 'stealthMetaAddress', type: 'bytes', indexed: false },
-    ],
-  },
-] as const satisfies Abi
+// Backwards compatibility helper
+import { CONTRACTS as _CONTRACTS } from '@galeon/config'
 
 /**
  * Get contract addresses for a chain.
+ * @deprecated Use getStealthContracts(chainId) from @galeon/config
  */
 export function getContractAddresses(chainId: number) {
-  const addresses = CONTRACTS[chainId as keyof typeof CONTRACTS]
-  if (!addresses) {
+  const contracts = _CONTRACTS[chainId as keyof typeof _CONTRACTS]
+  if (!contracts) {
     throw new Error(`Unsupported chain: ${chainId}`)
   }
-  return addresses
+  // Return stealth contracts for backwards compatibility
+  return contracts.stealth
 }

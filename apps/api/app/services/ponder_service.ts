@@ -35,6 +35,24 @@ export interface PonderAnnouncement {
 }
 
 /**
+ * Pool deposit data from Ponder indexer database
+ */
+export interface PonderPoolDeposit {
+  id: string
+  pool: string
+  depositor: string
+  commitment: string
+  label: string
+  value: string
+  precommitmentHash: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+/**
  * Receipt anchored data from Ponder indexer database
  */
 export interface PonderReceiptAnchored {
@@ -58,8 +76,58 @@ export interface PonderReceiptAnchored {
 export default class PonderService {
   private connection = 'ponder'
 
+  /** Maximum allowed limit for announcements query */
+  static readonly MAX_ANNOUNCEMENTS_LIMIT = 1000
+
+  /** Default limit for announcements query */
+  static readonly DEFAULT_ANNOUNCEMENTS_LIMIT = 500
+
+  /**
+   * List all announcements with optional filters and pagination
+   * Used by frontend to scan for payments
+   */
+  async listAnnouncements(options?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderAnnouncement[]; hasMore: boolean }> {
+    // Enforce max limit
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_ANNOUNCEMENTS_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_ANNOUNCEMENTS_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db
+      .connection(this.connection)
+      .from('announcements')
+      .orderBy('block_number', 'desc')
+
+    if (options?.viewTag !== undefined) {
+      query.where('view_tag', options.viewTag)
+    }
+    if (options?.stealthAddress) {
+      query.where('stealth_address', options.stealthAddress.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    // Request one extra to check if there are more results
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapAnnouncement(row))
+
+    return { data, hasMore }
+  }
+
   /**
    * Find announcement by transaction hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findAnnouncementByTxHash(
     txHash: string,
@@ -68,10 +136,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('announcements')
-      .where('transactionHash', txHash.toLowerCase())
+      .where('transaction_hash', txHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -80,6 +148,7 @@ export default class PonderService {
 
   /**
    * Find announcement by receipt hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findAnnouncementByReceiptHash(
     receiptHash: string,
@@ -88,10 +157,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('announcements')
-      .where('receiptHash', receiptHash.toLowerCase())
+      .where('receipt_hash', receiptHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -100,6 +169,7 @@ export default class PonderService {
 
   /**
    * Find receipt anchored by transaction hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findReceiptAnchoredByTxHash(
     txHash: string,
@@ -108,10 +178,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('receipts_anchored')
-      .where('transactionHash', txHash.toLowerCase())
+      .where('transaction_hash', txHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -120,6 +190,7 @@ export default class PonderService {
 
   /**
    * Find receipt anchored by receipt hash and optional chainId
+   * Note: Ponder DB uses snake_case column names
    */
   async findReceiptAnchoredByReceiptHash(
     receiptHash: string,
@@ -128,10 +199,10 @@ export default class PonderService {
     const query = db
       .connection(this.connection)
       .from('receipts_anchored')
-      .where('receiptHash', receiptHash.toLowerCase())
+      .where('receipt_hash', receiptHash.toLowerCase())
 
     if (chainId !== undefined) {
-      query.where('chainId', chainId)
+      query.where('chain_id', chainId)
     }
 
     const result = await query.first()
@@ -199,41 +270,277 @@ export default class PonderService {
 
   /**
    * Map database row to PonderAnnouncement interface
+   * Note: Ponder DB uses snake_case column names
    */
   private mapAnnouncement(row: Record<string, unknown>): PonderAnnouncement {
     return {
       id: String(row.id),
-      schemeId: String(row.schemeId),
-      stealthAddress: String(row.stealthAddress),
+      schemeId: String(row.scheme_id),
+      stealthAddress: String(row.stealth_address),
       caller: String(row.caller),
-      ephemeralPubKey: String(row.ephemeralPubKey),
+      ephemeralPubKey: String(row.ephemeral_pub_key),
       metadata: String(row.metadata),
-      viewTag: Number(row.viewTag),
-      receiptHash: row.receiptHash ? String(row.receiptHash) : null,
-      blockNumber: String(row.blockNumber),
-      blockTimestamp: String(row.blockTimestamp),
-      transactionHash: String(row.transactionHash),
-      logIndex: Number(row.logIndex),
-      chainId: Number(row.chainId),
+      viewTag: Number(row.view_tag),
+      receiptHash: row.receipt_hash ? String(row.receipt_hash) : null,
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
     }
   }
 
   /**
    * Map database row to PonderReceiptAnchored interface
+   * Note: Ponder DB uses snake_case column names
    */
   private mapReceiptAnchored(row: Record<string, unknown>): PonderReceiptAnchored {
     return {
       id: String(row.id),
-      stealthAddress: String(row.stealthAddress),
-      receiptHash: String(row.receiptHash),
+      stealthAddress: String(row.stealth_address),
+      receiptHash: String(row.receipt_hash),
       payer: String(row.payer),
       amount: String(row.amount),
       token: String(row.token),
       timestamp: String(row.timestamp),
-      blockNumber: String(row.blockNumber),
-      transactionHash: String(row.transactionHash),
-      logIndex: Number(row.logIndex),
-      chainId: Number(row.chainId),
+      blockNumber: String(row.block_number),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
     }
   }
+
+  /** Maximum allowed limit for pool deposits query */
+  static readonly MAX_DEPOSITS_LIMIT = 1000
+
+  /** Default limit for pool deposits query */
+  static readonly DEFAULT_DEPOSITS_LIMIT = 500
+
+  /**
+   * List all pool deposits with optional filters and pagination
+   * Used by frontend to recover pool deposits
+   */
+  async listPoolDeposits(options?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderPoolDeposit[]; hasMore: boolean }> {
+    // Enforce max limit
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_DEPOSITS_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_DEPOSITS_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db
+      .connection(this.connection)
+      .from('pool_deposits')
+      .orderBy('block_number', 'asc')
+      .orderBy('log_index', 'asc')
+
+    if (options?.pool) {
+      query.where('pool', options.pool.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    // Request one extra to check if there are more results
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapPoolDeposit(row))
+
+    return { data, hasMore }
+  }
+
+  /**
+   * Map database row to PonderPoolDeposit interface
+   * Note: Ponder DB uses snake_case column names
+   */
+  private mapPoolDeposit(row: Record<string, unknown>): PonderPoolDeposit {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      depositor: String(row.depositor),
+      commitment: String(row.commitment),
+      label: String(row.label),
+      value: String(row.value),
+      precommitmentHash: String(row.precommitment_hash),
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+
+  /**
+   * List all merge deposits with optional filters and pagination
+   */
+  async listMergeDeposits(options?: {
+    pool?: string
+    depositor?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderPoolMergeDeposit[]; hasMore: boolean }> {
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_DEPOSITS_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_DEPOSITS_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db
+      .connection(this.connection)
+      .from('pool_merge_deposits')
+      .orderBy('block_number', 'asc')
+      .orderBy('log_index', 'asc')
+
+    if (options?.pool) {
+      query.where('pool', options.pool.toLowerCase())
+    }
+    if (options?.depositor) {
+      query.where('depositor', options.depositor.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapPoolMergeDeposit(row))
+
+    return { data, hasMore }
+  }
+
+  /**
+   * Map database row to PonderPoolMergeDeposit interface
+   */
+  private mapPoolMergeDeposit(row: Record<string, unknown>): PonderPoolMergeDeposit {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      depositor: String(row.depositor),
+      depositValue: String(row.deposit_value),
+      existingNullifierHash: String(row.existing_nullifier_hash),
+      newCommitment: String(row.new_commitment),
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+
+  /**
+   * Find a merge deposit by the nullifier hash it spent
+   * @param nullifierHash - The existing nullifier hash that was spent
+   * @param chainId - Optional chain ID filter
+   * @returns The merge deposit record if found, null otherwise
+   */
+  async findMergeDepositByNullifier(
+    nullifierHash: string,
+    chainId?: number
+  ): Promise<PonderPoolMergeDeposit | null> {
+    const query = db
+      .connection(this.connection)
+      .from('pool_merge_deposits')
+      .where('existing_nullifier_hash', nullifierHash.toLowerCase())
+
+    if (chainId !== undefined) {
+      query.where('chain_id', chainId)
+    }
+
+    const result = await query.first()
+    return result ? this.mapPoolMergeDeposit(result) : null
+  }
+
+  /**
+   * Check if a nullifier has been spent (used in a withdrawal)
+   * @param nullifierHash - The nullifier hash as hex string
+   * @param chainId - Optional chain ID filter
+   * @returns The withdrawal record if spent, null otherwise
+   */
+  async findWithdrawalByNullifier(
+    nullifierHash: string,
+    chainId?: number
+  ): Promise<PonderPoolWithdrawal | null> {
+    const query = db
+      .connection(this.connection)
+      .from('pool_withdrawals')
+      .where('spent_nullifier', nullifierHash.toLowerCase())
+
+    if (chainId !== undefined) {
+      query.where('chain_id', chainId)
+    }
+
+    const result = await query.first()
+    return result ? this.mapPoolWithdrawal(result) : null
+  }
+
+  /**
+   * Map database row to PonderPoolWithdrawal interface
+   */
+  private mapPoolWithdrawal(row: Record<string, unknown>): PonderPoolWithdrawal {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      processooor: String(row.processooor),
+      value: String(row.value),
+      spentNullifier: String(row.spent_nullifier),
+      newCommitment: String(row.new_commitment),
+      recipient: row.recipient ? String(row.recipient) : null,
+      relayer: row.relayer ? String(row.relayer) : null,
+      asset: row.asset ? String(row.asset) : null,
+      feeAmount: row.fee_amount ? String(row.fee_amount) : null,
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+}
+
+/**
+ * Pool withdrawal data from Ponder indexer database
+ */
+export interface PonderPoolWithdrawal {
+  id: string
+  pool: string
+  processooor: string
+  value: string
+  spentNullifier: string
+  newCommitment: string
+  recipient: string | null
+  relayer: string | null
+  asset: string | null
+  feeAmount: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+/**
+ * Pool merge deposit data from Ponder indexer database
+ */
+export interface PonderPoolMergeDeposit {
+  id: string
+  pool: string
+  depositor: string
+  depositValue: string
+  existingNullifierHash: string
+  newCommitment: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
 }

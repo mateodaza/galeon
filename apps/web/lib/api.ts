@@ -11,6 +11,9 @@
 /** API base URL - defaults to localhost in development */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'
 
+/** Indexer API URL - Ponder indexer for on-chain data (Ponder REST API runs on 42069) */
+export const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:42069'
+
 /** Token storage keys */
 const ACCESS_TOKEN_KEY = 'galeon-access-token'
 const REFRESH_TOKEN_KEY = 'galeon-refresh-token'
@@ -371,4 +374,720 @@ export const portsApi = {
     api.patch<PortResponse>(`/api/v1/ports/${id}`, data),
 
   delete: (id: string) => api.delete<{ message: string }>(`/api/v1/ports/${id}`),
+}
+
+// ============================================================
+// Announcement Types (from Ponder indexer via backend)
+// ============================================================
+
+export interface AnnouncementResponse {
+  id: string
+  schemeId: string
+  stealthAddress: string
+  caller: string
+  ephemeralPubKey: string
+  metadata: string
+  viewTag: number
+  receiptHash: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Announcements API (public - no auth required)
+// ============================================================
+
+export interface AnnouncementsListResponse {
+  data: AnnouncementResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+export const announcementsApi = {
+  /**
+   * Fetch a single page of announcements from the backend.
+   * @param params - Optional filters and pagination (viewTag, stealthAddress, chainId, limit, offset)
+   */
+  listPage: async (params?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<AnnouncementsListResponse> => {
+    const query = new URLSearchParams()
+    if (params?.viewTag !== undefined) query.set('viewTag', String(params.viewTag))
+    if (params?.stealthAddress) query.set('stealthAddress', params.stealthAddress)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.offset) query.set('offset', String(params.offset))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/announcements${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Announcements API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Fetch all announcements by paginating through all pages.
+   * @param params - Optional filters (viewTag, stealthAddress, chainId)
+   * @param pageSize - Results per page (default 500, max 1000)
+   */
+  list: async (params?: {
+    viewTag?: number
+    stealthAddress?: string
+    chainId?: number
+    limit?: number // kept for backward compat, now pageSize
+  }): Promise<AnnouncementResponse[]> => {
+    const pageSize = Math.min(params?.limit ?? 500, 1000)
+    const allAnnouncements: AnnouncementResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await announcementsApi.listPage({
+        viewTag: params?.viewTag,
+        stealthAddress: params?.stealthAddress,
+        chainId: params?.chainId,
+        limit: pageSize,
+        offset,
+      })
+
+      allAnnouncements.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allAnnouncements
+  },
+}
+
+// ============================================================
+// Pool Deposit Types (from Ponder indexer via backend)
+// ============================================================
+
+export interface PoolDepositResponse {
+  id: string
+  pool: string
+  depositor: string
+  commitment: string
+  label: string
+  value: string
+  precommitmentHash: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Pool Deposits API (public - no auth required)
+// ============================================================
+
+export interface PoolDepositsListResponse {
+  data: PoolDepositResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+// ============================================================
+// Nullifier API (public - check if nullifier is spent)
+// ============================================================
+
+export interface NullifierWithdrawal {
+  id: string
+  pool: string
+  processooor: string
+  value: string
+  spentNullifier: string
+  newCommitment: string
+  recipient: string | null
+  relayer: string | null
+  asset: string | null
+  feeAmount: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  chainId: number
+}
+
+export interface NullifierMergeDeposit {
+  id: string
+  pool: string
+  depositor: string
+  depositValue: string
+  existingNullifierHash: string
+  newCommitment: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  chainId: number
+}
+
+export interface NullifierCheckResponse {
+  spent: boolean
+  spentBy: 'withdrawal' | 'merge' | null
+  withdrawal: NullifierWithdrawal | null
+  mergeDeposit: NullifierMergeDeposit | null
+}
+
+export const nullifierApi = {
+  /**
+   * Check if a nullifier has been spent.
+   * Uses the backend API which checks both withdrawals and merge deposits.
+   * @param nullifierHex - The nullifier as a hex string (0x-prefixed, 64 chars)
+   */
+  isSpent: async (nullifierHex: string): Promise<boolean> => {
+    const result = await nullifierApi.check(nullifierHex)
+    return result.spent
+  },
+
+  /**
+   * Check a nullifier and get full details about how it was spent.
+   * @param nullifierHex - The nullifier as a hex string (0x-prefixed, 64 chars)
+   * @param chainId - Optional chain ID filter
+   */
+  check: async (nullifierHex: string, chainId?: number): Promise<NullifierCheckResponse> => {
+    const query = chainId !== undefined ? `?chainId=${chainId}` : ''
+    const url = `${API_BASE_URL}/api/v1/nullifiers/${nullifierHex}${query}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      // If error, assume not spent
+      console.warn(`Nullifier check failed: ${response.statusText}`)
+      return { spent: false, spentBy: null, withdrawal: null, mergeDeposit: null }
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Check multiple nullifiers in parallel.
+   * @param nullifierHexes - Array of nullifier hex strings
+   * @returns Map of nullifier -> full check result
+   */
+  checkMultiple: async (nullifierHexes: string[]): Promise<Map<string, NullifierCheckResponse>> => {
+    const results = await Promise.all(
+      nullifierHexes.map(async (hex) => {
+        const result = await nullifierApi.check(hex)
+        return [hex, result] as [string, NullifierCheckResponse]
+      })
+    )
+    return new Map(results)
+  },
+}
+
+export const poolDepositsApi = {
+  /**
+   * Fetch a single page of pool deposits from the backend.
+   * @param params - Optional filters and pagination (pool, chainId, limit, offset)
+   */
+  listPage: async (params?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<PoolDepositsListResponse> => {
+    const query = new URLSearchParams()
+    if (params?.pool) query.set('pool', params.pool)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.offset) query.set('offset', String(params.offset))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/deposits${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Deposits API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Fetch all pool deposits by paginating through all pages.
+   * @param params - Optional filters (pool, chainId)
+   * @param pageSize - Results per page (default 500, max 1000)
+   */
+  list: async (params?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+  }): Promise<PoolDepositResponse[]> => {
+    const pageSize = Math.min(params?.limit ?? 500, 1000)
+    const allDeposits: PoolDepositResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await poolDepositsApi.listPage({
+        pool: params?.pool,
+        chainId: params?.chainId,
+        limit: pageSize,
+        offset,
+      })
+
+      allDeposits.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allDeposits
+  },
+}
+
+// ============================================================
+// Merge Deposits Types (from Ponder indexer via backend)
+// ============================================================
+
+export interface MergeDepositResponse {
+  id: string
+  pool: string
+  depositor: string
+  depositValue: string
+  existingNullifierHash: string
+  newCommitment: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+export interface MergeDepositsListResponse {
+  data: MergeDepositResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+// ============================================================
+// Merge Deposits API (public - for deposit recovery)
+// ============================================================
+
+export const mergeDepositsApi = {
+  /**
+   * Fetch a single page of merge deposits from the backend.
+   * @param params - Optional filters and pagination
+   */
+  listPage: async (params?: {
+    pool?: string
+    depositor?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<MergeDepositsListResponse> => {
+    const query = new URLSearchParams()
+    if (params?.pool) query.set('pool', params.pool)
+    if (params?.depositor) query.set('depositor', params.depositor)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.offset) query.set('offset', String(params.offset))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/deposits/merges${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Merge deposits API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Fetch all merge deposits by paginating through all pages.
+   * @param params - Optional filters (pool, depositor, chainId)
+   */
+  list: async (params?: {
+    pool?: string
+    depositor?: string
+    chainId?: number
+    limit?: number
+  }): Promise<MergeDepositResponse[]> => {
+    const pageSize = Math.min(params?.limit ?? 500, 1000)
+    const allMerges: MergeDepositResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await mergeDepositsApi.listPage({
+        pool: params?.pool,
+        depositor: params?.depositor,
+        chainId: params?.chainId,
+        limit: pageSize,
+        offset,
+      })
+
+      allMerges.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allMerges
+  },
+}
+
+// ============================================================
+// Registry Types (verified balance data via backend)
+// ============================================================
+
+export interface VerifiedBalanceInfo {
+  stealthAddress: string
+  verifiedBalance: string
+  canDeposit: boolean
+}
+
+export interface VerifiedBalancesResponse {
+  data: VerifiedBalanceInfo[]
+}
+
+// ============================================================
+// Registry API (protected - requires auth)
+// ============================================================
+
+export const registryApi = {
+  /**
+   * Fetch verified balances for multiple stealth addresses.
+   * @param addresses - Array of stealth addresses to check
+   * @param chainId - Chain ID (optional, default: 5000 for Mantle)
+   * @param asset - Asset address (optional, default: native token)
+   */
+  getVerifiedBalances: async (
+    addresses: string[],
+    chainId?: number,
+    asset?: string
+  ): Promise<VerifiedBalanceInfo[]> => {
+    const result = await api.post<VerifiedBalancesResponse>('/api/v1/registry/verified-balances', {
+      addresses,
+      chainId,
+      asset,
+    })
+    return result.data
+  },
+}
+
+// ============================================================
+// ASP Types (Association Set Provider)
+// ============================================================
+
+export interface ASPStatusResponse {
+  success: boolean
+  data: {
+    configured: boolean
+    treeSize: number
+    treeDepth: number
+    localRoot: string
+    onChainRoot: string | null
+    synced: boolean
+    lastProcessedBlock: string
+    entrypointAddress: string | null
+  }
+}
+
+export interface ASPProofResponse {
+  success: boolean
+  data: {
+    root: string
+    leaf: string
+    index: string
+    siblings: string[]
+    depth: number
+  }
+  error?: string
+}
+
+export interface ASPRebuildResponse {
+  success: boolean
+  data: {
+    labelsAdded: number
+    root: string
+    onChainUpdate: {
+      updated: boolean
+      txHash?: string
+      newRoot: string
+    } | null
+  }
+}
+
+// ============================================================
+// ASP API (public - needed for withdrawal proofs)
+// ============================================================
+
+// ============================================================
+// Merkle Leaves Types (from Ponder indexer - all tree leaves)
+// ============================================================
+
+export interface MerkleLeafResponse {
+  id: string
+  pool: string
+  leafIndex: string
+  leaf: string
+  root: string
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+// ============================================================
+// Merkle Leaves API (public - fetch all tree leaves including withdrawal changes)
+// ============================================================
+
+export const merkleLeavesApi = {
+  /**
+   * Fetch all merkle leaves for a pool from the indexer.
+   * This includes BOTH deposit commitments AND withdrawal change commitments.
+   * Must be used for building the state tree (not poolDepositsApi which only has deposits).
+   *
+   * @param pool - Pool address
+   * @param limit - Max results (default 1000)
+   */
+  list: async (pool: string, limit = 1000): Promise<MerkleLeafResponse[]> => {
+    const url = `${INDEXER_URL}/pools/${pool.toLowerCase()}/leaves?limit=${limit}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Merkle leaves API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Get all commitment values for building the state tree.
+   * Returns leaves ordered by leafIndex for correct tree construction.
+   *
+   * @param pool - Pool address
+   */
+  getCommitments: async (pool: string): Promise<bigint[]> => {
+    const leaves = await merkleLeavesApi.list(pool)
+    // Sort by leafIndex to ensure correct order
+    leaves.sort((a, b) => Number(a.leafIndex) - Number(b.leafIndex))
+    return leaves.map((l) => BigInt(l.leaf))
+  },
+}
+
+export const aspApi = {
+  /**
+   * Get ASP tree status and sync info.
+   */
+  getStatus: async (): Promise<ASPStatusResponse['data']> => {
+    const url = `${API_BASE_URL}/api/v1/asp/status`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`ASP API error: ${response.statusText}`)
+    }
+
+    const result: ASPStatusResponse = await response.json()
+    return result.data
+  },
+
+  /**
+   * Get Merkle proof for a specific label in the ASP tree.
+   * Required for withdrawal proofs.
+   * @param label - The deposit label as a string (bigint)
+   */
+  getProof: async (
+    label: string
+  ): Promise<{
+    root: bigint
+    leaf: bigint
+    index: bigint
+    siblings: bigint[]
+    depth: number
+  }> => {
+    const url = `${API_BASE_URL}/api/v1/asp/proof/${label}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(error.error || `ASP proof error: ${response.statusText}`)
+    }
+
+    const result: ASPProofResponse = await response.json()
+
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get ASP proof')
+    }
+
+    // Convert string values to bigint
+    return {
+      root: BigInt(result.data.root),
+      leaf: BigInt(result.data.leaf),
+      index: BigInt(result.data.index),
+      siblings: result.data.siblings.map((s) => BigInt(s)),
+      depth: result.data.depth,
+    }
+  },
+
+  /**
+   * Force rebuild the ASP tree and update on-chain root.
+   * Used for debugging/testing.
+   */
+  rebuild: async (): Promise<ASPRebuildResponse['data']> => {
+    const url = `${API_BASE_URL}/api/v1/asp/rebuild`
+    const response = await fetch(url, { method: 'POST' })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(error.error || `ASP rebuild error: ${response.statusText}`)
+    }
+
+    const result: ASPRebuildResponse = await response.json()
+    return result.data
+  },
+}
+
+// ============================================================
+// Health Types (System health and pre-flight checks)
+// ============================================================
+
+export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'
+
+export interface ComponentHealth {
+  component: 'indexer' | 'asp' | 'stateTree' | 'chain'
+  status: HealthStatus
+  details: {
+    lastBlock?: number
+    chainHead?: number
+    blocksBehind?: number
+    localRoot?: string
+    onChainRoot?: string
+    rootSynced?: boolean
+    error?: string
+  }
+}
+
+export interface OperationAvailability {
+  available: boolean
+  blockers: string[]
+}
+
+export interface SystemHealth {
+  overall: HealthStatus
+  components: ComponentHealth[]
+  operations: {
+    quickPay: OperationAvailability
+    stealthPay: OperationAvailability
+    privateSend: OperationAvailability
+  }
+  timestamp: number
+}
+
+export interface PreflightChecks {
+  indexerSynced: boolean
+  aspSynced: boolean
+  stateTreeValid: boolean
+  labelExists: boolean
+}
+
+export interface PreflightResult {
+  canProceed: boolean
+  checks: PreflightChecks
+  errors: string[]
+  warnings: string[]
+  retryAfterMs?: number
+}
+
+export interface IndexerHealth {
+  status: HealthStatus
+  lastBlock: number | null
+  chainHead: number | null
+  blocksBehind: number | null
+  timestamp: number
+}
+
+// ============================================================
+// Health API (public - sync status and pre-flight checks)
+// ============================================================
+
+export const healthApi = {
+  /**
+   * Get overall system health status.
+   * @param chainId - Optional chain ID
+   */
+  getStatus: async (chainId?: number): Promise<SystemHealth> => {
+    const query = chainId !== undefined ? `?chainId=${chainId}` : ''
+    const url = `${API_BASE_URL}/api/v1/health/status${query}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Health API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Run pre-flight check for an operation.
+   * @param operation - Operation type: 'quickpay', 'stealthpay', or 'privatesend'
+   * @param params - Operation-specific params (poolAddress, depositLabel for privatesend)
+   */
+  preflight: async (
+    operation: 'quickpay' | 'stealthpay' | 'privatesend',
+    params?: {
+      poolAddress?: string
+      depositLabel?: string
+      chainId?: number
+    }
+  ): Promise<PreflightResult> => {
+    const query = new URLSearchParams()
+    if (params?.poolAddress) query.set('poolAddress', params.poolAddress)
+    if (params?.depositLabel) query.set('depositLabel', params.depositLabel)
+    if (params?.chainId !== undefined) query.set('chainId', String(params.chainId))
+    const queryString = query.toString()
+
+    const url = `${API_BASE_URL}/api/v1/health/preflight/${operation}${queryString ? `?${queryString}` : ''}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(error.error || `Preflight check failed: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Get indexer sync status specifically.
+   * @param chainId - Optional chain ID
+   */
+  getIndexerStatus: async (chainId?: number): Promise<IndexerHealth> => {
+    const query = chainId !== undefined ? `?chainId=${chainId}` : ''
+    const url = `${API_BASE_URL}/api/v1/health/indexer${query}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Indexer health API error: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Check if system is healthy enough for a specific operation.
+   * Convenience method that combines getStatus + operation check.
+   */
+  canPerformOperation: async (
+    operation: 'quickPay' | 'stealthPay' | 'privateSend',
+    chainId?: number
+  ): Promise<{ available: boolean; blockers: string[] }> => {
+    const health = await healthApi.getStatus(chainId)
+    return health.operations[operation]
+  },
 }

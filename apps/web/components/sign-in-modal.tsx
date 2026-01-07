@@ -1,27 +1,29 @@
 'use client'
 
 /**
- * Sign-in modal with 3-step onboarding flow.
+ * Sign-in modal with 4-step onboarding flow.
  *
  * Steps:
  * 1. Connect Wallet - uses AppKit modal
  * 2. Sign In (SIWE) - creates secure session
  * 3. Unlock Keys - derives stealth keys locally
+ * 4. Pool Keys - derives privacy pool keys
  *
- * Security: Step 3 is gated behind Step 2 completion.
+ * Security: Steps 3-4 are gated behind Step 2 completion.
  * Supports light/dark themes via CSS variables.
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
-import { Check, Loader2, Wallet, Shield, Key, AlertCircle, X } from 'lucide-react'
+import { Check, Loader2, Wallet, Shield, Key, AlertCircle, X, Lock } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/auth-context'
 import { useStealthContext } from '@/contexts/stealth-context'
+import { usePoolContext } from '@/contexts/pool-context'
 import { cn } from '@/lib/utils'
 
-type Step = 'connect' | 'siwe' | 'keys'
+type Step = 'connect' | 'siwe' | 'keys' | 'pool'
 type StepStatus = 'pending' | 'active' | 'complete' | 'error'
 
 interface StepConfig {
@@ -46,9 +48,15 @@ const steps: StepConfig[] = [
   },
   {
     id: 'keys',
-    title: 'Unlock Keys',
+    title: 'Stealth Keys',
     description: 'Generate your private stealth keys',
     icon: <Key className="h-5 w-5" />,
+  },
+  {
+    id: 'pool',
+    title: 'Pool Keys',
+    description: 'Enable privacy pool deposits',
+    icon: <Lock className="h-5 w-5" />,
   },
 ]
 
@@ -64,12 +72,15 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
   const { isConnected } = useAppKitAccount()
   const { isAuthenticated, isAuthenticating, signIn: authSignIn, error: authError } = useAuth()
   const { hasKeys, isDerivingKeys, deriveKeys } = useStealthContext()
+  const { hasPoolKeys, isDerivingKeys: isDerivingPoolKeys, derivePoolKeys } = usePoolContext()
 
   const [currentStep, setCurrentStep] = useState<Step>('connect')
   const [stepError, setStepError] = useState<string | null>(null)
   const [isComplete, setIsComplete] = useState(false)
-  const [awaitingConnection, setAwaitingConnection] = useState(false)
+  const [_awaitingConnection, setAwaitingConnection] = useState(false)
   const prevConnected = useRef(isConnected)
+  // Track if we've already opened AppKit for this modal session
+  const hasOpenedAppKit = useRef(false)
 
   // Detect wallet connection changes and advance step
   useEffect(() => {
@@ -81,16 +92,16 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
     prevConnected.current = isConnected
   }, [isConnected, open])
 
-  // Handle modal close - prevent closing while awaiting wallet connection
+  // Handle modal close
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
-      // If trying to close while awaiting connection, ignore
-      if (!newOpen && awaitingConnection && !isConnected) {
-        return
+      // Reset awaiting state when closing
+      if (!newOpen) {
+        setAwaitingConnection(false)
       }
       onOpenChange(newOpen)
     },
-    [awaitingConnection, isConnected, onOpenChange]
+    [onOpenChange]
   )
 
   // Determine step statuses
@@ -114,6 +125,13 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
       if (isAuthenticated && !hasKeys) return 'pending'
       return 'pending'
     }
+    if (step === 'pool') {
+      if (hasPoolKeys) return 'complete'
+      if (currentStep === 'pool' && isDerivingPoolKeys) return 'active'
+      if (currentStep === 'pool') return stepError ? 'error' : 'active'
+      if (hasKeys && !hasPoolKeys) return 'pending'
+      return 'pending'
+    }
     return 'pending'
   }
 
@@ -123,10 +141,16 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
 
     if (!isConnected) {
       setCurrentStep('connect')
+      setIsComplete(false) // Reset complete state when going back
     } else if (!isAuthenticated) {
       setCurrentStep('siwe')
+      setIsComplete(false)
     } else if (!hasKeys) {
       setCurrentStep('keys')
+      setIsComplete(false)
+    } else if (!hasPoolKeys) {
+      setCurrentStep('pool')
+      setIsComplete(false)
     } else {
       // All complete
       setIsComplete(true)
@@ -138,18 +162,26 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
       }, 1500)
       return () => clearTimeout(timer)
     }
-  }, [open, isConnected, isAuthenticated, hasKeys, onOpenChange, onComplete])
+  }, [open, isConnected, isAuthenticated, hasKeys, hasPoolKeys, onOpenChange, onComplete])
 
   // Clear errors when step changes
   useEffect(() => {
     setStepError(null)
   }, [currentStep])
 
+  // Reset hasOpenedAppKit when modal closes or wallet disconnects
+  useEffect(() => {
+    if (!open || !isConnected) {
+      hasOpenedAppKit.current = false
+    }
+  }, [open, isConnected])
+
   // Auto-open wallet picker when modal opens and not connected
   useEffect(() => {
-    if (open && !isConnected && currentStep === 'connect') {
+    if (open && !isConnected && currentStep === 'connect' && !hasOpenedAppKit.current) {
       // Small delay to let modal render first
       const timer = setTimeout(() => {
+        hasOpenedAppKit.current = true
         setAwaitingConnection(true)
         openAppKit()
       }, 150)
@@ -159,6 +191,7 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
 
   // Handle connect wallet
   const handleConnect = useCallback(() => {
+    hasOpenedAppKit.current = true
     setAwaitingConnection(true)
     openAppKit()
   }, [openAppKit])
@@ -199,6 +232,29 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
     }
   }, [isAuthenticated, deriveKeys])
 
+  // Handle pool key derivation (GATED behind stealth keys)
+  const handleDerivePoolKeys = useCallback(async () => {
+    // Security gate: must have stealth keys first
+    if (!hasKeys) {
+      setStepError('Please derive stealth keys first')
+      setCurrentStep('keys')
+      return
+    }
+
+    setStepError(null)
+    try {
+      await derivePoolKeys()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Pool key derivation failed'
+      // User rejection is not an error
+      if (message.includes('User rejected') || message.includes('cancelled')) {
+        setStepError('Cancelled. Click to try again.')
+      } else {
+        setStepError(message)
+      }
+    }
+  }, [hasKeys, derivePoolKeys])
+
   // Get current step action
   const getCurrentAction = () => {
     switch (currentStep) {
@@ -208,6 +264,8 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
         return handleSignIn
       case 'keys':
         return handleDeriveKeys
+      case 'pool':
+        return handleDerivePoolKeys
     }
   }
 
@@ -225,11 +283,15 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
       case 'keys':
         if (isDerivingKeys) return 'Waiting for signature...'
         if (stepError) return 'Try Again'
-        return 'Unlock Keys'
+        return 'Unlock Stealth Keys'
+      case 'pool':
+        if (isDerivingPoolKeys) return 'Waiting for signature...'
+        if (stepError) return 'Try Again'
+        return 'Unlock Pool Keys'
     }
   }
 
-  const isLoading = isAuthenticating || isDerivingKeys
+  const isLoading = isAuthenticating || isDerivingKeys || isDerivingPoolKeys
   const currentStepConfig = steps.find((s) => s.id === currentStep)
 
   return (
@@ -271,7 +333,8 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
                 >
                   {status === 'complete' ? (
                     <Check className="h-4 w-4" />
-                  ) : status === 'active' && (isAuthenticating || isDerivingKeys) ? (
+                  ) : status === 'active' &&
+                    (isAuthenticating || isDerivingKeys || isDerivingPoolKeys) ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : status === 'error' ? (
                     <AlertCircle className="h-4 w-4" />
@@ -342,11 +405,12 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
               <p className="text-muted-foreground mb-4 text-sm">{currentStepConfig.description}</p>
 
               {/* Extra info for signature steps */}
-              {(currentStep === 'siwe' || currentStep === 'keys') && !stepError && (
-                <p className="text-primary/80 mb-4 text-xs">
-                  This is a signature, not a transaction. No gas fees.
-                </p>
-              )}
+              {(currentStep === 'siwe' || currentStep === 'keys' || currentStep === 'pool') &&
+                !stepError && (
+                  <p className="text-primary/80 mb-4 text-xs">
+                    This is a signature, not a transaction. No gas fees.
+                  </p>
+                )}
 
               {/* Error message */}
               {stepError && <p className="text-destructive mb-4 text-sm">{stepError}</p>}
@@ -363,6 +427,11 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
                   Your keys are stored locally and never leave your device.
                 </p>
               )}
+              {currentStep === 'pool' && !stepError && (
+                <p className="text-muted-foreground mt-4 text-xs">
+                  Pool keys enable anonymous ZK withdrawals from the privacy pool.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -375,7 +444,7 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
             </div>
             <h3 className="text-foreground mb-2 text-xl font-medium">You&apos;re all set!</h3>
             <p className="text-muted-foreground text-sm">
-              Your wallet is connected and your stealth keys are ready.
+              Your wallet is connected, stealth keys unlocked, and privacy pool enabled.
             </p>
           </div>
         )}
