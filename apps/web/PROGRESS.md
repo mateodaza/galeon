@@ -107,6 +107,20 @@
 - [x] Auto-scan on page load when keys are available
 - [x] Removed manual "Scan Now" button (auto-scan handles it)
 
+## Pre-Launch TODOs
+
+> Features referenced in website copy that need implementation.
+
+| TODO                             | Priority | Notes                                                        |
+| -------------------------------- | -------- | ------------------------------------------------------------ |
+| Receipt verification (`/verify`) | High     | Page stub exists; integrate with Ponder API                  |
+| Shipwreck reports UI             | High     | About page mentions it; need JSON export at minimum          |
+| Port deactivation UX             | Medium   | Contract supports deactivation; currently shows archive-only |
+| Ragequit UI                      | Medium   | Contract ready; roadmap says "UI coming soon"                |
+| Direct withdrawal option         | Low      | Add note that relayer can be bypassed (loses sender privacy) |
+
+---
+
 **Next Steps:**
 
 1. Integrate GaleonTender for batch collection (gas savings)

@@ -14,7 +14,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'How does receiving privately work?',
     answer:
-      'Create a Port (payment link) and share it. Each payment generates a unique stealth address — only you can find and spend from it. Ports can be permanent for ongoing use or one-time for single payments.',
+      'Create a Port (payment link) and share it. Each payment generates a unique stealth address — only you can find and spend from it. Ports are permanent and can be deactivated when no longer needed.',
   },
   {
     question: 'How does sending privately work?',
@@ -39,12 +39,12 @@ const faqItems: FaqItem[] = [
   {
     question: 'Is my private key stored anywhere?',
     answer:
-      'Never. Your spending key is derived on-demand from your wallet signature. Galeon never stores or transmits your private keys.',
+      "Your spending key is derived from your wallet signature and stored only in your browser's local storage — never sent to servers. Galeon never transmits your private keys.",
   },
   {
     question: 'Why Mantle?',
     answer:
-      'Privacy on Ethereum mainnet costs $50+ per transaction. On Mantle, it costs cents. We believe privacy should be accessible to everyone, not just whales.',
+      'Privacy on Ethereum mainnet can cost $50+ per transaction. On Mantle, costs are significantly lower — typically cents. We believe privacy should be accessible to everyone, not just whales.',
   },
 ]
 

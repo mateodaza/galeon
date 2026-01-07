@@ -115,6 +115,21 @@ Port C ──┘        (merge)              (1 proof, 30s)
 
 ---
 
+## Pre-Launch TODOs (Must Complete Before Go-Live)
+
+> These items are referenced in website copy and need implementation before launch.
+
+| TODO                                     | Status      | Priority | Notes                                                                                    |
+| ---------------------------------------- | ----------- | -------- | ---------------------------------------------------------------------------------------- |
+| **Receipt verification flow**            | Not Started | High     | `/verify` page stub exists; needs Ponder integration to verify receipts                  |
+| **Shipwreck reports (proof generation)** | Not Started | High     | Referenced in FAQ and About page; needs minimal JSON export at minimum                   |
+| **Port deactivation UX**                 | Not Started | Medium   | Contract supports it (`GaleonRegistry.sol:135`); UI shows archive-only currently         |
+| **Ragequit UI**                          | Not Started | Medium   | Contract supports ragequit; roadmap says "UI coming soon"                                |
+| **About page contract address sourcing** | Not Started | Low      | Currently hardcoded; should source from `packages/config/src/contracts.ts`               |
+| **Relayer bypass UX note**               | Not Started | Low      | Relayer is optional; UX should convey users CAN withdraw directly (loses sender privacy) |
+
+---
+
 ## Known Limitations / Future Improvements
 
 | Issue                      | Status      | Notes                                                                                                                                                                                                                                                               |

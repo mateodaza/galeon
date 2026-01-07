@@ -33,7 +33,11 @@ export default function Home() {
         {/* Footer */}
         <footer className="border-t border-white/10 bg-slate-950 px-6 py-6 text-center text-sm text-cyan-100/70">
           <Link href="/about" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
-            About Galeon
+            About
+          </Link>
+          <span className="mx-2">·</span>
+          <Link href="/roadmap" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Roadmap
           </Link>
           <span className="mx-2">·</span>
           Built for Mantle Global Hackathon 2025

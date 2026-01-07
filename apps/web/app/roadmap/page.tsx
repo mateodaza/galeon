@@ -1,0 +1,382 @@
+import Link from 'next/link'
+import { FloatingNav } from '@/components/layout/floating-nav'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
+import { CheckCircle2, Zap, Shield, Users, Globe } from 'lucide-react'
+
+export const metadata = {
+  title: 'Roadmap | Galeon',
+  description: "Where we are, where we're going, and the challenges we're solving",
+}
+
+export default function RoadmapPage() {
+  return (
+    <>
+      {/* Global animated gradient background - fixed to viewport */}
+      <div className="fixed inset-0 -z-10">
+        <DeepSeaGradient variant="ocean" intensity="calm" />
+      </div>
+
+      <main className="relative flex min-h-screen flex-col">
+        <FloatingNav />
+
+        {/* Content */}
+        <div className="mx-auto max-w-4xl px-6 pb-16 pt-40">
+          {/* Glass container */}
+          <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-8 shadow-2xl backdrop-blur-xl sm:p-12">
+            {/* Hero */}
+            <h1 className="text-4xl font-bold text-white sm:text-5xl">
+              Roadmap & <span className="text-cyan-400">Vision</span>
+            </h1>
+            <p className="mt-4 text-lg text-cyan-100/70">
+              Building privacy infrastructure that scales. Here&apos;s where we are and where
+              we&apos;re headed.
+            </p>
+
+            {/* Current Status */}
+            <section className="mt-16">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-emerald-500/20 text-emerald-400">Live on Mantle</Badge>
+                <span className="text-sm text-cyan-100/50">Hackathon MVP</span>
+              </div>
+              <h2 className="mt-4 text-2xl font-bold text-white">What&apos;s Working Today</h2>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Stealth Payments"
+                  description="EIP-5564 stealth addresses with Ports for isolated payment identities"
+                  status="complete"
+                />
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Privacy Pool"
+                  description="Deposit, withdraw with ZK proofs, and ragequit support (UI coming soon)"
+                  status="complete"
+                />
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Private Withdrawals"
+                  description="Relayer broadcasts transactions so your address stays hidden"
+                  status="complete"
+                />
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Verified Balance Gating"
+                  description="Only verified stealth address funds can enter the pool"
+                  status="complete"
+                />
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Merge Deposits (O(1) Withdrawals)"
+                  description="Combine multiple deposits into one commitment — single-proof withdrawals when merged"
+                  status="complete"
+                />
+                <StatusCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                  title="Client-Side Proof Generation"
+                  description="ZK proofs generated in web workers - your secrets never leave your device"
+                  status="complete"
+                />
+              </div>
+            </section>
+
+            {/* Current Limitations */}
+            <section className="mt-16">
+              <h2 className="text-2xl font-bold text-white">Current Limitations</h2>
+              <p className="mt-4 text-cyan-100/70">Areas we&apos;re actively improving:</p>
+              <div className="mt-6 space-y-4">
+                <LimitationCard
+                  title="Single Relayer"
+                  current="We operate the only relayer for private withdrawals"
+                  why="Hackathon scope. Users CAN bypass the relayer (direct withdrawal), but lose sender privacy."
+                  planned="Permissionless relayer network - anyone can run a relayer, compete on fees"
+                />
+                <LimitationCard
+                  title="Gas Costs"
+                  current="Gas varies by operation — deposits ~150k, withdrawals ~300k on Mantle"
+                  why="ZK proof verification is computationally expensive on-chain"
+                  planned="Batched proofs, recursive SNARKs, and L3 exploration for cheaper verification"
+                />
+                <LimitationCard
+                  title="Merkle Tree Depth"
+                  current="Fixed at 32 levels (~4.3B max commitments per pool)"
+                  why="Circuit constraints require fixed tree depth at compile time"
+                  planned="Dynamic tree expansion or pool migration strategies for long-term growth"
+                />
+                <LimitationCard
+                  title="ASP Verification"
+                  current="Withdrawals are instantly approved (no real-time verification yet)"
+                  why="MVP scope — full ASP verification requires additional infrastructure"
+                  planned="Real-time compliance verification while maintaining fast approval times"
+                />
+              </div>
+            </section>
+
+            {/* Account Model - Already Implemented */}
+            <section className="mt-16">
+              <Badge className="bg-emerald-500/20 text-emerald-400">Implemented</Badge>
+              <h2 className="mt-4 text-2xl font-bold text-white">
+                Account Model: O(1) Withdrawals (When Merged)
+              </h2>
+              <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
+                <p>
+                  We&apos;ve already solved the multiple-deposit scalability problem. Instead of
+                  creating a new commitment for each deposit, users can{' '}
+                  <strong className="text-white">merge deposits</strong> into a single account
+                  commitment.
+                </p>
+                <div className="rounded-lg border border-white/10 bg-slate-800/50 p-6">
+                  <p className="font-mono text-sm text-cyan-100/80">
+                    <span className="text-cyan-400">// Without merge (old way)</span>
+                    <br />
+                    Deposit 10 → Commitment A<br />
+                    Deposit 5 → Commitment B<br />
+                    Deposit 3 → Commitment C<br />
+                    <span className="text-amber-400">
+                      Withdraw all: Need 3 separate withdrawals
+                    </span>
+                  </p>
+                  <div className="my-4 border-t border-white/10" />
+                  <p className="font-mono text-sm text-cyan-100/80">
+                    <span className="text-cyan-400">// With merge (current)</span>
+                    <br />
+                    Deposit 10 → Commitment A (value: 10)
+                    <br />
+                    Deposit 5 → Merge into A (value: 15)
+                    <br />
+                    Deposit 3 → Merge into A (value: 18)
+                    <br />
+                    <span className="text-emerald-400">
+                      Withdraw any amount: Single proof, ~10-30 sec
+                    </span>
+                  </p>
+                </div>
+                <p>
+                  The merge deposit circuit is fully implemented and deployed. Proof generation runs
+                  in a web worker (non-blocking UI) and typically takes 10-30 seconds depending on
+                  your device.
+                </p>
+              </div>
+            </section>
+
+            {/* Future Vision */}
+            <section className="mt-16">
+              <h2 className="text-2xl font-bold text-white">What&apos;s Next</h2>
+              <div className="mt-8 space-y-6">
+                <VisionCard
+                  icon={<Users className="h-6 w-6" />}
+                  title="Permissionless Relayer Network"
+                  description="Anyone can run a relayer and earn fees. Users choose based on price, speed, and reputation. No single point of failure or censorship."
+                />
+                <VisionCard
+                  icon={<Zap className="h-6 w-6" />}
+                  title="Sub-Second Proof Generation"
+                  description="GPU-accelerated proving, potentially moving to faster proof systems. Target: <5 second proofs on mobile devices."
+                />
+                <VisionCard
+                  icon={<Shield className="h-6 w-6" />}
+                  title="Cross-Chain Privacy"
+                  description="Bridge privacy pools across chains. Deposit on Ethereum, withdraw on Mantle with the same privacy guarantees."
+                />
+                <VisionCard
+                  icon={<Globe className="h-6 w-6" />}
+                  title="Privacy-Preserving Compliance"
+                  description="Prove you're not sanctioned without revealing your identity. Our ASP targets instant verification — unlike traditional Privacy Pools' 7-day approval window."
+                />
+              </div>
+            </section>
+
+            {/* Technical Comparison */}
+            <section className="mt-16">
+              <h2 className="text-2xl font-bold text-white">Built on Giants: 0xbow Comparison</h2>
+              <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
+                <p>
+                  Galeon extends the{' '}
+                  <a
+                    href="https://privacypools.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
+                  >
+                    0xbow Privacy Pools protocol
+                  </a>
+                  . Here&apos;s what we added:
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-left">
+                        <th className="pb-3 pr-4 font-medium text-white">Feature</th>
+                        <th className="pb-3 pr-4 font-medium text-white">0xbow</th>
+                        <th className="pb-3 font-medium text-white">Galeon</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-cyan-100/70">
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">Deposit source</td>
+                        <td className="py-3 pr-4">Any address</td>
+                        <td className="py-3 text-cyan-400">Port-only (stealth addresses)</td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">Balance verification</td>
+                        <td className="py-3 pr-4">None</td>
+                        <td className="py-3 text-cyan-400">Verified balance gating</td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">Address freezing</td>
+                        <td className="py-3 pr-4">None</td>
+                        <td className="py-3 text-cyan-400">Compliance freezing</td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">Upgradeability</td>
+                        <td className="py-3 pr-4">Immutable</td>
+                        <td className="py-3 text-cyan-400">UUPS proxies</td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">Withdrawal scaling</td>
+                        <td className="py-3 pr-4">O(N) deposits</td>
+                        <td className="py-3 text-cyan-400">O(1) with Account Model</td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4">ASP approval time</td>
+                        <td className="py-3 pr-4">~7 days</td>
+                        <td className="py-3 text-cyan-400">Instant (MVP)</td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 pr-4">Contract size</td>
+                        <td className="py-3 pr-4">186 lines</td>
+                        <td className="py-3">409 lines (more features)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-4 text-sm">
+                  Trade-off: Galeon is more complex but production-ready for compliance-conscious
+                  use cases.
+                </p>
+              </div>
+            </section>
+
+            {/* CTA */}
+            <section className="mt-16 text-center">
+              <h2 className="text-2xl font-bold text-white">Join the Journey</h2>
+              <p className="mt-2 text-cyan-100/70">
+                We&apos;re building privacy infrastructure for the long term.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                <Button size="lg" asChild>
+                  <Link href="/setup">Try Galeon</Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  asChild
+                  className="border border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                >
+                  <a
+                    href="https://github.com/galeon-privacy/galeon"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Source
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  asChild
+                  className="border border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/about">Read Our Story</Link>
+                </Button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-auto border-t border-white/10 bg-slate-950 px-6 py-6 text-center text-sm text-cyan-100/70">
+          Built for Mantle Global Hackathon 2025
+        </footer>
+      </main>
+    </>
+  )
+}
+
+function StatusCard({
+  icon,
+  title,
+  description,
+  status: _status,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+  status: 'complete' | 'in-progress' | 'planned'
+}) {
+  return (
+    <Card className="border-white/10 bg-slate-800/50">
+      <CardContent className="flex gap-4 pt-6">
+        <div className="shrink-0">{icon}</div>
+        <div>
+          <h3 className="font-semibold text-white">{title}</h3>
+          <p className="mt-1 text-sm text-cyan-100/70">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function LimitationCard({
+  title,
+  current,
+  why,
+  planned,
+}: {
+  title: string
+  current: string
+  why: string
+  planned: string
+}) {
+  return (
+    <div className="rounded-lg border border-amber-500/20 bg-amber-950/20 p-6">
+      <h3 className="font-semibold text-amber-400">{title}</h3>
+      <div className="mt-3 space-y-2 text-sm">
+        <p>
+          <span className="text-cyan-100/50">Current:</span>{' '}
+          <span className="text-cyan-100/80">{current}</span>
+        </p>
+        <p>
+          <span className="text-cyan-100/50">Why:</span>{' '}
+          <span className="text-cyan-100/70">{why}</span>
+        </p>
+        <p>
+          <span className="text-cyan-100/50">Planned:</span>{' '}
+          <span className="text-emerald-400">{planned}</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function VisionCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <div className="flex gap-4 rounded-lg border border-white/10 bg-slate-800/30 p-6">
+      <div className="shrink-0 text-cyan-400">{icon}</div>
+      <div className="flex-1">
+        <h3 className="font-semibold text-white">{title}</h3>
+        <p className="mt-2 text-sm text-cyan-100/70">{description}</p>
+      </div>
+    </div>
+  )
+}

@@ -25,7 +25,7 @@ export function CtaCard() {
         <div>
           <h2 className="text-2xl font-bold text-white">Ready to accept private payments?</h2>
           <p className="mt-2 text-cyan-100/70">
-            Set up your first Port in minutes. No backend required.
+            Set up your first Port in minutes. Non-custodial by design.
           </p>
         </div>
         {animationsEnabled ? (
