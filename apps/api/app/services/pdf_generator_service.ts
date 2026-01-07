@@ -1,5 +1,14 @@
-import PdfPrinter from 'pdfmake'
+// @ts-expect-error - pdfmake has complex module structure in v0.3.0
+import printerModule from 'pdfmake/js/Printer.js'
+import pdfmakeSingleton from 'pdfmake'
+// @ts-expect-error - standard fonts module
+import helveticaFonts from 'pdfmake/build/standard-fonts/Helvetica.js'
 import type { TaxSummaryReport } from '#services/compliance_service'
+
+// pdfmake 0.3.0 has double-wrapped exports
+const PdfPrinter = printerModule.default
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pdfmake = pdfmakeSingleton as any
 
 // pdfmake type definitions
 // Using inline types since pdfmake/interfaces may not resolve in pnpm monorepo
@@ -88,18 +97,26 @@ interface TDocumentDefinitions {
   footer?: DynamicContent | Content
   content: Content
   styles?: StyleDictionary
+  defaultStyle?: { font?: string }
 }
 
+// Flag to track if fonts have been registered
+let fontsRegistered = false
+
 /**
- * Standard fonts for pdfmake
+ * Register standard Helvetica fonts in pdfmake virtual file system
  */
-const fonts = {
-  Roboto: {
-    normal: 'node_modules/pdfmake/build/vfs_fonts/Roboto-Regular.ttf',
-    bold: 'node_modules/pdfmake/build/vfs_fonts/Roboto-Medium.ttf',
-    italics: 'node_modules/pdfmake/build/vfs_fonts/Roboto-Italic.ttf',
-    bolditalics: 'node_modules/pdfmake/build/vfs_fonts/Roboto-MediumItalic.ttf',
-  },
+function registerFonts(): void {
+  if (fontsRegistered) return
+
+  // Register font files in virtual file system
+  for (const [path, fileData] of Object.entries(
+    helveticaFonts.vfs as Record<string, { data: string }>
+  )) {
+    pdfmake.virtualfs.writeFileSync(path, fileData.data)
+  }
+
+  fontsRegistered = true
 }
 
 /**
@@ -140,10 +157,14 @@ function truncateAddress(address: string | null): string {
 }
 
 export default class PdfGeneratorService {
-  private printer: PdfPrinter
+  private printer: InstanceType<typeof PdfPrinter>
 
   constructor() {
-    this.printer = new PdfPrinter(fonts)
+    // Register fonts on first use
+    registerFonts()
+
+    // Create printer with Helvetica fonts and pdfmake's virtual file system
+    this.printer = new PdfPrinter(helveticaFonts.fonts, pdfmake.virtualfs, pdfmake.urlResolver())
   }
 
   /**
@@ -210,6 +231,7 @@ export default class PdfGeneratorService {
       footer: this.buildFooter(report),
       content,
       styles,
+      defaultStyle: { font: 'Helvetica' },
     }
   }
 
@@ -514,13 +536,12 @@ export default class PdfGeneratorService {
   /**
    * Create PDF buffer from document definition
    */
-  private createPdfBuffer(docDefinition: TDocumentDefinitions): Promise<Buffer> {
+  private async createPdfBuffer(docDefinition: TDocumentDefinitions): Promise<Buffer> {
+    // pdfmake 0.3.0: createPdfKitDocument is now async
+    const pdfDoc = await this.printer.createPdfKitDocument(docDefinition)
+
     return new Promise((resolve, reject) => {
       try {
-        // Cast to satisfy pdfmake's expected type from @types/pdfmake
-        const pdfDoc = this.printer.createPdfKitDocument(
-          docDefinition as Parameters<typeof this.printer.createPdfKitDocument>[0]
-        )
         const chunks: Buffer[] = []
 
         pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk))
