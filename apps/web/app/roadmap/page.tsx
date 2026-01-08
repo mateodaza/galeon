@@ -54,11 +54,11 @@ export default function RoadmapPage() {
                 />
                 <StatusCard
                   title="Merge Deposits"
-                  description="Combine multiple deposits into one — withdraw everything with a single proof, no matter how many times you deposited"
+                  description="Combine multiple deposits into one. Withdraw everything with a single proof, no matter how many times you deposited"
                 />
                 <StatusCard
                   title="Client-Side Proof Generation"
-                  description="ZK proofs generated in your browser — your secrets never leave your device"
+                  description="ZK proofs generated in your browser. Your secrets never leave your device"
                 />
               </div>
             </section>
@@ -76,7 +76,7 @@ export default function RoadmapPage() {
                 />
                 <LimitationCard
                   title="Gas Costs"
-                  current="Gas varies by operation — deposits ~150k, withdrawals ~300k on Mantle"
+                  current="Gas varies by operation: deposits ~150k, withdrawals ~300k on Mantle"
                   why="ZK proof verification is computationally expensive on-chain"
                   planned="Batched proofs, recursive SNARKs, and L3 exploration for cheaper verification"
                 />
@@ -89,7 +89,7 @@ export default function RoadmapPage() {
                 <LimitationCard
                   title="ASP Verification"
                   current="Withdrawals are instantly approved (no real-time verification yet)"
-                  why="MVP scope — full ASP verification requires additional infrastructure"
+                  why="MVP scope. Full ASP verification requires additional infrastructure"
                   planned="Real-time compliance verification while maintaining fast approval times"
                 />
               </div>
@@ -163,7 +163,7 @@ export default function RoadmapPage() {
                 <VisionCard
                   number="04"
                   title="Privacy-Preserving Compliance"
-                  description="Prove you're not sanctioned without revealing your identity. Our ASP targets instant verification — unlike traditional Privacy Pools' 7-day approval window."
+                  description="Prove you're not sanctioned without revealing your identity. Our ASP targets instant verification, unlike traditional Privacy Pools' 7-day approval window."
                 />
               </div>
             </section>

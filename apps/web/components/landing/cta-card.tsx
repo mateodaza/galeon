@@ -25,7 +25,7 @@ export function CtaCard() {
         <div>
           <h2 className="text-2xl font-bold text-white">Ready to get paid privately?</h2>
           <p className="mt-2 text-cyan-100/70">
-            Freelancers, creators, and businesses — set up your first Port in minutes.
+            Freelancers, creators, and businesses: set up your first Port in minutes.
           </p>
         </div>
         {animationsEnabled ? (

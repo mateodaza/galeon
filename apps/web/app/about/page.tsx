@@ -75,7 +75,7 @@ export default function AboutPage() {
                   <strong className="text-white">Ports</strong> protect receivers.{' '}
                   <strong className="text-white">Privacy Pool</strong> protects senders.{' '}
                   <strong className="text-white">Shipwreck Reports</strong> keep you compliant.
-                  Privacy and compliance — not privacy vs compliance.
+                  Privacy and compliance, not privacy vs compliance.
                 </p>
               </div>
             </section>
@@ -87,7 +87,7 @@ export default function AboutPage() {
                 <FeatureBlock
                   number="01"
                   title="Ports (Receiver Privacy)"
-                  description="Create payment links for invoices, freelance work, or donations. Share with clients — each payment generates a fresh stealth address that only you can access. Separate Ports for separate income streams."
+                  description="Create payment links for invoices, freelance work, or donations. Share with clients. Each payment generates a fresh stealth address that only you can access. Separate Ports for separate income streams."
                 />
                 <FeatureBlock
                   number="02"
@@ -107,8 +107,8 @@ export default function AboutPage() {
               <h2 className="text-2xl font-bold text-white">Privacy Pool: Breaking the Trail</h2>
               <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
                 <p>
-                  Stealth addresses solve <strong className="text-white">receiving privacy</strong>{' '}
-                  — no one can link payments to your identity. But what happens when you spend those
+                  Stealth addresses solve <strong className="text-white">receiving privacy</strong>:
+                  no one can link payments to your identity. But what happens when you spend those
                   funds? The blockchain creates a trail from your stealth address to wherever you
                   send money next.
                 </p>
@@ -124,7 +124,7 @@ export default function AboutPage() {
                   <strong className="text-white">0xBow&apos;s Privacy Pools protocol</strong>, our
                   implementation uses Merkle trees to track deposits and ZK-SNARKs for withdrawals.
                   Each withdrawal proves: (1) you have a valid deposit in the tree, and (2) you
-                  haven&apos;t withdrawn it before — all without revealing which deposit.
+                  haven&apos;t withdrawn it before. All without revealing which deposit.
                 </p>
                 <p>
                   <strong className="text-white">Comprehensive financial privacy</strong> requires
@@ -139,7 +139,7 @@ export default function AboutPage() {
               <h2 className="text-2xl font-bold text-white">Built on Standards</h2>
               <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
                 <p>
-                  We didn&apos;t invent new cryptography — we assembled battle-tested standards into
+                  We didn&apos;t invent new cryptography. We assembled battle-tested standards into
                   a complete privacy solution.
                 </p>
               </div>
@@ -179,13 +179,13 @@ export default function AboutPage() {
                     <code className="rounded bg-slate-800 px-1 text-xs text-cyan-400">
                       @noble/hashes
                     </code>{' '}
-                    — audited secp256k1 and hashing implementations.
+                    for audited secp256k1 and hashing implementations.
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-slate-800/30 p-5">
                   <h3 className="font-semibold text-white">Deployed on Mantle</h3>
                   <p className="mt-2 text-sm text-cyan-100/70">
-                    Ethereum L2 with low fees and fast finality. Privacy on mainnet costs $50+ per
+                    Ethereum L2 with low fees and fast finality. Privacy on mainnet costs $20-40 per
                     tx. On Mantle, it costs cents.
                   </p>
                 </div>
@@ -256,12 +256,12 @@ export default function AboutPage() {
                 <p>
                   <strong className="text-white">Server-free key management.</strong> Your spending
                   keys are derived from your wallet signature and cached in your browser&apos;s
-                  local storage for convenience — never sent to servers. If Galeon disappeared
+                  local storage for convenience, never sent to servers. If Galeon disappeared
                   tomorrow, you could still access your funds with your wallet and the math alone.
                 </p>
                 <p>
                   <strong className="text-white">No indispensable intermediaries.</strong> Our
-                  relayer helps preserve your privacy by broadcasting transactions on your behalf —
+                  relayer helps preserve your privacy by broadcasting transactions on your behalf,
                   but you can always bypass it. Every withdrawal can be submitted directly to the
                   smart contract. The relayer can&apos;t steal funds, modify proofs, or censor you.
                   ZK proofs are verified on-chain, not trusted from a server.
@@ -269,7 +269,7 @@ export default function AboutPage() {
                 <p>
                   <strong className="text-white">No unverifiable outcomes.</strong> Every state
                   change in Galeon is reproducible from public blockchain data. Merkle proofs,
-                  nullifiers, commitments — all verifiable by anyone. We don&apos;t ask you to trust
+                  nullifiers, commitments: all verifiable by anyone. We don&apos;t ask you to trust
                   us. We ask you to verify.
                 </p>
                 <p>

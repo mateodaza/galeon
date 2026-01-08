@@ -127,9 +127,14 @@ export function useCreatePort() {
     setHash(undefined)
     setIsPending(true)
 
+    // Track state for cleanup on error
+    let backendPortId: string | null = null
+    let txWasSent = false
+
     try {
       // Step 1: Create port in backend (just name) → get UUID
       const backendPort = await portsApi.create({ name, chainId })
+      backendPortId = backendPort.id
 
       // Step 2: Derive keys using UUID hash as portIndex (prevents key reuse)
       const portIndex = uuidToPortIndex(backendPort.id)
@@ -148,21 +153,6 @@ export function useCreatePort() {
       // Step 3: Update port with stealth keys
       await portsApi.update(backendPort.id, { stealthMetaAddress, viewingKey })
 
-      // Optimistically add to cache
-      queryClient.setQueryData<Port[]>(['ports'], (old) => {
-        const newPort: Port = {
-          id: backendPort.id,
-          portId: null,
-          name: backendPort.name,
-          stealthMetaAddress,
-          isActive: true,
-          status: 'pending',
-          txHash: null,
-          createdAt: backendPort.createdAt,
-        }
-        return old ? [newPort, ...old] : [newPort]
-      })
-
       // Step 4: Generate on-chain portId and send transaction
       const random = crypto.getRandomValues(new Uint8Array(16))
       const onChainPortId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
@@ -180,9 +170,25 @@ export function useCreatePort() {
         args: [onChainPortId, name, metaAddressBytes],
       })
 
+      txWasSent = true
       setHash(txHash)
       setIsPending(false)
       setIsConfirming(true)
+
+      // Optimistically add to cache now that tx is sent
+      queryClient.setQueryData<Port[]>(['ports'], (old) => {
+        const newPort: Port = {
+          id: backendPort.id,
+          portId: null,
+          name: backendPort.name,
+          stealthMetaAddress,
+          isActive: true,
+          status: 'pending',
+          txHash,
+          createdAt: backendPort.createdAt,
+        }
+        return old ? [newPort, ...old] : [newPort]
+      })
 
       // Step 5: Wait for transaction receipt
       await publicClient.waitForTransactionReceipt({ hash: txHash })
@@ -214,6 +220,17 @@ export function useCreatePort() {
       setError(error)
       setIsPending(false)
       setIsConfirming(false)
+
+      // Clean up backend port only if tx was never sent (user rejected wallet prompt)
+      // If tx was sent, keep the port - it might still confirm on-chain
+      if (backendPortId && !txWasSent) {
+        try {
+          await portsApi.delete(backendPortId)
+        } catch (cleanupErr) {
+          console.error('Failed to cleanup backend port:', cleanupErr)
+        }
+      }
+
       throw error
     }
   }

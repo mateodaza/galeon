@@ -22,7 +22,7 @@ const sections: FlowSection[] = [
     id: 'receive',
     title: 'Receive',
     description:
-      'Galeon scans for incoming payments automatically. When funds arrive, you can move them to any address you control.',
+      'Galeon scans for incoming payments automatically. When funds arrive, deposit them to the Privacy Pool to break the link before moving to your wallet.',
     reverse: true,
   },
   {

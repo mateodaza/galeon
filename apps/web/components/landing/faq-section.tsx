@@ -14,32 +14,32 @@ const faqItems: FaqItem[] = [
   {
     question: 'Who is Galeon for?',
     answer:
-      'Freelancers accepting client payments, creators receiving tips or subscriptions, businesses handling invoices, anyone receiving donations — anyone who needs to get paid on-chain without exposing their full financial history.',
+      'Anyone who wants on-chain privacy with compliance built in. Freelancers, creators, businesses, donation recipients: get paid without exposing your full financial history.',
   },
   {
     question: 'What is a Port?',
     answer:
-      'A Port is a reusable payment link tied to your wallet. Share it with clients, put it on your invoice, or post it publicly — each payment automatically generates a unique stealth address that only you can access.',
+      'A Port is a reusable payment link tied to your wallet. Share it with clients, put it on your invoice, or post it publicly. Each payment automatically generates a unique stealth address that only you can access.',
   },
   {
     question: 'How does receiving privately work?',
     answer:
-      'When someone pays your Port, Galeon generates a fresh stealth address for that payment. Only you can derive the private key to collect those funds. Ports are permanent — deactivation is planned for a future release.',
+      'When someone pays your Port, Galeon generates a fresh stealth address for that payment. Only you can derive the private key to collect those funds.',
   },
   {
     question: 'How does sending privately work?',
     answer:
-      'Deposit funds to the Privacy Pool, then withdraw to any address using a ZK proof. The proof cryptographically breaks the link between your deposit and withdrawal — no one can trace where the money went.',
+      'Deposit funds to the Privacy Pool, then withdraw to any address using a ZK proof. The proof cryptographically breaks the link between your deposit and withdrawal. No one can trace where the money went.',
   },
   {
     question: 'Why do I need both stealth addresses AND Privacy Pool?',
     answer:
-      'Stealth addresses hide who received a payment (receiving privacy). But when you spend those funds, the trail continues. The Privacy Pool breaks that forward trail — hiding what you do with the money (spending privacy). You need both for complete financial privacy.',
+      'Stealth addresses hide who received a payment (receiving privacy). But when you spend those funds, the trail continues. The Privacy Pool breaks that forward trail, hiding what you do with the money (spending privacy). You need both for complete financial privacy.',
   },
   {
     question: 'What about compliance and taxes?',
     answer:
-      'Galeon is compliance-first. Generate Shipwreck reports to prove income, ownership, or transaction history for audits, taxes, or disputes — revealing only what you choose. Privacy and compliance, not privacy vs compliance.',
+      'Galeon is compliance-first. Generate Shipwreck reports to prove income, ownership, or transaction history for audits, taxes, or disputes, revealing only what you choose. Privacy and compliance, not privacy vs compliance.',
   },
   {
     question: 'Do payers need special wallets?',
@@ -49,17 +49,17 @@ const faqItems: FaqItem[] = [
   {
     question: 'How long do withdrawals take?',
     answer:
-      'Proof generation takes 30-60 seconds depending on your device — it runs in your browser. Once submitted, the transaction typically confirms within a minute on Mantle.',
+      'Proof generation takes 30-60 seconds depending on your device. It runs in your browser. Once submitted, the transaction typically confirms within a minute on Mantle.',
   },
   {
     question: 'Is my private key stored anywhere?',
     answer:
-      "Your spending key is derived from your wallet signature and stored in your browser's local storage for convenience — never sent to servers. If you clear browser data, reconnect your wallet and sign again to recover access. Your funds are always recoverable from your wallet signature.",
+      "Your spending key is derived from your wallet signature and stored in your browser's local storage for convenience, never sent to servers. If you clear browser data, reconnect your wallet and sign again to recover access. Your funds are always recoverable from your wallet signature.",
   },
   {
     question: 'Why Mantle?',
     answer:
-      'Privacy on Ethereum mainnet can cost $50+ per transaction. On Mantle, costs are significantly lower — typically cents. We believe privacy should be accessible to everyone, not just whales.',
+      'Privacy transactions on Ethereum mainnet can cost $20-40 due to ZK proof verification. On Mantle, the same operations cost cents. We believe privacy should be accessible to everyone.',
   },
   {
     question: 'Is Galeon audited?',
