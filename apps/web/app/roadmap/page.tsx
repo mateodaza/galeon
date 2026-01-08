@@ -3,8 +3,6 @@ import { FloatingNav } from '@/components/layout/floating-nav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
-import { CheckCircle2, Zap, Shield, Users, Globe } from 'lucide-react'
 
 export const metadata = {
   title: 'Roadmap | Galeon',
@@ -14,11 +12,6 @@ export const metadata = {
 export default function RoadmapPage() {
   return (
     <>
-      {/* Global animated gradient background - fixed to viewport */}
-      <div className="fixed inset-0 -z-10">
-        <DeepSeaGradient variant="ocean" intensity="calm" />
-      </div>
-
       <main className="relative flex min-h-screen flex-col">
         <FloatingNav />
 
@@ -31,7 +24,7 @@ export default function RoadmapPage() {
               Roadmap & <span className="text-cyan-400">Vision</span>
             </h1>
             <p className="mt-4 text-lg text-cyan-100/70">
-              Building privacy infrastructure that scales. Here&apos;s where we are and where
+              Compliance-ready privacy for real-world payments. Here&apos;s where we are and where
               we&apos;re headed.
             </p>
 
@@ -44,40 +37,28 @@ export default function RoadmapPage() {
               <h2 className="mt-4 text-2xl font-bold text-white">What&apos;s Working Today</h2>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
                   title="Stealth Payments"
                   description="EIP-5564 stealth addresses with Ports for isolated payment identities"
-                  status="complete"
                 />
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
                   title="Privacy Pool"
                   description="Deposit, withdraw with ZK proofs, and ragequit support (UI coming soon)"
-                  status="complete"
                 />
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
                   title="Private Withdrawals"
                   description="Relayer broadcasts transactions so your address stays hidden"
-                  status="complete"
                 />
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
                   title="Verified Balance Gating"
                   description="Only verified stealth address funds can enter the pool"
-                  status="complete"
                 />
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
-                  title="Merge Deposits (O(1) Withdrawals)"
-                  description="Combine multiple deposits into one commitment — single-proof withdrawals when merged"
-                  status="complete"
+                  title="Merge Deposits"
+                  description="Combine multiple deposits into one — withdraw everything with a single proof, no matter how many times you deposited"
                 />
                 <StatusCard
-                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
                   title="Client-Side Proof Generation"
-                  description="ZK proofs generated in web workers - your secrets never leave your device"
-                  status="complete"
+                  description="ZK proofs generated in your browser — your secrets never leave your device"
                 />
               </div>
             </section>
@@ -149,14 +130,13 @@ export default function RoadmapPage() {
                     Deposit 3 → Merge into A (value: 18)
                     <br />
                     <span className="text-emerald-400">
-                      Withdraw any amount: Single proof, ~10-30 sec
+                      Withdraw any amount: Single proof, ~30-60 sec
                     </span>
                   </p>
                 </div>
                 <p>
                   The merge deposit circuit is fully implemented and deployed. Proof generation runs
-                  in a web worker (non-blocking UI) and typically takes 10-30 seconds depending on
-                  your device.
+                  in your browser and typically takes 30-60 seconds depending on your device.
                 </p>
               </div>
             </section>
@@ -164,24 +144,24 @@ export default function RoadmapPage() {
             {/* Future Vision */}
             <section className="mt-16">
               <h2 className="text-2xl font-bold text-white">What&apos;s Next</h2>
-              <div className="mt-8 space-y-6">
+              <div className="mt-8 space-y-4">
                 <VisionCard
-                  icon={<Users className="h-6 w-6" />}
+                  number="01"
                   title="Permissionless Relayer Network"
                   description="Anyone can run a relayer and earn fees. Users choose based on price, speed, and reputation. No single point of failure or censorship."
                 />
                 <VisionCard
-                  icon={<Zap className="h-6 w-6" />}
+                  number="02"
                   title="Sub-Second Proof Generation"
                   description="GPU-accelerated proving, potentially moving to faster proof systems. Target: <5 second proofs on mobile devices."
                 />
                 <VisionCard
-                  icon={<Shield className="h-6 w-6" />}
+                  number="03"
                   title="Cross-Chain Privacy"
                   description="Bridge privacy pools across chains. Deposit on Ethereum, withdraw on Mantle with the same privacy guarantees."
                 />
                 <VisionCard
-                  icon={<Globe className="h-6 w-6" />}
+                  number="04"
                   title="Privacy-Preserving Compliance"
                   description="Prove you're not sanctioned without revealing your identity. Our ASP targets instant verification — unlike traditional Privacy Pools' 7-day approval window."
                 />
@@ -253,8 +233,8 @@ export default function RoadmapPage() {
                   </table>
                 </div>
                 <p className="mt-4 text-sm">
-                  Trade-off: Galeon is more complex but production-ready for compliance-conscious
-                  use cases.
+                  Built for real-world use: freelancers, businesses, and anyone who needs privacy
+                  without sacrificing compliance.
                 </p>
               </div>
             </section>
@@ -305,25 +285,19 @@ export default function RoadmapPage() {
   )
 }
 
-function StatusCard({
-  icon,
-  title,
-  description,
-  status: _status,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-  status: 'complete' | 'in-progress' | 'planned'
-}) {
+function StatusCard({ title, description }: { title: string; description: string }) {
   return (
     <Card className="border-white/10 bg-slate-800/50">
-      <CardContent className="flex gap-4 pt-6">
-        <div className="shrink-0">{icon}</div>
-        <div>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2">
+          {/* Pulsing status dot */}
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
           <h3 className="font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-sm text-cyan-100/70">{description}</p>
         </div>
+        <p className="mt-1.5 text-sm text-cyan-100/70">{description}</p>
       </CardContent>
     </Card>
   )
@@ -362,21 +336,21 @@ function LimitationCard({
 }
 
 function VisionCard({
-  icon,
+  number,
   title,
   description,
 }: {
-  icon: React.ReactNode
+  number: string
   title: string
   description: string
 }) {
   return (
-    <div className="flex gap-4 rounded-lg border border-white/10 bg-slate-800/30 p-6">
-      <div className="shrink-0 text-cyan-400">{icon}</div>
-      <div className="flex-1">
+    <div className="rounded-lg border border-white/10 bg-slate-800/30 p-6">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-sm text-cyan-500/60">{number}</span>
         <h3 className="font-semibold text-white">{title}</h3>
-        <p className="mt-2 text-sm text-cyan-100/70">{description}</p>
       </div>
+      <p className="mt-2 text-sm leading-relaxed text-cyan-100/70">{description}</p>
     </div>
   )
 }

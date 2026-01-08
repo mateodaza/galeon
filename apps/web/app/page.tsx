@@ -4,16 +4,10 @@ import { HeroSection } from '@/components/landing/hero-section'
 import { FlowSections } from '@/components/landing/flow-sections'
 import { FaqSection } from '@/components/landing/faq-section'
 import { CtaCard } from '@/components/landing/cta-card'
-import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
 
 export default function Home() {
   return (
     <>
-      {/* Global animated gradient background - fixed to viewport */}
-      <div className="fixed inset-0 -z-10">
-        <DeepSeaGradient variant="ocean" intensity="calm" />
-      </div>
-
       <main className="relative flex min-h-screen flex-col">
         {/* Floating Navigation */}
         <FloatingNav />

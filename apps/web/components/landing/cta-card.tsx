@@ -23,9 +23,9 @@ export function CtaCard() {
     >
       <GlassCardContent className="flex flex-col items-center gap-6 py-12 text-center sm:flex-row sm:justify-between sm:text-left">
         <div>
-          <h2 className="text-2xl font-bold text-white">Ready to accept private payments?</h2>
+          <h2 className="text-2xl font-bold text-white">Ready to get paid privately?</h2>
           <p className="mt-2 text-cyan-100/70">
-            Set up your first Port in minutes. Non-custodial by design.
+            Freelancers, creators, and businesses — set up your first Port in minutes.
           </p>
         </div>
         {animationsEnabled ? (

@@ -254,8 +254,9 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     font-family: var(--font-sans);
+    background: transparent;
   }
 
   /* Selection highlight with cyan */

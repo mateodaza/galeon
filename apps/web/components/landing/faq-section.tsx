@@ -12,9 +12,19 @@ interface FaqItem {
 
 const faqItems: FaqItem[] = [
   {
+    question: 'Who is Galeon for?',
+    answer:
+      'Freelancers accepting client payments, creators receiving tips or subscriptions, businesses handling invoices, anyone receiving donations — anyone who needs to get paid on-chain without exposing their full financial history.',
+  },
+  {
+    question: 'What is a Port?',
+    answer:
+      'A Port is a reusable payment link tied to your wallet. Share it with clients, put it on your invoice, or post it publicly — each payment automatically generates a unique stealth address that only you can access.',
+  },
+  {
     question: 'How does receiving privately work?',
     answer:
-      'Create a Port (payment link) and share it. Each payment generates a unique stealth address — only you can find and spend from it. Ports are permanent and can be deactivated when no longer needed.',
+      'When someone pays your Port, Galeon generates a fresh stealth address for that payment. Only you can derive the private key to collect those funds. Ports are permanent — deactivation is planned for a future release.',
   },
   {
     question: 'How does sending privately work?',
@@ -29,7 +39,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'What about compliance and taxes?',
     answer:
-      'Generate a Shipwreck report to prove specific transactions without exposing your full history. Show exactly what you need for audits, taxes, or disputes — nothing more.',
+      'Galeon is compliance-first. Generate Shipwreck reports to prove income, ownership, or transaction history for audits, taxes, or disputes — revealing only what you choose. Privacy and compliance, not privacy vs compliance.',
   },
   {
     question: 'Do payers need special wallets?',
@@ -37,14 +47,24 @@ const faqItems: FaqItem[] = [
       'No. Payers use any standard wallet. The stealth address is generated automatically when they open your payment link.',
   },
   {
+    question: 'How long do withdrawals take?',
+    answer:
+      'Proof generation takes 30-60 seconds depending on your device — it runs in your browser. Once submitted, the transaction typically confirms within a minute on Mantle.',
+  },
+  {
     question: 'Is my private key stored anywhere?',
     answer:
-      "Your spending key is derived from your wallet signature and stored only in your browser's local storage — never sent to servers. Galeon never transmits your private keys.",
+      "Your spending key is derived from your wallet signature and stored in your browser's local storage for convenience — never sent to servers. If you clear browser data, reconnect your wallet and sign again to recover access. Your funds are always recoverable from your wallet signature.",
   },
   {
     question: 'Why Mantle?',
     answer:
       'Privacy on Ethereum mainnet can cost $50+ per transaction. On Mantle, costs are significantly lower — typically cents. We believe privacy should be accessible to everyone, not just whales.',
+  },
+  {
+    question: 'Is Galeon audited?',
+    answer:
+      "Galeon itself is an unaudited hackathon MVP. We build on audited upstream libraries: 0xBow's Privacy Pools protocol and @noble cryptographic libraries (secp256k1, hashing). A full security audit of Galeon is planned before mainnet launch.",
   },
 ]
 

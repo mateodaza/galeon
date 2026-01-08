@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
 
@@ -12,7 +13,7 @@ interface NavItem {
 }
 
 const defaultNavLinks: NavItem[] = [
-  { href: '#how-it-works', label: 'How it Works' },
+  { href: '/roadmap', label: 'Roadmap' },
   { href: '/about', label: 'About' },
   { href: '/dashboard', label: 'Dashboard' },
 ]
@@ -59,8 +60,11 @@ const variants = {
  */
 export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
   const navLinks = nav ?? defaultNavLinks
   const styles = variants[variant]
+
+  const isActive = (href: string) => pathname === href
 
   return (
     <header className="fixed left-0 right-0 top-4 z-50 px-4">
@@ -85,7 +89,9 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
           <Link
             key={link.href}
             href={link.href}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${styles.link}`}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              isActive(link.href) ? 'text-cyan-400' : styles.link
+            }`}
           >
             {link.label}
           </Link>
@@ -131,7 +137,9 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`rounded-xl px-4 py-3 text-center transition-colors ${styles.dropdownLink}`}
+                className={`rounded-xl px-4 py-3 text-center transition-colors ${
+                  isActive(link.href) ? 'text-cyan-400' : styles.dropdownLink
+                }`}
               >
                 {link.label}
               </Link>

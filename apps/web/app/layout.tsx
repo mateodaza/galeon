@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { cookieToInitialState } from 'wagmi'
 import { config } from '@/lib/wagmi'
 import { Providers } from '@/components/providers'
+import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -25,8 +26,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialState = cookieToInitialState(config, cookies)
 
   return (
-    <html lang="en">
+    <html lang="en" style={{ backgroundColor: '#020617' }}>
       <body className="min-h-screen antialiased">
+        {/* Global gradient - persists across page navigations */}
+        <div className="fixed inset-0 -z-10">
+          <DeepSeaGradient variant="ocean" intensity="calm" />
+        </div>
         <Providers initialState={initialState}>{children}</Providers>
       </body>
     </html>

@@ -27,7 +27,7 @@ export function HeroSection() {
       {/* Explanation - glass card */}
       <div className="mt-8 max-w-xl rounded-2xl border border-white/15 bg-slate-900/40 px-6 py-4 shadow-lg shadow-black/10 backdrop-blur-md">
         <p className="text-base leading-relaxed text-cyan-100/80 sm:text-lg">
-          Privacy that flows both ways.
+          Compliance-ready privacy for real-world payments.
         </p>
       </div>
 

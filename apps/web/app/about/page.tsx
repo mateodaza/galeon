@@ -4,7 +4,6 @@ import { FloatingNav } from '@/components/layout/floating-nav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
 import { getAddressExplorerUrl } from '@/lib/chains'
 
 export const metadata = {
@@ -15,11 +14,6 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <>
-      {/* Global animated gradient background - fixed to viewport */}
-      <div className="fixed inset-0 -z-10">
-        <DeepSeaGradient variant="ocean" intensity="calm" />
-      </div>
-
       <main className="relative flex min-h-screen flex-col">
         <FloatingNav />
 
@@ -80,8 +74,8 @@ export default function AboutPage() {
                 <p>
                   <strong className="text-white">Ports</strong> protect receivers.{' '}
                   <strong className="text-white">Privacy Pool</strong> protects senders.{' '}
-                  <strong className="text-white">Shipwreck Reports</strong> let you prove ownership
-                  when needed.
+                  <strong className="text-white">Shipwreck Reports</strong> keep you compliant.
+                  Privacy and compliance — not privacy vs compliance.
                 </p>
               </div>
             </section>
@@ -93,17 +87,17 @@ export default function AboutPage() {
                 <FeatureBlock
                   number="01"
                   title="Ports (Receiver Privacy)"
-                  description="Create payment links with unique stealth address keys. When someone pays you, they generate a fresh one-time address. Only you can derive the private key to collect those funds. Each Port is an isolated identity."
+                  description="Create payment links for invoices, freelance work, or donations. Share with clients — each payment generates a fresh stealth address that only you can access. Separate Ports for separate income streams."
                 />
                 <FeatureBlock
                   number="02"
                   title="Privacy Pool (Sender Privacy)"
-                  description="Break the trail when spending. Deposit funds into a shared pool, then withdraw to any address with a ZK proof. No one can link your deposit to your withdrawal."
+                  description="Pay suppliers, contractors, or vendors without revealing your full treasury. Deposit to the pool, withdraw to any address with a ZK proof. No one can link your payments."
                 />
                 <FeatureBlock
                   number="03"
                   title="Shipwreck Reports (Compliance)"
-                  description="Need to prove ownership? Generate cryptographic proofs that demonstrate you control specific addresses without revealing anything else."
+                  description="Need to prove income for taxes or audits? Generate cryptographic proofs for specific transactions without exposing your entire financial history."
                 />
               </div>
             </section>
@@ -185,8 +179,7 @@ export default function AboutPage() {
                     <code className="rounded bg-slate-800 px-1 text-xs text-cyan-400">
                       @noble/hashes
                     </code>{' '}
-                    — audited secp256k1 and hashing implementations. Keys derived on-demand, never
-                    stored.
+                    — audited secp256k1 and hashing implementations.
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-slate-800/30 p-5">
@@ -261,11 +254,10 @@ export default function AboutPage() {
                   . Every design decision in Galeon follows this principle.
                 </p>
                 <p>
-                  <strong className="text-white">No critical secrets.</strong> Your spending keys
-                  are never sent to servers — they&apos;re derived on-demand from your wallet
-                  signature using deterministic cryptography, and stored only in your browser&apos;s
-                  local storage. If Galeon disappeared tomorrow, you could still access your funds
-                  with the math alone.
+                  <strong className="text-white">Server-free key management.</strong> Your spending
+                  keys are derived from your wallet signature and cached in your browser&apos;s
+                  local storage for convenience — never sent to servers. If Galeon disappeared
+                  tomorrow, you could still access your funds with your wallet and the math alone.
                 </p>
                 <p>
                   <strong className="text-white">No indispensable intermediaries.</strong> Our
