@@ -15,7 +15,9 @@ import { Wallet, Shield, Key, ChevronDown, LogOut, UserCircle } from 'lucide-rea
 import { cn } from '@/lib/utils'
 import { useSignIn } from '@/hooks/use-sign-in'
 import { usePoolContext } from '@/contexts/pool-context'
+import { usePorts } from '@/hooks/use-ports'
 import { SignInModal } from '@/components/sign-in-modal'
+import { Anchor } from 'lucide-react'
 
 /**
  * Formats an Ethereum address for display.
@@ -83,6 +85,7 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const { disconnect } = useDisconnect()
   const { isAuthenticated, hasKeys, isFullySignedIn, isLoading, signOut } = useSignIn()
   const { hasPoolKeys, totalBalance: poolBalance } = usePoolContext()
+  const { ports } = usePorts()
   const [showModal, setShowModal] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -93,9 +96,20 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
     address: address as `0x${string}` | undefined,
   })
 
+  // Calculate port balance (available to collect)
+  const portBalance = ports.reduce((acc, port) => {
+    const received = BigInt(port.totalReceived || '0')
+    const collected = BigInt(port.totalCollected || '0')
+    return acc + (received - collected)
+  }, 0n)
+
   // Format pool balance for display
   const poolBalanceFormatted =
     hasPoolKeys && poolBalance > 0n ? formatBalance(poolBalance, 18) : null
+
+  // Format port balance for display
+  const portBalanceFormatted =
+    isAuthenticated && portBalance > 0n ? formatBalance(portBalance, 18) : null
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -169,11 +183,28 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
               {formatBalance(balance?.value, balance?.decimals)} {balance?.symbol ?? 'MNT'}
             </span>
 
+            {/* Port Balance - shown if user is authenticated and has collectable funds */}
+            {portBalanceFormatted && (
+              <>
+                <span className={cn('h-4 w-px', variantStyles.divider)} />
+                <span
+                  className="flex items-center gap-1 font-semibold text-amber-400"
+                  title="Available to collect from your Ports"
+                >
+                  <Anchor className="h-3.5 w-3.5" />
+                  {portBalanceFormatted}
+                </span>
+              </>
+            )}
+
             {/* Pool Balance - shown if user has pool keys and balance */}
             {poolBalanceFormatted && (
               <>
                 <span className={cn('h-4 w-px', variantStyles.divider)} />
-                <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                <span
+                  className="flex items-center gap-1 font-semibold text-emerald-400"
+                  title="Balance in Privacy Pool"
+                >
                   <Shield className="h-3.5 w-3.5" />
                   {poolBalanceFormatted}
                 </span>

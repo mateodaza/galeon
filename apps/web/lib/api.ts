@@ -356,6 +356,14 @@ export interface UpdatePortRequest {
 // Port API
 // ============================================================
 
+export interface SyncResponse {
+  ports: number
+  synced: number
+  existing: number
+  scanned: number
+  errors?: string[]
+}
+
 export const portsApi = {
   list: (params?: { page?: number; limit?: number; includeArchived?: boolean }) => {
     const query = new URLSearchParams()
@@ -374,6 +382,12 @@ export const portsApi = {
     api.patch<PortResponse>(`/api/v1/ports/${id}`, data),
 
   delete: (id: string) => api.delete<{ message: string }>(`/api/v1/ports/${id}`),
+
+  /**
+   * Sync all receipts from on-chain announcements.
+   * Should be called on session start/refresh.
+   */
+  sync: () => api.post<SyncResponse>('/api/v1/ports/sync'),
 }
 
 // ============================================================
@@ -394,6 +408,24 @@ export interface AnnouncementResponse {
   transactionHash: string
   logIndex: number
   chainId: number
+}
+
+// ============================================================
+// Receipts API (protected - requires auth)
+// ============================================================
+
+export interface MarkCollectedResponse {
+  updated: number
+}
+
+export const receiptsApi = {
+  /**
+   * Mark receipts as collected after pool deposit or wallet collect.
+   * Updates receipt status and port totals.
+   */
+  markCollected: async (stealthAddresses: string[]): Promise<MarkCollectedResponse> => {
+    return api.post<MarkCollectedResponse>('/api/v1/receipts/mark-collected', { stealthAddresses })
+  },
 }
 
 // ============================================================
@@ -1089,5 +1121,150 @@ export const healthApi = {
   ): Promise<{ available: boolean; blockers: string[] }> => {
     const health = await healthApi.getStatus(chainId)
     return health.operations[operation]
+  },
+}
+
+// ============================================================
+// Compliance Types (Tax reports and compliance data)
+// ============================================================
+
+export type PeriodType = 'annual' | 'quarterly' | 'monthly' | 'custom'
+
+export interface TaxSummaryParams {
+  period: PeriodType
+  year?: number
+  quarter?: number // 1-4
+  month?: number // 1-12
+  startDate?: string // YYYY-MM-DD
+  endDate?: string // YYYY-MM-DD
+  portId?: string
+}
+
+export interface PeriodInfo {
+  type: PeriodType
+  year?: number
+  quarter?: number
+  month?: number
+  startDate: string
+  endDate: string
+  label: string
+}
+
+export interface TokenSummary {
+  token: string
+  symbol: string
+  decimals: number
+  totalWei: string
+  totalFormatted: string
+  totalCop: number
+  transactionCount: number
+  rateCop: number
+}
+
+export interface PortSummary {
+  portId: string
+  portName: string
+  type: string
+  chainId: number
+  totalReceived: string
+  totalReceivedCop: number
+  transactionCount: number
+  status: string
+}
+
+export interface TransactionDetail {
+  id: string
+  portId: string
+  portName: string | undefined
+  receiptHash: string | null
+  stealthAddress: string | null
+  payerAddress: string | null
+  amount: string | null
+  amountFormatted: string
+  amountCop: number
+  currency: string | null
+  tokenAddress: string | null
+  txHash: string
+  blockNumber: string | null
+  timestamp: string | null
+  status: string
+}
+
+export interface TaxSummaryReport {
+  reportId: string
+  reportType: string
+  generatedAt: string
+  period: PeriodInfo
+  user: { walletAddress: string }
+  ports: PortSummary[]
+  transactions: TransactionDetail[]
+  summary: {
+    totalTransactions: number
+    totalReceivedByToken: TokenSummary[]
+    grandTotalCop: number
+  }
+  compliance: {
+    jurisdiction: string
+    uiafThreshold: number
+    transactionsAboveThreshold: number
+    note: string
+  }
+  metadata: {
+    ratesUsed: Record<string, number>
+    rateSource: string
+    generatedBy: string
+  }
+}
+
+// ============================================================
+// Compliance API (protected - requires auth)
+// ============================================================
+
+export const complianceApi = {
+  /**
+   * Get tax summary report as JSON.
+   * @param params - Period and optional filters
+   */
+  getTaxSummary: async (params: TaxSummaryParams): Promise<TaxSummaryReport> => {
+    const query = new URLSearchParams()
+    query.set('period', params.period)
+    if (params.year !== undefined) query.set('year', String(params.year))
+    if (params.quarter !== undefined) query.set('quarter', String(params.quarter))
+    if (params.month !== undefined) query.set('month', String(params.month))
+    if (params.startDate) query.set('startDate', params.startDate)
+    if (params.endDate) query.set('endDate', params.endDate)
+    if (params.portId) query.set('portId', params.portId)
+
+    return api.get<TaxSummaryReport>(`/api/v1/compliance/tax-summary?${query.toString()}`)
+  },
+
+  /**
+   * Download tax summary report as PDF.
+   * Returns the PDF as a Blob for download.
+   * @param params - Period and optional filters
+   */
+  getTaxSummaryPdf: async (params: TaxSummaryParams): Promise<Blob> => {
+    const query = new URLSearchParams()
+    query.set('period', params.period)
+    if (params.year !== undefined) query.set('year', String(params.year))
+    if (params.quarter !== undefined) query.set('quarter', String(params.quarter))
+    if (params.month !== undefined) query.set('month', String(params.month))
+    if (params.startDate) query.set('startDate', params.startDate)
+    if (params.endDate) query.set('endDate', params.endDate)
+    if (params.portId) query.set('portId', params.portId)
+
+    const token = tokenStorage.getAccessToken()
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/compliance/tax-summary/pdf?${query.toString()}`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to generate PDF')
+    }
+
+    return response.blob()
   },
 }

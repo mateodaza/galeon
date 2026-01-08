@@ -63,6 +63,7 @@ router
       .group(() => {
         router.get('/', [PortsController, 'index'])
         router.post('/', [PortsController, 'store'])
+        router.post('/sync', [PortsController, 'sync'])
         router.get('/:id', [PortsController, 'show'])
         router.patch('/:id', [PortsController, 'update'])
         router.delete('/:id', [PortsController, 'destroy'])
@@ -76,6 +77,8 @@ router
         router.get('/', [ReceiptsController, 'index'])
         router.post('/', [ReceiptsController, 'store'])
         router.get('/stats', [ReceiptsController, 'stats'])
+        router.post('/mark-collected', [ReceiptsController, 'markCollected'])
+        router.post('/recalculate-totals', [ReceiptsController, 'recalculateTotals'])
         router.get('/:id', [ReceiptsController, 'show'])
       })
       .prefix('/receipts')

@@ -77,8 +77,8 @@ export default function PoolContent() {
 
       {/* Quick Actions */}
       {hasPoolKeys && totalBalance > 0n && (
-        <Card className="mt-6 border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="pt-6">
+        <Card variant="glass" className="mt-6 border-emerald-500/30 bg-emerald-500/10">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-emerald-600 dark:text-emerald-400">Pool Balance</p>
@@ -99,8 +99,8 @@ export default function PoolContent() {
       )}
 
       {/* Pool Keys Status */}
-      <Card className="mt-6">
-        <CardContent className="pt-6">
+      <Card variant="glass" className="mt-6">
+        <CardContent className="p-5">
           <div className="flex items-center gap-2">
             <Settings className="text-muted-foreground h-5 w-5" />
             <h2 className="text-foreground font-semibold">Pool Keys</h2>
@@ -130,8 +130,8 @@ export default function PoolContent() {
 
       {/* Sync & Recovery */}
       {hasPoolKeys && (
-        <Card className="mt-6">
-          <CardContent className="pt-6">
+        <Card variant="glass" className="mt-6">
+          <CardContent className="p-5">
             <div className="flex items-center gap-2">
               <RefreshCw className="text-muted-foreground h-5 w-5" />
               <h2 className="text-foreground font-semibold">Sync & Recovery</h2>
@@ -168,8 +168,8 @@ export default function PoolContent() {
 
       {/* Deposit History */}
       {hasPoolKeys && deposits.length > 0 && (
-        <Card className="mt-6">
-          <CardContent className="pt-6">
+        <Card variant="glass" className="mt-6">
+          <CardContent className="p-5">
             <h2 className="text-foreground font-semibold">Deposit History ({deposits.length})</h2>
             <div className="mt-4 space-y-2">
               {deposits
@@ -203,8 +203,8 @@ export default function PoolContent() {
       )}
 
       {/* Contract Info (collapsed by default for advanced users) */}
-      <Card className="mt-6">
-        <CardContent className="pt-6">
+      <Card variant="glass" className="mt-6">
+        <CardContent className="p-5">
           <details>
             <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm">
               Contract Info (Advanced)
@@ -234,7 +234,7 @@ export default function PoolContent() {
       {/* Error */}
       {error && (
         <Card className="border-destructive mt-6">
-          <CardContent className="pt-6">
+          <CardContent className="p-5">
             <p className="text-destructive text-sm">{error}</p>
           </CardContent>
         </Card>

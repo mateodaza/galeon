@@ -95,10 +95,10 @@ export default function PayContent() {
         <button
           type="button"
           onClick={() => setMode('quick')}
-          className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition-all ${
+          className={`flex flex-col gap-2 rounded-xl border p-4 text-left backdrop-blur-sm transition-all ${
             mode === 'quick'
-              ? 'border-primary bg-primary/10 ring-primary/20 ring-2'
-              : 'border-border hover:border-primary/50 hover:bg-primary/5'
+              ? 'border-primary bg-primary/10 ring-primary/20 shadow-lg ring-2'
+              : 'hover:border-primary/50 hover:bg-primary/5 border-slate-200/60 bg-white/50 dark:border-white/10 dark:bg-slate-900/50'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -124,10 +124,10 @@ export default function PayContent() {
         <button
           type="button"
           onClick={() => setMode('stealth')}
-          className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition-all ${
+          className={`flex flex-col gap-2 rounded-xl border p-4 text-left backdrop-blur-sm transition-all ${
             mode === 'stealth'
-              ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20'
-              : 'border-border hover:border-amber-500/50 hover:bg-amber-500/5'
+              ? 'border-amber-500 bg-amber-500/10 shadow-lg ring-2 ring-amber-500/20'
+              : 'border-slate-200/60 bg-white/50 hover:border-amber-500/50 hover:bg-amber-500/5 dark:border-white/10 dark:bg-slate-900/50'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -161,10 +161,10 @@ export default function PayContent() {
         <button
           type="button"
           onClick={() => setMode('private')}
-          className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition-all ${
+          className={`flex flex-col gap-2 rounded-xl border p-4 text-left backdrop-blur-sm transition-all ${
             mode === 'private'
-              ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20'
-              : 'border-border hover:border-emerald-500/50 hover:bg-emerald-500/5'
+              ? 'border-emerald-500 bg-emerald-500/10 shadow-lg ring-2 ring-emerald-500/20'
+              : 'border-slate-200/60 bg-white/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 dark:border-white/10 dark:bg-slate-900/50'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -197,7 +197,7 @@ export default function PayContent() {
 
       {/* Quick Pay Mode */}
       {mode === 'quick' && (
-        <Card className="mt-6">
+        <Card variant="glass" className="mt-6">
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div>
@@ -255,7 +255,7 @@ export default function PayContent() {
 
       {/* Stealth Pay Mode */}
       {mode === 'stealth' && (
-        <Card className="mt-6 border-amber-500/20">
+        <Card variant="glass" className="mt-6 border-amber-500/30">
           <CardContent className="pt-6">
             {!hasKeys ? (
               <div className="text-center">
@@ -434,7 +434,7 @@ export default function PayContent() {
 
       {/* Private Send Mode */}
       {mode === 'private' && (
-        <Card className="mt-6 border-emerald-500/20">
+        <Card variant="glass" className="mt-6 border-emerald-500/30">
           <CardContent className="pt-6">
             {!hasPoolKeys ? (
               <div className="text-center">
@@ -515,7 +515,7 @@ export default function PayContent() {
       )}
 
       {/* Privacy Comparison */}
-      <Card className="bg-muted/30 mt-6">
+      <Card variant="glass" className="mt-6">
         <CardContent className="pt-6">
           <h3 className="text-foreground text-sm font-medium">Privacy Comparison</h3>
           <div className="mt-3 space-y-2 text-xs">

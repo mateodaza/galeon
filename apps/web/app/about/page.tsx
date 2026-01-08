@@ -18,9 +18,9 @@ export default function AboutPage() {
         <FloatingNav />
 
         {/* Content */}
-        <div className="mx-auto max-w-3xl px-6 pb-16 pt-40">
+        <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-40">
           {/* Glass container */}
-          <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-8 shadow-2xl backdrop-blur-xl sm:p-12">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 p-8 shadow-2xl backdrop-blur-xl sm:p-12">
             {/* Hero */}
             <h1 className="text-4xl font-bold text-white sm:text-5xl">
               The Legend of <span className="text-cyan-400">Galeon</span>

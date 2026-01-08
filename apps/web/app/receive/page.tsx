@@ -146,7 +146,7 @@ function CreatePortModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent variant="glass">
         <DialogHeader>
           <DialogTitle>Create Payment Link</DialogTitle>
           <DialogDescription>

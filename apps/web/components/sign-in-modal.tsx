@@ -296,10 +296,7 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="border-border bg-card text-card-foreground backdrop-blur-xl sm:max-w-md dark:border-white/10 dark:bg-slate-900/95"
-        showCloseButton={false}
-      >
+      <DialogContent variant="glass" className="sm:max-w-md" showCloseButton={false}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-foreground text-lg font-semibold">
@@ -314,68 +311,75 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
         </div>
 
         {/* Stepper */}
-        <div className="flex items-center justify-between py-4">
-          {steps.map((step, index) => {
-            const status = getStepStatus(step.id)
-            const isLast = index === steps.length - 1
+        <div className="px-4 py-4">
+          <div className="relative flex items-center justify-between">
+            {/* Line container - spans full width, circles will cover the ends */}
+            <div className="pointer-events-none absolute inset-x-0 top-4 mx-4">
+              {/* Background line */}
+              <div className="bg-border h-0.5 w-full" />
+              {/* Progress line overlay */}
+              {(() => {
+                const completedCount = steps.filter(
+                  (s) => getStepStatus(s.id) === 'complete'
+                ).length
+                if (completedCount === 0) return null
+                const progressPercent = Math.min(completedCount / (steps.length - 1), 1) * 100
+                return (
+                  <div
+                    className="bg-primary absolute left-0 top-0 h-0.5 transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                )
+              })()}
+            </div>
 
-            return (
-              <div key={step.id} className="flex flex-1 items-center">
-                {/* Step circle */}
-                <div
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all',
-                    status === 'complete' && 'border-primary bg-primary text-primary-foreground',
-                    status === 'active' && 'border-primary bg-primary/20 text-primary',
-                    status === 'error' && 'border-destructive bg-destructive/20 text-destructive',
-                    status === 'pending' && 'border-border bg-muted/50 text-muted-foreground'
-                  )}
-                >
-                  {status === 'complete' ? (
-                    <Check className="h-4 w-4" />
-                  ) : status === 'active' &&
-                    (isAuthenticating || isDerivingKeys || isDerivingPoolKeys) ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : status === 'error' ? (
-                    <AlertCircle className="h-4 w-4" />
-                  ) : (
-                    <span className="text-xs font-medium">{index + 1}</span>
-                  )}
-                </div>
+            {/* Steps */}
+            {steps.map((step, index) => {
+              const status = getStepStatus(step.id)
 
-                {/* Connector line */}
-                {!isLast && (
+              return (
+                <div key={step.id} className="relative z-10 flex flex-col items-center">
+                  {/* Step circle - solid background to cover the line */}
                   <div
                     className={cn(
-                      'mx-2 h-0.5 flex-1 transition-colors',
-                      status === 'complete' ? 'bg-primary' : 'bg-border'
+                      'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all',
+                      status === 'complete' && 'border-primary bg-primary text-primary-foreground',
+                      status === 'active' &&
+                        'border-primary text-primary bg-white dark:bg-slate-900',
+                      status === 'error' &&
+                        'border-destructive text-destructive bg-white dark:bg-slate-900',
+                      status === 'pending' &&
+                        'border-border text-muted-foreground bg-white dark:bg-slate-900'
                     )}
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  >
+                    {status === 'complete' ? (
+                      <Check className="h-4 w-4" />
+                    ) : status === 'active' &&
+                      (isAuthenticating || isDerivingKeys || isDerivingPoolKeys) ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : status === 'error' ? (
+                      <AlertCircle className="h-4 w-4" />
+                    ) : (
+                      <span className="text-xs font-medium">{index + 1}</span>
+                    )}
+                  </div>
 
-        {/* Step labels */}
-        <div className="flex justify-between text-xs">
-          {steps.map((step) => {
-            const status = getStepStatus(step.id)
-            return (
-              <div
-                key={step.id}
-                className={cn(
-                  'flex-1 text-center transition-colors',
-                  status === 'complete' && 'text-primary',
-                  status === 'active' && 'text-foreground',
-                  status === 'error' && 'text-destructive',
-                  status === 'pending' && 'text-muted-foreground'
-                )}
-              >
-                {step.title}
-              </div>
-            )
-          })}
+                  {/* Step label */}
+                  <span
+                    className={cn(
+                      'mt-2 whitespace-nowrap text-[10px] font-medium transition-colors',
+                      status === 'complete' && 'text-primary',
+                      status === 'active' && 'text-foreground',
+                      status === 'error' && 'text-destructive',
+                      status === 'pending' && 'text-muted-foreground'
+                    )}
+                  >
+                    {step.title}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Current step content */}

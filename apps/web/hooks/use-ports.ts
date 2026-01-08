@@ -31,6 +31,9 @@ export interface Port {
   status: PortStatus
   txHash: string | null
   createdAt?: string
+  totalReceived: string // Total received in wei
+  totalCollected: string // Total collected in wei
+  archived: boolean
 }
 
 /**
@@ -186,6 +189,9 @@ export function useCreatePort() {
           status: 'pending',
           txHash,
           createdAt: backendPort.createdAt,
+          totalReceived: '0',
+          totalCollected: '0',
+          archived: false,
         }
         return old ? [newPort, ...old] : [newPort]
       })
@@ -267,6 +273,9 @@ function mapPortResponse(port: PortResponse): Port {
     status: port.status,
     txHash: port.txHash,
     createdAt: port.createdAt,
+    totalReceived: port.totalReceived ?? '0',
+    totalCollected: port.totalCollected ?? '0',
+    archived: port.archived,
   }
 }
 

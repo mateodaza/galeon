@@ -16,6 +16,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import {
   formatEther,
@@ -45,6 +46,7 @@ import {
 import {
   announcementsApi,
   portsApi,
+  receiptsApi,
   registryApi,
   merkleLeavesApi,
   aspApi,
@@ -72,6 +74,19 @@ function uuidToPortIndex(uuid: string): number {
  * We need gas + something meaningful to send, so ~0.002 MNT minimum.
  */
 export const MINIMUM_COLLECTABLE_BALANCE = parseEther('0.002')
+
+/**
+ * Format a bigint wei value to a human-readable string with limited decimals.
+ * @param wei - The value in wei
+ * @param maxDecimals - Maximum decimal places (default 4)
+ */
+function formatBalance(wei: bigint, maxDecimals = 4): string {
+  const formatted = formatEther(wei)
+  const num = parseFloat(formatted)
+  if (num === 0) return '0'
+  if (num < 0.0001) return '<0.0001'
+  return num.toLocaleString('en-US', { maximumFractionDigits: maxDecimals })
+}
 
 /** Payment that can be collected */
 export interface CollectablePayment {
@@ -115,6 +130,7 @@ export interface PoolDepositResult {
  * Hook for scanning and collecting payments.
  */
 export function useCollection() {
+  const queryClient = useQueryClient()
   const { address, chainId } = useAccount()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
@@ -278,9 +294,9 @@ export function useCollection() {
             stealthAddress: payment.stealthAddress,
             stealthPrivateKey: payment.stealthPrivateKey,
             balance,
-            balanceFormatted: formatEther(balance),
+            balanceFormatted: formatBalance(balance),
             verifiedBalance,
-            verifiedBalanceFormatted: formatEther(verifiedBalance),
+            verifiedBalanceFormatted: formatBalance(verifiedBalance),
             canDepositToPool,
             token: payment.token,
             receiptHash: payment.receiptHash,
@@ -503,6 +519,16 @@ export function useCollection() {
           setCollectTxHashes(collectedHashes)
           // Remove collected payments from the list
           setPayments((prev) => prev.filter((p) => !collectedAddresses.includes(p.stealthAddress)))
+
+          // Mark receipts as collected in backend (update port totals)
+          try {
+            const result = await receiptsApi.markCollected(collectedAddresses)
+            console.log('[collectAll] Marked receipts as collected:', result)
+            // Invalidate ports query so dashboard sees updated totals
+            await queryClient.invalidateQueries({ queryKey: ['ports'] })
+          } catch (err) {
+            console.warn('[collectAll] Failed to mark receipts as collected (non-blocking):', err)
+          }
         }
       } catch (error) {
         console.error('Collection failed:', error)
@@ -511,7 +537,7 @@ export function useCollection() {
         setIsCollecting(false)
       }
     },
-    [walletClient, publicClient, address, payments]
+    [walletClient, publicClient, address, payments, queryClient]
   )
 
   /**
@@ -2004,6 +2030,26 @@ export function useCollection() {
           await new Promise((resolve) => setTimeout(resolve, 2000))
           await forceSync()
           console.log('[collectToPool] Final sync complete!')
+
+          // Mark receipts as collected in backend (update port totals)
+          const successfulAddresses = results.filter((r) => r.success).map((r) => r.address)
+          console.log(
+            '[collectToPool] Successful addresses to mark as collected:',
+            successfulAddresses
+          )
+          if (successfulAddresses.length > 0) {
+            try {
+              const markResult = await receiptsApi.markCollected(successfulAddresses)
+              console.log('[collectToPool] Marked receipts as collected:', markResult)
+              // Invalidate ports query so dashboard sees updated totals
+              await queryClient.invalidateQueries({ queryKey: ['ports'] })
+              console.log('[collectToPool] Invalidated ports query')
+            } catch (err) {
+              console.error('[collectToPool] Failed to mark receipts as collected:', err)
+            }
+          } else {
+            console.log('[collectToPool] No successful addresses to mark')
+          }
         }
 
         // Set appropriate error message if there were failures
@@ -2045,6 +2091,7 @@ export function useCollection() {
       deposits,
       forceSync,
       addDeposit,
+      queryClient,
     ]
   )
 
@@ -2052,7 +2099,7 @@ export function useCollection() {
     return payments.reduce((sum, p) => sum + p.balance, 0n)
   }, [payments])
 
-  const totalBalanceFormatted = formatEther(totalBalance)
+  const totalBalanceFormatted = formatBalance(totalBalance)
 
   const totalVerifiedBalance = useMemo(() => {
     // Cap verified at actual balance (verified can be higher if funds were spent from address)
@@ -2062,7 +2109,7 @@ export function useCollection() {
     }, 0n)
   }, [payments])
 
-  const totalVerifiedBalanceFormatted = formatEther(totalVerifiedBalance)
+  const totalVerifiedBalanceFormatted = formatBalance(totalVerifiedBalance)
 
   const totalDustBalance = useMemo(() => {
     return dustPayments.reduce((sum, p) => sum + p.balance, 0n)
@@ -2111,9 +2158,9 @@ export function useCollection() {
       paymentsCanDeposit: canDeposit.length,
       paymentsTooSmall: tooSmall.length,
       totalMaxDeposit,
-      totalMaxDepositFormatted: formatEther(totalMaxDeposit),
+      totalMaxDepositFormatted: formatBalance(totalMaxDeposit),
       gasCostPerDeposit: POOL_GAS_COST_PER_DEPOSIT,
-      gasCostPerDepositFormatted: formatEther(POOL_GAS_COST_PER_DEPOSIT),
+      gasCostPerDepositFormatted: formatBalance(POOL_GAS_COST_PER_DEPOSIT),
       paymentStats,
     }
   }, [])
@@ -2183,7 +2230,7 @@ export function useCollection() {
           mode: 'all',
           selectedPayment: null,
           canSend: true,
-          message: `Will send from ${filteredPayments.length} address${filteredPayments.length > 1 ? 'es' : ''} (${formatEther(total)} MNT total)`,
+          message: `Will send from ${filteredPayments.length} address${filteredPayments.length > 1 ? 'es' : ''} (${formatBalance(total)} MNT total)`,
           availableAddresses,
         }
       }
@@ -2233,9 +2280,9 @@ export function useCollection() {
     totalVerifiedBalanceFormatted,
     hasPoolDepositable,
     totalDustBalance,
-    totalDustBalanceFormatted: formatEther(totalDustBalance),
+    totalDustBalanceFormatted: formatBalance(totalDustBalance),
     minimumCollectable: MINIMUM_COLLECTABLE_BALANCE,
-    minimumCollectableFormatted: formatEther(MINIMUM_COLLECTABLE_BALANCE),
+    minimumCollectableFormatted: formatBalance(MINIMUM_COLLECTABLE_BALANCE),
     isScanning,
     isCollecting,
     isDepositingToPool,

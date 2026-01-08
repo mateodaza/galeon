@@ -6,6 +6,7 @@ import {
   portIdValidator,
   listPortsValidator,
 } from '#validators/port'
+import SyncService from '#services/sync_service'
 
 export default class PortsController {
   /**
@@ -211,5 +212,40 @@ export default class PortsController {
     return response.ok({
       message: 'Port archived successfully',
     })
+  }
+
+  /**
+   * POST /ports/sync
+   * Sync all receipts from on-chain announcements for all user's ports.
+   * This scans the Ponder indexer for payments matching the user's ports
+   * and creates receipt records for any that don't exist yet.
+   *
+   * Should be called on session start/refresh to ensure receipts are up-to-date.
+   */
+  async sync({ auth, response, logger }: HttpContext) {
+    const user = auth.user!
+    const syncService = new SyncService()
+
+    try {
+      const result = await syncService.syncUserPorts(user.id)
+
+      logger.info(
+        `Synced ${result.total.synced} receipts for user ${user.id} across ${result.ports} ports`
+      )
+
+      return response.ok({
+        ports: result.ports,
+        synced: result.total.synced,
+        existing: result.total.existing,
+        scanned: result.total.scanned,
+        errors: result.total.errors.length > 0 ? result.total.errors : undefined,
+      })
+    } catch (error) {
+      logger.error(`Sync failed for user ${user.id}: ${error}`)
+      return response.internalServerError({
+        error: 'Failed to sync receipts',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
   }
 }

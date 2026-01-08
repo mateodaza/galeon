@@ -20,11 +20,13 @@ import {
   type ReactNode,
 } from 'react'
 import { useAccount, useChainId, useSignMessage } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   api,
   tokenStorage,
   refreshSession,
   API_BASE_URL,
+  portsApi,
   type AuthTokens,
   type User,
 } from '@/lib/api'
@@ -92,6 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { signMessageAsync } = useSignMessage()
+  const queryClient = useQueryClient()
 
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -108,6 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * Check for existing valid session on mount
    * Uses /refresh to get user data + new tokens in one request
+   * Also triggers receipt sync in background
    */
   useEffect(() => {
     const checkSession = async () => {
@@ -128,6 +132,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(result.user)
           // Track the authenticated address from the restored session
           authenticatedAddressRef.current = result.user.walletAddress
+
+          // Sync receipts in background (don't block session restore)
+          portsApi
+            .sync()
+            .then((syncResult) => {
+              console.log('[Auth] Receipt sync completed:', syncResult)
+              // Invalidate ports query to refresh with updated totals
+              queryClient.invalidateQueries({ queryKey: ['ports'] })
+            })
+            .catch((err) => {
+              console.warn('[Auth] Receipt sync failed (non-blocking):', err)
+            })
         } else {
           console.log('[Auth] Refresh returned null, clearing tokens')
           tokenStorage.clearTokens()
@@ -142,7 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     checkSession()
-  }, [])
+  }, [queryClient])
 
   /**
    * Clear session when wallet actively disconnects (not on initial load)
@@ -286,6 +302,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(data.user)
       authenticatedAddressRef.current = address
 
+      // 7. Sync receipts in background (don't block sign-in)
+      portsApi
+        .sync()
+        .then((syncResult) => {
+          console.log('[Auth] Receipt sync completed after sign-in:', syncResult)
+          // Invalidate ports query to refresh with updated totals
+          queryClient.invalidateQueries({ queryKey: ['ports'] })
+        })
+        .catch((err) => {
+          console.warn('[Auth] Receipt sync failed (non-blocking):', err)
+        })
+
       return true
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Authentication failed'
@@ -295,7 +323,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsAuthenticating(false)
     }
-  }, [address, isConnected, chainId, signMessageAsync])
+  }, [address, isConnected, chainId, signMessageAsync, queryClient])
 
   /**
    * Sign out

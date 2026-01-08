@@ -2,12 +2,22 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Card({ className, ...props }: React.ComponentProps<'div'>) {
+interface CardProps extends React.ComponentProps<'div'> {
+  /** Visual variant - glass provides glassmorphism effect */
+  variant?: 'default' | 'glass'
+}
+
+function Card({ className, variant = 'default', ...props }: CardProps) {
   return (
     <div
       data-slot="card"
       className={cn(
-        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
+        'flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
+        // Default variant
+        variant === 'default' && 'bg-card text-card-foreground',
+        // Glass variant - refined for light mode with subtle depth
+        variant === 'glass' &&
+          'border-slate-200 bg-white/90 text-slate-900 shadow-lg shadow-slate-200/50 backdrop-blur-lg dark:border-white/10 dark:bg-slate-900/90 dark:text-white dark:shadow-black/20',
         className
       )}
       {...props}

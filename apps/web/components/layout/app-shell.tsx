@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { FloatingNav, dashboardNav } from './floating-nav'
@@ -53,6 +53,7 @@ export function AppShell({
   className,
 }: AppShellProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isConnected, isAuthenticated, hasKeys, isLoading } = useSignIn()
 
   // Check if auth requirements are met
@@ -65,9 +66,11 @@ export function AppShell({
     if (isLoading) return // Wait for session restoration
 
     if (!isAuthMet || !isKeysMet) {
-      router.push('/setup')
+      // Pass current path as callback so user returns here after setup
+      const callback = encodeURIComponent(pathname)
+      router.push(`/setup?callback=${callback}`)
     }
-  }, [isAuthMet, isKeysMet, isLoading, router])
+  }, [isAuthMet, isKeysMet, isLoading, router, pathname])
 
   // Show loading state while restoring session or checking auth
   if (isLoading || !isAuthMet || !isKeysMet) {

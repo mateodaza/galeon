@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, Loader2 } from 'lucide-react'
 import * as m from 'motion/react-m'
 import { useReducedMotion } from 'motion/react'
@@ -24,10 +24,14 @@ import { cn } from '@/lib/utils'
 
 export default function SetupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isConnected, isAuthenticated, hasKeys, isFullySignedIn, isLoading } = useSignIn()
   const { metaAddress } = useStealthContext()
   const prefersReducedMotion = useReducedMotion()
   const [showModal, setShowModal] = useState(false)
+
+  // Get callback URL from query params (for redirect after setup)
+  const callbackUrl = searchParams.get('callback') || '/dashboard'
 
   // Determine current step for progress indicator
   const currentStep = !isConnected
@@ -162,11 +166,11 @@ export default function SetupPage() {
                   </div>
 
                   <Button
-                    onClick={() => router.push('/dashboard')}
+                    onClick={() => router.push(callbackUrl)}
                     size="lg"
                     className="mt-6 w-full"
                   >
-                    Go to Dashboard
+                    {callbackUrl === '/dashboard' ? 'Go to Dashboard' : 'Continue'}
                   </Button>
                 </m.div>
               )}
@@ -176,7 +180,11 @@ export default function SetupPage() {
       </div>
 
       {/* Sign-in modal */}
-      <SignInModal open={showModal} onOpenChange={setShowModal} />
+      <SignInModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        onComplete={() => router.push(callbackUrl)}
+      />
     </AppShell>
   )
 }

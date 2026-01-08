@@ -181,6 +181,132 @@ export default class ReceiptsController {
   }
 
   /**
+   * POST /receipts/mark-collected
+   * Mark receipts as collected (called by frontend after pool deposit or wallet collect)
+   * Updates receipt status and port totals
+   */
+  async markCollected({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const { stealthAddresses } = request.body() as { stealthAddresses: string[] }
+
+    console.log('[markCollected] Request received:', { userId: user.id, stealthAddresses })
+
+    if (!Array.isArray(stealthAddresses) || stealthAddresses.length === 0) {
+      return response.badRequest({ error: 'stealthAddresses array required' })
+    }
+
+    // Normalize addresses to lowercase for case-insensitive matching
+    const normalizedAddresses = stealthAddresses.map((a) => a.toLowerCase())
+    console.log('[markCollected] Normalized addresses:', normalizedAddresses)
+
+    // Get user's port IDs
+    const userPorts = await Port.query().where('userId', user.id).select('id')
+    const portIds = userPorts.map((p) => p.id)
+    console.log('[markCollected] User port IDs:', portIds)
+
+    if (portIds.length === 0) {
+      console.log('[markCollected] No ports found for user')
+      return response.ok({ updated: 0 })
+    }
+
+    // Find confirmed receipts matching the stealth addresses (case-insensitive)
+    const receipts = await Receipt.query()
+      .whereIn('portId', portIds)
+      .whereRaw('LOWER(stealth_address) IN (?)', [normalizedAddresses])
+      .where('status', 'confirmed')
+      .preload('port')
+
+    console.log(
+      '[markCollected] Found receipts:',
+      receipts.length,
+      receipts.map((r) => ({
+        id: r.id,
+        stealthAddress: r.stealthAddress,
+        status: r.status,
+        amount: r.amount,
+      }))
+    )
+
+    let updatedCount = 0
+    const portUpdates = new Map<string, bigint>()
+
+    for (const receipt of receipts) {
+      receipt.status = 'collected'
+      await receipt.save()
+      updatedCount++
+
+      // Track amount to add to port's totalCollected
+      const amount = BigInt(receipt.amount ?? '0')
+      const currentTotal = portUpdates.get(receipt.portId) ?? BigInt(0)
+      portUpdates.set(receipt.portId, currentTotal + amount)
+    }
+
+    // Update port totals
+    for (const [portId, additionalCollected] of portUpdates) {
+      const port = await Port.find(portId)
+      if (port) {
+        port.totalCollected = (BigInt(port.totalCollected ?? '0') + additionalCollected).toString()
+        await port.save()
+      }
+    }
+
+    return response.ok({ updated: updatedCount })
+  }
+
+  /**
+   * POST /receipts/recalculate-totals
+   * Force recalculate port totals from receipts
+   * Call this if totals are out of sync
+   */
+  async recalculateTotals({ auth, response }: HttpContext) {
+    const user = auth.user!
+
+    // Get user's ports
+    const ports = await Port.query().where('userId', user.id)
+
+    let updatedPorts = 0
+    for (const port of ports) {
+      // Get all receipts for this port
+      const receipts = await Receipt.query()
+        .where('portId', port.id)
+        .whereIn('status', ['confirmed', 'collected'])
+
+      let totalReceived = BigInt(0)
+      let totalCollected = BigInt(0)
+
+      for (const receipt of receipts) {
+        const amount = BigInt(receipt.amount ?? '0')
+        totalReceived += amount
+        if (receipt.status === 'collected') {
+          totalCollected += amount
+        }
+      }
+
+      const oldReceived = port.totalReceived
+      const oldCollected = port.totalCollected
+
+      port.totalReceived = totalReceived.toString()
+      port.totalCollected = totalCollected.toString()
+      port.paymentCount = receipts.length
+      await port.save()
+
+      if (oldReceived !== port.totalReceived || oldCollected !== port.totalCollected) {
+        updatedPorts++
+        console.log(`[recalculateTotals] Updated port ${port.id}:`, {
+          totalReceived: `${oldReceived} -> ${port.totalReceived}`,
+          totalCollected: `${oldCollected} -> ${port.totalCollected}`,
+        })
+      }
+    }
+
+    return response.ok({
+      message: 'Port totals recalculated',
+      portsChecked: ports.length,
+      portsUpdated: updatedPorts,
+    })
+  }
+
+  /**
    * GET /receipts/stats
    * Get receipt statistics for the user
    */
