@@ -60,6 +60,10 @@ export default function RoadmapPage() {
                   title="Client-Side Proof Generation"
                   description="ZK proofs generated in your browser. Your secrets never leave your device"
                 />
+                <StatusCard
+                  title="Shipwreck Reports"
+                  description="Tax compliance reports with PDF export. US and Colombia jurisdiction support"
+                />
               </div>
             </section>
 
@@ -87,10 +91,10 @@ export default function RoadmapPage() {
                   planned="Dynamic tree expansion or pool migration strategies for long-term growth"
                 />
                 <LimitationCard
-                  title="ASP Verification"
-                  current="Withdrawals are instantly approved (no real-time verification yet)"
-                  why="MVP scope. Full ASP verification requires additional infrastructure"
-                  planned="Real-time compliance verification while maintaining fast approval times"
+                  title="Centralized ASP"
+                  current="We operate the only ASP (Association Set Provider) that approves deposits"
+                  why="MVP scope — a single trusted operator is simpler to deploy and maintain"
+                  planned="Decentralized ASP network with multiple independent operators and on-chain governance"
                 />
               </div>
             </section>
@@ -99,35 +103,24 @@ export default function RoadmapPage() {
             <section className="mt-16">
               <Badge className="bg-emerald-500/20 text-emerald-400">Implemented</Badge>
               <h2 className="mt-4 text-2xl font-bold text-white">
-                Account Model: O(1) Withdrawals (When Merged)
+                Single Balance, Unlimited Deposits
               </h2>
               <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
                 <p>
-                  We&apos;ve already solved the multiple-deposit scalability problem. Instead of
-                  creating a new commitment for each deposit, users can{' '}
-                  <strong className="text-white">merge deposits</strong> into a single account
-                  commitment.
+                  Deposit as many times as you want. Your balance accumulates automatically. When
+                  you withdraw, it&apos;s always a{' '}
+                  <strong className="text-white">single proof</strong> — no matter how many deposits
+                  you&apos;ve made.
                 </p>
                 <div className="rounded-lg border border-white/10 bg-slate-800/50 p-6">
                   <p className="font-mono text-sm text-cyan-100/80">
-                    <span className="text-cyan-400">// Without merge (old way)</span>
+                    <span className="text-cyan-400">// How it works</span>
                     <br />
-                    Deposit 10 → Commitment A<br />
-                    Deposit 5 → Commitment B<br />
-                    Deposit 3 → Commitment C<br />
-                    <span className="text-amber-400">
-                      Withdraw all: Need 3 separate withdrawals
-                    </span>
-                  </p>
-                  <div className="my-4 border-t border-white/10" />
-                  <p className="font-mono text-sm text-cyan-100/80">
-                    <span className="text-cyan-400">// With merge (current)</span>
+                    Deposit 10 MNT → Balance: 10
                     <br />
-                    Deposit 10 → Commitment A (value: 10)
+                    Deposit 5 MNT → Balance: 15
                     <br />
-                    Deposit 5 → Merge into A (value: 15)
-                    <br />
-                    Deposit 3 → Merge into A (value: 18)
+                    Deposit 3 MNT → Balance: 18
                     <br />
                     <span className="text-emerald-400">
                       Withdraw any amount: Single proof, ~30-60 sec
@@ -135,8 +128,8 @@ export default function RoadmapPage() {
                   </p>
                 </div>
                 <p>
-                  The merge deposit circuit is fully implemented and deployed. Proof generation runs
-                  in your browser and typically takes 30-60 seconds depending on your device.
+                  Behind the scenes, deposits are merged into a single commitment using ZK proofs.
+                  You don&apos;t need to think about it — the app handles everything automatically.
                 </p>
               </div>
             </section>
