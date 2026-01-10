@@ -29,6 +29,9 @@ export const taxSummaryValidator = vine.compile(
 
     // Optional port filter
     portId: vine.string().uuid().optional(),
+
+    // Jurisdiction for locale/currency: US (English/USD) or CO (Spanish/COP)
+    jurisdiction: vine.enum(['US', 'CO'] as const).optional(),
   })
 )
 

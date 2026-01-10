@@ -6,6 +6,9 @@ import Collection from '#models/collection'
 
 export type ReceiptStatus = 'pending' | 'confirmed' | 'collected' | 'failed'
 
+/** Payment type indicates the privacy level of the payment */
+export type PaymentType = 'regular' | 'stealth_pay' | 'private_send'
+
 export default class Receipt extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
@@ -60,6 +63,9 @@ export default class Receipt extends BaseModel {
 
   @column()
   declare verificationError: string | null
+
+  @column()
+  declare paymentType: PaymentType | null // regular, stealth_pay, or private_send
 
   @column.dateTime()
   declare collectedAt: DateTime | null

@@ -307,6 +307,87 @@ export default class ReceiptsController {
   }
 
   /**
+   * GET /receipts/by-stealth/:address
+   * Public lookup - find receipt by stealth address
+   */
+  async showByStealthAddress({ params, response }: HttpContext) {
+    const { address } = params
+
+    const receipt = await Receipt.query()
+      .whereRaw('LOWER(stealth_address) = ?', [address.toLowerCase()])
+      .preload('port')
+      .first()
+
+    if (!receipt) {
+      return response.notFound({
+        error: 'Receipt not found',
+      })
+    }
+
+    // Only return confirmed/collected receipts (not pending or failed)
+    if (receipt.status === 'pending' || receipt.status === 'failed') {
+      return response.notFound({
+        error: 'Receipt not found or not yet confirmed',
+      })
+    }
+
+    // Return just the receipt ID for linking
+    return response.ok({
+      id: receipt.id,
+      status: receipt.status,
+    })
+  }
+
+  /**
+   * GET /receipts/public/:id
+   * Public receipt verification - anyone can verify a payment
+   */
+  async showPublic({ params, response }: HttpContext) {
+    const { id } = params
+
+    const receipt = await Receipt.query().where('id', id).preload('port').first()
+
+    if (!receipt) {
+      return response.notFound({
+        error: 'Receipt not found',
+      })
+    }
+
+    // Only show confirmed/collected receipts publicly (not pending or failed)
+    if (receipt.status === 'pending' || receipt.status === 'failed') {
+      return response.notFound({
+        error: 'Receipt not found or not yet confirmed',
+      })
+    }
+
+    // Mask payer address for private payments (stealth_pay and private_send)
+    // Only regular payments show the actual sender address
+    const paymentType = receipt.paymentType ?? 'regular'
+    const payerAddress = paymentType === 'regular' ? receipt.payerAddress : null
+
+    // Return limited public data (no sensitive info)
+    return response.ok({
+      id: receipt.id,
+      receiptHash: receipt.receiptHash,
+      portName: receipt.port?.name || 'Anonymous Port',
+      stealthAddress: receipt.stealthAddress,
+      amount: receipt.amount,
+      currency: receipt.currency,
+      tokenAddress: receipt.tokenAddress,
+      paymentType,
+      payerAddress, // null for stealth_pay/private_send
+      status: receipt.status,
+      blockNumber: receipt.blockNumber,
+      txHash: receipt.txHash,
+      chainId: receipt.chainId,
+      createdAt: receipt.createdAt,
+      // Verification data - only true for confirmed/collected (failed already excluded above)
+      verified: true,
+      verifiedAt: new Date().toISOString(),
+    })
+  }
+
+  /**
    * GET /receipts/stats
    * Get receipt statistics for the user
    */

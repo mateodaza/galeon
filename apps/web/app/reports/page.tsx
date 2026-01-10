@@ -20,6 +20,7 @@ import {
   type TaxSummaryReport,
   type TaxSummaryParams,
   type PeriodType,
+  type Jurisdiction,
 } from '@/lib/api'
 import { usePorts } from '@/hooks/use-ports'
 import { formatUnits } from 'viem'
@@ -31,8 +32,13 @@ export default function ReportsPage() {
   const [report, setReport] = useState<TaxSummaryReport | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>('US')
+  // Track the selected port filter to pass to PDF download
+  const [selectedPortId, setSelectedPortId] = useState<string | undefined>(undefined)
 
   const handleGenerateReport = async (params: TaxSummaryParams) => {
+    // Store portId for PDF download
+    setSelectedPortId(params.portId)
     setIsLoading(true)
     setError(null)
     try {
@@ -57,6 +63,8 @@ export default function ReportsPage() {
         month: report.period.month,
         startDate: report.period.type === 'custom' ? report.period.startDate : undefined,
         endDate: report.period.type === 'custom' ? report.period.endDate : undefined,
+        portId: selectedPortId, // Include port filter in PDF download
+        jurisdiction,
       }
       const blob = await complianceApi.getTaxSummaryPdf(params)
       const url = URL.createObjectURL(blob)
@@ -77,6 +85,7 @@ export default function ReportsPage() {
   const handleBack = () => {
     setViewMode('form')
     setReport(null)
+    setSelectedPortId(undefined)
   }
 
   return (
@@ -87,13 +96,20 @@ export default function ReportsPage() {
       />
 
       {viewMode === 'form' ? (
-        <ReportForm onGenerate={handleGenerateReport} isLoading={isLoading} error={error} />
+        <ReportForm
+          onGenerate={handleGenerateReport}
+          isLoading={isLoading}
+          error={error}
+          jurisdiction={jurisdiction}
+          onJurisdictionChange={setJurisdiction}
+        />
       ) : report ? (
         <ReportView
           report={report}
           onBack={handleBack}
           onDownload={handleDownloadPdf}
           isDownloading={isLoading}
+          jurisdiction={jurisdiction}
         />
       ) : null}
     </AppShell>
@@ -104,9 +120,17 @@ interface ReportFormProps {
   onGenerate: (params: TaxSummaryParams) => void
   isLoading: boolean
   error: string | null
+  jurisdiction: Jurisdiction
+  onJurisdictionChange: (j: Jurisdiction) => void
 }
 
-function ReportForm({ onGenerate, isLoading, error }: ReportFormProps) {
+function ReportForm({
+  onGenerate,
+  isLoading,
+  error,
+  jurisdiction,
+  onJurisdictionChange,
+}: ReportFormProps) {
   const prefersReducedMotion = useReducedMotion()
   const { ports } = usePorts()
   const currentYear = new Date().getFullYear()
@@ -137,6 +161,7 @@ function ReportForm({ onGenerate, isLoading, error }: ReportFormProps) {
       startDate: periodType === 'custom' ? startDate : undefined,
       endDate: periodType === 'custom' ? endDate : undefined,
       portId: selectedPort || undefined,
+      jurisdiction,
     }
     onGenerate(params)
   }
@@ -162,7 +187,7 @@ function ReportForm({ onGenerate, isLoading, error }: ReportFormProps) {
     <m.div {...fadeInUp}>
       {/* Info Banner */}
       <Card variant="glass" className="mb-6 border-cyan-500/30 bg-cyan-500/5">
-        <CardContent className="flex items-start gap-4 pt-6">
+        <CardContent className="flex items-start gap-4 pt-0">
           <Ship className="h-8 w-8 shrink-0 text-cyan-500" />
           <div>
             <h3 className="text-foreground font-semibold">About Shipwreck Reports</h3>
@@ -304,6 +329,39 @@ function ReportForm({ onGenerate, isLoading, error }: ReportFormProps) {
               </div>
             )}
 
+            {/* Jurisdiction selector */}
+            <div>
+              <label className="text-foreground mb-2 block text-sm font-medium">
+                Report Jurisdiction
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onJurisdictionChange('US')}
+                  className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                    jurisdiction === 'US'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <div className="font-medium">United States</div>
+                  <div className="text-xs opacity-70">English / USD</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onJurisdictionChange('CO')}
+                  className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                    jurisdiction === 'CO'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <div className="font-medium">Colombia</div>
+                  <div className="text-xs opacity-70">Spanish / COP</div>
+                </button>
+              </div>
+            </div>
+
             {/* Port filter */}
             {ports && ports.length > 0 && (
               <div>
@@ -360,9 +418,10 @@ interface ReportViewProps {
   onBack: () => void
   onDownload: () => void
   isDownloading: boolean
+  jurisdiction: Jurisdiction
 }
 
-function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewProps) {
+function ReportView({ report, onBack, onDownload, isDownloading, jurisdiction }: ReportViewProps) {
   const prefersReducedMotion = useReducedMotion()
 
   const fadeInUp = prefersReducedMotion
@@ -373,13 +432,21 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
         transition: { duration: 0.3 },
       }
 
-  // Format estimated USD (using a simple approximate conversion)
-  const formatUSD = (amount: number) =>
-    new Intl.NumberFormat('en-US', {
+  // Format currency based on jurisdiction
+  const formatValue = (amount: number) => {
+    if (jurisdiction === 'CO') {
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        maximumFractionDigits: 0,
+      }).format(amount)
+    }
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       maximumFractionDigits: 2,
     }).format(amount / 4000)
+  }
 
   const formatToken = (amount: string, decimals: number, symbol: string) => {
     try {
@@ -394,8 +461,11 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
   const shortenAddress = (addr: string | null) =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '-'
 
-  // Threshold in USD equivalent (~$150)
-  const thresholdUSD = report.compliance.uiafThreshold / 4000
+  // Format threshold based on jurisdiction
+  const isUSJurisdiction = report.compliance.jurisdiction === 'US'
+  const thresholdDisplay = isUSJurisdiction
+    ? `$${(report.compliance.uiafThreshold / 4000).toFixed(0)}`
+    : formatValue(report.compliance.uiafThreshold)
 
   return (
     <m.div {...fadeInUp} className="space-y-6">
@@ -443,20 +513,41 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card variant="glass">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">Total Transactions</p>
-            <p className="text-foreground mt-1 text-2xl font-bold">
-              {report.summary.totalTransactions}
+            <p className="text-muted-foreground text-sm">Received</p>
+            <p className="text-foreground mt-1 text-2xl font-bold text-green-500">
+              +{formatValue(report.summary.grandTotalReceivedCop)}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {report.summary.totalTransactions} transaction
+              {report.summary.totalTransactions !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
         <Card variant="glass">
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">Est. Total Value (USD)</p>
-            <p className="text-foreground mt-1 text-2xl font-bold">
-              {formatUSD(report.summary.grandTotalCop)}
+            <p className="text-muted-foreground text-sm">Sent</p>
+            <p className="text-foreground mt-1 text-2xl font-bold text-red-500">
+              -{formatValue(report.summary.grandTotalSentCop)}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {report.summary.totalSentTransactions} payment
+              {report.summary.totalSentTransactions !== 1 ? 's' : ''}
+            </p>
+          </CardContent>
+        </Card>
+        <Card variant="glass">
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground text-sm">
+              Net Balance ({jurisdiction === 'CO' ? 'COP' : 'USD'})
+            </p>
+            <p
+              className={`text-foreground mt-1 text-2xl font-bold ${report.summary.netBalanceCop >= 0 ? 'text-green-500' : 'text-red-500'}`}
+            >
+              {report.summary.netBalanceCop >= 0 ? '+' : ''}
+              {formatValue(report.summary.netBalanceCop)}
             </p>
           </CardContent>
         </Card>
@@ -470,7 +561,7 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
         >
           <CardContent className="pt-6">
             <p className="text-muted-foreground text-sm">
-              Above ${thresholdUSD.toFixed(0)} Threshold
+              {isUSJurisdiction ? 'Payers' : 'Transactions'} Above {thresholdDisplay}
             </p>
             <div className="mt-1 flex items-center gap-2">
               {report.compliance.transactionsAboveThreshold > 0 ? (
@@ -509,7 +600,7 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
                     <p className="text-foreground font-medium">
                       {formatToken(token.totalWei, token.decimals, token.symbol)}
                     </p>
-                    <p className="text-muted-foreground text-sm">{formatUSD(token.totalCop)}</p>
+                    <p className="text-muted-foreground text-sm">{formatValue(token.totalCop)}</p>
                   </div>
                 </div>
               ))}
@@ -541,7 +632,7 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
                       Amount
                     </th>
                     <th className="text-muted-foreground px-3 py-2 text-right font-medium">
-                      Est. USD
+                      Est. {jurisdiction === 'CO' ? 'COP' : 'USD'}
                     </th>
                     <th className="text-muted-foreground px-3 py-2 text-center font-medium">
                       Status
@@ -562,7 +653,7 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
                         {tx.amountFormatted} {tx.currency}
                       </td>
                       <td className="px-3 py-3 text-right">
-                        {formatUSD(tx.amountCop)}
+                        {formatValue(tx.amountCop)}
                         {tx.amountCop >= report.compliance.uiafThreshold && (
                           <AlertCircle className="ml-1 inline h-3 w-3 text-amber-500" />
                         )}
@@ -579,6 +670,72 @@ function ReportView({ report, onBack, onDownload, isDownloading }: ReportViewPro
                         >
                           {tx.status}
                         </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sent Payments Table */}
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>Sent Payments</CardTitle>
+          <CardDescription>All payments sent during this period</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {report.sentPayments.length === 0 ? (
+            <div className="text-muted-foreground py-8 text-center">
+              No sent payments found for this period
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-border border-b">
+                    <th className="text-muted-foreground px-3 py-2 text-left font-medium">Date</th>
+                    <th className="text-muted-foreground px-3 py-2 text-left font-medium">To</th>
+                    <th className="text-muted-foreground px-3 py-2 text-left font-medium">
+                      Source
+                    </th>
+                    <th className="text-muted-foreground px-3 py-2 text-right font-medium">
+                      Amount
+                    </th>
+                    <th className="text-muted-foreground px-3 py-2 text-right font-medium">
+                      Est. {jurisdiction === 'CO' ? 'COP' : 'USD'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.sentPayments.map((sp) => (
+                    <tr key={sp.id} className="border-border border-b last:border-0">
+                      <td className="px-3 py-3">
+                        {sp.timestamp ? new Date(sp.timestamp).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-xs">
+                        {sp.recipientPortName || shortenAddress(sp.recipientAddress)}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            sp.source === 'wallet'
+                              ? 'bg-cyan-500/10 text-cyan-500'
+                              : sp.source === 'port'
+                                ? 'bg-amber-500/10 text-amber-500'
+                                : 'bg-emerald-500/10 text-emerald-500'
+                          }`}
+                        >
+                          {sp.sourceLabel}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right font-mono">
+                        -{sp.amountFormatted} {sp.currency}
+                      </td>
+                      <td className="px-3 py-3 text-right text-red-500">
+                        -{formatValue(sp.amountCop)}
                       </td>
                     </tr>
                   ))}

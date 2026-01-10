@@ -299,8 +299,8 @@ export default function CollectPortContent() {
                 )}
               </div>
 
-              {/* Payment list - compact */}
-              <div className="mb-4 space-y-2">
+              {/* Payment list - ultra compact for scalability */}
+              <div className="bg-muted/30 mb-4 max-h-48 space-y-px overflow-y-auto rounded-lg">
                 {payments.map((payment, i) => (
                   <PaymentCard key={i} payment={payment} hasPoolKeys={hasPoolKeys} />
                 ))}
@@ -315,49 +315,78 @@ export default function CollectPortContent() {
 
               {/* Send section */}
               <div className="border-t pt-4">
-                {/* Destination selector - compact */}
-                <div className="mb-3 grid grid-cols-2 gap-2">
+                {/* Amount input - PRIMARY ACTION */}
+                <div className="mb-4">
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max={maxAmount}
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value)}
+                      placeholder={`${maxAmount.toFixed(4)} MNT`}
+                      className={`h-12 text-lg font-semibold ${amountInput && !isValidAmount ? 'border-destructive' : ''}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAmountInput(maxAmount.toString())}
+                      className="h-12 px-4"
+                    >
+                      Max
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground mt-1.5 text-xs">
+                    {destination === 'pool'
+                      ? poolStats.paymentsCanDeposit > 0
+                        ? `Pool-eligible: ${maxForPool.toFixed(4)} MNT (after ~${poolStats.gasCostPerDepositFormatted} gas)`
+                        : `Insufficient balance for gas`
+                      : amountInput
+                        ? `Sending from 1 stealth address`
+                        : `All ${totalBalanceFormatted} MNT from ${payments.length} address${payments.length !== 1 ? 'es' : ''}`}
+                  </p>
+                </div>
+
+                {/* Destination selector - minimal */}
+                <div className="bg-muted/50 mb-4 flex gap-1 rounded-lg p-1">
                   {hasPoolKeys && hasPoolDepositable && (
                     <button
                       type="button"
                       onClick={() => setDestination('pool')}
-                      className={`flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                         destination === 'pool'
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                          : 'border-border hover:border-emerald-500/50'
+                          ? 'bg-emerald-500 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      <Shield
-                        className={`h-4 w-4 ${destination === 'pool' ? 'text-emerald-500' : 'text-muted-foreground'}`}
-                      />
-                      <span className="font-medium">Privacy Pool</span>
+                      <Shield className="h-4 w-4" />
+                      Pool
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setDestination('external')}
-                    className={`flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors ${
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                       destination === 'external'
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:border-primary/50'
-                    } ${!hasPoolKeys || !hasPoolDepositable ? 'col-span-2' : ''}`}
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
-                    <ExternalLink
-                      className={`h-4 w-4 ${destination === 'external' ? 'text-primary' : 'text-muted-foreground'}`}
-                    />
-                    <span className="font-medium">External</span>
+                    <ExternalLink className="h-4 w-4" />
+                    External
                   </button>
                 </div>
 
                 {/* External address input */}
                 {destination === 'external' && (
-                  <div className="mb-3">
+                  <div className="mb-4">
                     <Input
                       type="text"
                       value={externalAddress}
                       onChange={(e) => setExternalAddress(e.target.value)}
                       placeholder="0x... recipient address"
-                      className={`h-9 font-mono text-sm ${
+                      className={`h-10 font-mono text-sm ${
                         externalAddress && !isAddress(externalAddress) ? 'border-destructive' : ''
                       }`}
                     />
@@ -368,50 +397,12 @@ export default function CollectPortContent() {
                       isAddress(externalAddress) &&
                       connectedAddress &&
                       externalAddress.toLowerCase() === connectedAddress.toLowerCase() && (
-                        <div className="mt-2 flex items-start gap-2 rounded border border-red-500/50 bg-red-500/10 p-2 text-xs text-red-600 dark:text-red-400">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>
-                            Sending to your wallet creates a traceable link. Use Privacy Pool for
-                            better privacy.
-                          </span>
-                        </div>
+                        <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                          ⚠️ Sending to your wallet creates a traceable link.
+                        </p>
                       )}
                   </div>
                 )}
-
-                {/* Amount input - compact */}
-                <div className="mb-3">
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      step="0.001"
-                      min="0"
-                      max={maxAmount}
-                      value={amountInput}
-                      onChange={(e) => setAmountInput(e.target.value)}
-                      placeholder={`Max: ${maxAmount.toFixed(4)}`}
-                      className={`h-9 font-mono text-sm ${amountInput && !isValidAmount ? 'border-destructive' : ''}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAmountInput(maxAmount.toString())}
-                      className="h-9 shrink-0"
-                    >
-                      Max
-                    </Button>
-                  </div>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {destination === 'pool'
-                      ? poolStats.paymentsCanDeposit > 0
-                        ? `Max: ${maxForPool.toFixed(4)} MNT (after ~${poolStats.gasCostPerDepositFormatted} gas)`
-                        : `Insufficient balance for gas`
-                      : amountInput
-                        ? `From 1 address`
-                        : `All ${totalBalanceFormatted} MNT from ${payments.length} addr`}
-                  </p>
-                </div>
 
                 {/* Sync status for merge deposits - compact */}
                 {destination === 'pool' && willMergeDeposit && (
@@ -604,7 +595,7 @@ export default function CollectPortContent() {
 }
 
 /**
- * Compact payment card
+ * Ultra-compact payment row for scalability
  */
 function PaymentCard({
   payment,
@@ -613,52 +604,73 @@ function PaymentCard({
   payment: CollectablePayment
   hasPoolKeys: boolean
 }) {
+  const [receiptId, setReceiptId] = useState<string | null>(null)
   const effectiveVerified =
     payment.verifiedBalance > payment.balance ? payment.balance : payment.verifiedBalance
-  const unverifiedBalance = payment.balance - effectiveVerified
+
+  // Lookup receipt ID on mount
+  useEffect(() => {
+    async function lookupReceipt() {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'}/api/v1/receipts/by-stealth/${payment.stealthAddress}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setReceiptId(data.id)
+        }
+      } catch {
+        // Silently fail - receipt may not exist
+      }
+    }
+    lookupReceipt()
+  }, [payment.stealthAddress])
 
   return (
-    <div className="bg-muted rounded-lg p-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-foreground font-mono text-sm">
-            {payment.stealthAddress.slice(0, 8)}...{payment.stealthAddress.slice(-6)}
-          </p>
-          <p className="text-muted-foreground text-xs">Block #{payment.blockNumber.toString()}</p>
-        </div>
-        <p className="text-foreground font-semibold">{payment.balanceFormatted} MNT</p>
-      </div>
-      {hasPoolKeys && (
-        <div className="mt-2 flex items-center gap-3 border-t border-white/10 pt-2 text-xs">
-          <div className="flex items-center gap-1">
-            <div
-              className={`h-1.5 w-1.5 rounded-full ${effectiveVerified > 0n ? 'bg-emerald-500' : 'bg-gray-400'}`}
-            />
-            <span
-              className={
-                effectiveVerified > 0n
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-muted-foreground'
-              }
-            >
-              {formatMnt(effectiveVerified)} pool
-            </span>
-          </div>
-          {unverifiedBalance > 0n && (
-            <div className="flex items-center gap-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              <span className="text-amber-600 dark:text-amber-400">
-                {formatMnt(unverifiedBalance)} wallet
-              </span>
-            </div>
-          )}
-          {payment.canDepositToPool ? (
-            <Shield className="ml-auto h-3.5 w-3.5 text-emerald-500" />
-          ) : (
-            <AlertTriangle className="ml-auto h-3.5 w-3.5 text-amber-500" />
-          )}
-        </div>
+    <div className="even:bg-muted/50 flex items-center gap-2 px-3 py-2 text-xs">
+      {/* Address with receipt link or explorer link */}
+      {receiptId ? (
+        <Link
+          href={`/receipt/${receiptId}`}
+          className="text-primary hover:bg-primary/10 flex items-center gap-1.5 rounded px-1.5 py-0.5 font-mono transition-colors"
+          title="View shareable receipt"
+        >
+          <CheckCircle className="h-3 w-3" />
+          {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
+        </Link>
+      ) : (
+        <a
+          href={getTxExplorerUrl(payment.txHash)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-primary flex items-center gap-1.5 font-mono transition-colors"
+          title="View on explorer"
+        >
+          <ExternalLink className="h-3 w-3" />
+          {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
+        </a>
       )}
+      <span className="text-muted-foreground">#{payment.blockNumber.toString()}</span>
+      <span className="flex-1" />
+      {hasPoolKeys && (
+        <>
+          {effectiveVerified > 0n ? (
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {formatMnt(effectiveVerified)}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              {payment.balanceFormatted}
+            </span>
+          )}
+        </>
+      )}
+      {!hasPoolKeys && (
+        <span className="text-foreground font-medium">{payment.balanceFormatted}</span>
+      )}
+      <span className="text-muted-foreground">MNT</span>
     </div>
   )
 }

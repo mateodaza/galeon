@@ -22,6 +22,7 @@ export default class ComplianceController {
     const data = await taxSummaryValidator.validate(request.qs())
 
     const service = new ComplianceService()
+    const jurisdiction = data.jurisdiction || 'US'
 
     try {
       const report = await service.generateTaxSummary(
@@ -34,7 +35,8 @@ export default class ComplianceController {
           startDate: data.startDate,
           endDate: data.endDate,
         },
-        data.portId
+        data.portId,
+        jurisdiction
       )
 
       return response.ok(report)
@@ -58,6 +60,7 @@ export default class ComplianceController {
 
     const complianceService = new ComplianceService()
     const pdfService = new PdfGeneratorService()
+    const jurisdiction = data.jurisdiction || 'US'
 
     try {
       const report = await complianceService.generateTaxSummary(
@@ -70,13 +73,15 @@ export default class ComplianceController {
           startDate: data.startDate,
           endDate: data.endDate,
         },
-        data.portId
+        data.portId,
+        jurisdiction
       )
 
-      const pdfBuffer = await pdfService.generateTaxSummaryPdf(report)
+      const pdfBuffer = await pdfService.generateTaxSummaryPdf(report, jurisdiction)
 
       // Generate filename from period
-      const filename = `resumen-tributario-${report.period.label.replace(/\s+/g, '-').toLowerCase()}.pdf`
+      const filenamePrefix = jurisdiction === 'CO' ? 'resumen-tributario' : 'tax-summary'
+      const filename = `${filenamePrefix}-${report.period.label.replace(/\s+/g, '-').toLowerCase()}.pdf`
 
       response.header('Content-Type', 'application/pdf')
       response.header('Content-Disposition', `attachment; filename="${filename}"`)

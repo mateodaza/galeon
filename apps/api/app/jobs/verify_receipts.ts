@@ -1,6 +1,8 @@
 import { Job } from 'adonisjs-jobs'
 import Receipt from '#models/receipt'
+import type { PaymentType } from '#models/receipt'
 import PonderService from '#services/ponder_service'
+import { CONTRACTS } from '@galeon/config'
 
 /**
  * VerifyReceipts Job
@@ -13,6 +15,25 @@ import PonderService from '#services/ponder_service'
  */
 
 const MAX_VERIFICATION_ATTEMPTS = 10 // Stop retrying after 10 attempts (~10 minutes)
+
+/**
+ * Detect payment type based on the caller address.
+ * - If caller is GaleonRegistry → stealth_pay (payment from another port)
+ * - If caller is Privacy Pool → private_send (ZK private payment)
+ * - Otherwise → regular (direct wallet payment, sender visible)
+ */
+function detectPaymentType(callerAddress: string, chainId: number): PaymentType {
+  const contracts = CONTRACTS[chainId as keyof typeof CONTRACTS]
+  if (!contracts) return 'regular'
+
+  const caller = callerAddress.toLowerCase()
+  const registry = contracts.stealth.galeonRegistry.toLowerCase()
+  const pool = contracts.pool.pool.toLowerCase()
+
+  if (caller === registry) return 'stealth_pay'
+  if (caller === pool) return 'private_send'
+  return 'regular'
+}
 
 export interface VerifyReceiptsPayload {
   batchSize?: number
@@ -72,6 +93,9 @@ export default class VerifyReceipts extends Job {
         receipt.payerAddress = announcement.caller
         receipt.blockNumber = announcement.blockNumber
         receipt.receiptHash = announcement.receiptHash ?? ''
+
+        // Detect payment type based on caller address
+        receipt.paymentType = detectPaymentType(announcement.caller, receipt.chainId)
 
         // Try to get amount from receipts_anchored table
         const receiptAnchored = await ponderService.findReceiptAnchoredByTxHash(

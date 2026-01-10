@@ -289,7 +289,69 @@
 /* =============================================================================
    COMPONENT UTILITIES
    ============================================================================= */
+/* =============================================================================
+   WAVE & SEA ANIMATIONS (Receipt page)
+   ============================================================================= */
+@keyframes wave-slow {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-25px);
+  }
+}
+
+@keyframes wave-medium {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(25px);
+  }
+}
+
+@keyframes wave-fast {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-15px);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.1);
+    opacity: 0.6;
+  }
+}
+
 @layer components {
+  /* Wave animations */
+  .animate-wave-slow {
+    animation: wave-slow 8s ease-in-out infinite;
+  }
+
+  .animate-wave-medium {
+    animation: wave-medium 6s ease-in-out infinite;
+  }
+
+  .animate-wave-fast {
+    animation: wave-fast 4s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
   /* Glass card effect */
   .glass-card {
     background: var(--glass-background);

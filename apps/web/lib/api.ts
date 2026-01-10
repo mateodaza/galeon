@@ -1130,6 +1130,8 @@ export const healthApi = {
 
 export type PeriodType = 'annual' | 'quarterly' | 'monthly' | 'custom'
 
+export type Jurisdiction = 'US' | 'CO'
+
 export interface TaxSummaryParams {
   period: PeriodType
   year?: number
@@ -1138,6 +1140,7 @@ export interface TaxSummaryParams {
   startDate?: string // YYYY-MM-DD
   endDate?: string // YYYY-MM-DD
   portId?: string
+  jurisdiction?: Jurisdiction // US = English/USD, CO = Spanish/COP
 }
 
 export interface PeriodInfo {
@@ -1190,6 +1193,24 @@ export interface TransactionDetail {
   status: string
 }
 
+export interface SentPaymentDetail {
+  id: string
+  recipientAddress: string
+  recipientPortName: string | null
+  amount: string
+  amountFormatted: string
+  amountCop: number
+  currency: string
+  tokenAddress: string | null
+  source: 'wallet' | 'port' | 'pool'
+  sourceLabel: string
+  txHash: string
+  chainId: number
+  timestamp: string | null
+  status: string
+  memo: string | null
+}
+
 export interface TaxSummaryReport {
   reportId: string
   reportType: string
@@ -1198,10 +1219,15 @@ export interface TaxSummaryReport {
   user: { walletAddress: string }
   ports: PortSummary[]
   transactions: TransactionDetail[]
+  sentPayments: SentPaymentDetail[]
   summary: {
     totalTransactions: number
     totalReceivedByToken: TokenSummary[]
-    grandTotalCop: number
+    grandTotalReceivedCop: number
+    totalSentTransactions: number
+    totalSentByToken: TokenSummary[]
+    grandTotalSentCop: number
+    netBalanceCop: number
   }
   compliance: {
     jurisdiction: string
@@ -1220,6 +1246,113 @@ export interface TaxSummaryReport {
 // Compliance API (protected - requires auth)
 // ============================================================
 
+// ============================================================
+// Sent Payment Types (payment history)
+// ============================================================
+
+export type PaymentSource = 'wallet' | 'port' | 'pool'
+export type SentPaymentStatus = 'pending' | 'confirmed' | 'failed'
+
+export interface SentPayment {
+  id: string
+  txHash: string
+  chainId: number
+  recipientAddress: string
+  recipientPortName: string | null
+  amount: string
+  currency: string
+  tokenAddress: string | null
+  source: PaymentSource
+  memo: string | null
+  status: SentPaymentStatus
+  blockNumber: string | null
+  createdAt: string
+}
+
+export interface CreateSentPaymentParams {
+  txHash: string
+  chainId: number
+  recipientAddress: string
+  recipientPortName?: string
+  amount: string
+  currency: string
+  tokenAddress?: string | null
+  source: PaymentSource
+  memo?: string
+}
+
+export interface SentPaymentsListParams {
+  page?: number
+  limit?: number
+  source?: PaymentSource
+  status?: SentPaymentStatus
+}
+
+export interface SentPaymentStats {
+  totalPayments: number
+  confirmedPayments: number
+  bySource: {
+    wallet: { total: string; count: number }
+    port: { total: string; count: number }
+    pool: { total: string; count: number }
+  }
+  grandTotal: string
+}
+
+// ============================================================
+// Sent Payments API (protected - requires auth)
+// ============================================================
+
+export const sentPaymentsApi = {
+  /**
+   * List sent payments for the authenticated user
+   */
+  list: async (
+    params: SentPaymentsListParams = {}
+  ): Promise<{
+    data: SentPayment[]
+    meta: { total: number; perPage: number; currentPage: number; lastPage: number }
+  }> => {
+    const query = new URLSearchParams()
+    if (params.page) query.set('page', String(params.page))
+    if (params.limit) query.set('limit', String(params.limit))
+    if (params.source) query.set('source', params.source)
+    if (params.status) query.set('status', params.status)
+
+    return api.get(`/api/v1/sent-payments?${query.toString()}`)
+  },
+
+  /**
+   * Record a new sent payment
+   */
+  create: async (
+    params: CreateSentPaymentParams
+  ): Promise<{
+    id: string
+    txHash: string
+    chainId: number
+    source: PaymentSource
+    status: SentPaymentStatus
+    createdAt: string
+  }> => {
+    return api.post('/api/v1/sent-payments', params)
+  },
+
+  /**
+   * Get a single sent payment by ID
+   */
+  get: async (id: string): Promise<SentPayment> => {
+    return api.get(`/api/v1/sent-payments/${id}`)
+  },
+
+  /**
+   * Get sent payment statistics
+   */
+  getStats: async (): Promise<SentPaymentStats> => {
+    return api.get('/api/v1/sent-payments/stats')
+  },
+}
+
 export const complianceApi = {
   /**
    * Get tax summary report as JSON.
@@ -1234,6 +1367,7 @@ export const complianceApi = {
     if (params.startDate) query.set('startDate', params.startDate)
     if (params.endDate) query.set('endDate', params.endDate)
     if (params.portId) query.set('portId', params.portId)
+    if (params.jurisdiction) query.set('jurisdiction', params.jurisdiction)
 
     return api.get<TaxSummaryReport>(`/api/v1/compliance/tax-summary?${query.toString()}`)
   },
@@ -1252,6 +1386,7 @@ export const complianceApi = {
     if (params.startDate) query.set('startDate', params.startDate)
     if (params.endDate) query.set('endDate', params.endDate)
     if (params.portId) query.set('portId', params.portId)
+    if (params.jurisdiction) query.set('jurisdiction', params.jurisdiction)
 
     const token = tokenStorage.getAccessToken()
     const response = await fetch(

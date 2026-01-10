@@ -1,5 +1,6 @@
 import Port from '#models/port'
 import Receipt from '#models/receipt'
+import SentPayment from '#models/sent_payment'
 import User from '#models/user'
 
 /**
@@ -26,11 +27,20 @@ const TOKEN_ADDRESS_TO_SYMBOL: Record<string, string> = {
 }
 
 /**
- * UIAF Resolution 314 threshold: ~$150 USD
+ * UIAF Resolution 314 threshold: ~$150 USD (Colombia)
  */
 const UIAF_THRESHOLD_COP = 600_000
 
+/**
+ * IRS reporting threshold: $600 USD (US)
+ * Note: 1099-K threshold for payment processors
+ */
+const IRS_THRESHOLD_USD = 600
+const USD_TO_COP = 4_000 // Hardcoded rate for conversion
+const IRS_THRESHOLD_COP = IRS_THRESHOLD_USD * USD_TO_COP // 2,400,000 COP
+
 type PeriodType = 'annual' | 'quarterly' | 'monthly' | 'custom'
+type Jurisdiction = 'US' | 'CO'
 
 export interface PeriodParams {
   period: PeriodType
@@ -91,6 +101,24 @@ interface TransactionDetail {
   status: string
 }
 
+interface SentPaymentDetail {
+  id: string
+  recipientAddress: string
+  recipientPortName: string | null
+  amount: string
+  amountFormatted: string
+  amountCop: number
+  currency: string
+  tokenAddress: string | null
+  source: 'wallet' | 'port' | 'pool'
+  sourceLabel: string
+  txHash: string
+  chainId: number
+  timestamp: string | null
+  status: string
+  memo: string | null
+}
+
 export interface TaxSummaryReport {
   reportId: string
   reportType: string
@@ -99,10 +127,15 @@ export interface TaxSummaryReport {
   user: { walletAddress: string }
   ports: PortSummary[]
   transactions: TransactionDetail[]
+  sentPayments: SentPaymentDetail[]
   summary: {
     totalTransactions: number
     totalReceivedByToken: TokenSummary[]
-    grandTotalCop: number
+    grandTotalReceivedCop: number
+    totalSentTransactions: number
+    totalSentByToken: TokenSummary[]
+    grandTotalSentCop: number
+    netBalanceCop: number
   }
   compliance: {
     jurisdiction: string
@@ -119,10 +152,41 @@ export interface TaxSummaryReport {
 
 export default class ComplianceService {
   /**
-   * Calculate date range from period parameters
+   * Calculate date range from period parameters with locale support
    */
-  private calculatePeriod(params: PeriodParams): PeriodInfo {
+  private calculatePeriod(params: PeriodParams, jurisdiction: Jurisdiction = 'US'): PeriodInfo {
     const { period, year, quarter, month, startDate, endDate } = params
+
+    // Month names for each jurisdiction
+    const monthNamesEN = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]
+    const monthNamesES = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ]
+    const monthNames = jurisdiction === 'CO' ? monthNamesES : monthNamesEN
 
     switch (period) {
       case 'annual': {
@@ -132,7 +196,7 @@ export default class ComplianceService {
           year,
           startDate: `${year}-01-01`,
           endDate: `${year}-12-31`,
-          label: `Año ${year}`,
+          label: jurisdiction === 'CO' ? `Año ${year}` : `Year ${year}`,
         }
       }
 
@@ -156,20 +220,6 @@ export default class ComplianceService {
         if (!year || !month) throw new Error('Year and month are required')
         if (month < 1 || month > 12) throw new Error('Month must be 1-12')
         const lastDay = new Date(year, month, 0).getDate()
-        const monthNames = [
-          'Ene',
-          'Feb',
-          'Mar',
-          'Abr',
-          'May',
-          'Jun',
-          'Jul',
-          'Ago',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dic',
-        ]
         return {
           type: 'monthly',
           year,
@@ -187,7 +237,7 @@ export default class ComplianceService {
           type: 'custom',
           startDate,
           endDate,
-          label: `${startDate} a ${endDate}`,
+          label: jurisdiction === 'CO' ? `${startDate} a ${endDate}` : `${startDate} to ${endDate}`,
         }
       }
 
@@ -202,10 +252,11 @@ export default class ComplianceService {
   async generateTaxSummary(
     userId: number,
     params: PeriodParams,
-    portId?: string
+    portId?: string,
+    jurisdiction: Jurisdiction = 'US'
   ): Promise<TaxSummaryReport> {
     const user = await User.findOrFail(userId)
-    const periodInfo = this.calculatePeriod(params)
+    const periodInfo = this.calculatePeriod(params, jurisdiction)
 
     // Get user's ports
     let portsQuery = Port.query().where('userId', userId)
@@ -228,19 +279,50 @@ export default class ComplianceService {
       .whereIn('status', ['confirmed', 'collected'])
       .preload('port')
 
-    // Calculate totals by token
-    const byToken = this.aggregateByToken(receipts)
-    const grandTotalCop = byToken.reduce((sum, t) => sum + t.totalCop, 0)
-    const aboveThreshold = receipts.filter(
-      (r) => this.calculateCop(r.amount, r.currency, r.tokenAddress) >= UIAF_THRESHOLD_COP
-    ).length
+    // Get sent payments for the period - only confirmed payments for tax compliance
+    // Pending payments haven't been verified on-chain and shouldn't be included in totals
+    const sentPayments = await SentPayment.query()
+      .where('userId', userId)
+      .where('createdAt', '>=', startDate)
+      .where('createdAt', '<=', endDate)
+      .where('status', 'confirmed')
+      .orderBy('createdAt', 'desc')
+
+    // Calculate totals by token for received payments
+    const byTokenReceived = this.aggregateByToken(receipts)
+    const grandTotalReceivedCop = byTokenReceived.reduce((sum, t) => sum + t.totalCop, 0)
+
+    // Calculate totals by token for sent payments
+    const byTokenSent = this.aggregateSentByToken(sentPayments)
+    const grandTotalSentCop = byTokenSent.reduce((sum, t) => sum + t.totalCop, 0)
+
+    // Net balance = received - sent
+    const netBalanceCop = grandTotalReceivedCop - grandTotalSentCop
+
+    // Calculate transactions/payers above threshold based on jurisdiction
+    // CO: Per-transaction threshold (UIAF Resolution 314)
+    // US: Aggregate per-payer threshold (IRS 1099-K)
+    const aboveThreshold =
+      jurisdiction === 'CO'
+        ? this.countTransactionsAboveThreshold(receipts, UIAF_THRESHOLD_COP)
+        : this.countPayersAboveThreshold(receipts, IRS_THRESHOLD_COP)
 
     // Calculate port totals for this period only
     const portTotals = this.calculatePortTotals(receipts)
 
+    // Map source to human-readable label
+    const sourceLabels: Record<string, string> = {
+      wallet: 'Quick Pay',
+      port: 'Stealth Pay',
+      pool: 'Private Send',
+    }
+
+    // Build jurisdiction-specific compliance info
+    const complianceInfo = this.buildComplianceInfo(jurisdiction, aboveThreshold)
+
     return {
       reportId: crypto.randomUUID(),
-      reportType: 'tax_summary_co',
+      reportType: jurisdiction === 'CO' ? 'tax_summary_co' : 'tax_summary_us',
       generatedAt: new Date().toISOString(),
       period: periodInfo,
       user: { walletAddress: user.walletAddress },
@@ -271,22 +353,63 @@ export default class ComplianceService {
         timestamp: r.createdAt?.toISO() || null,
         status: r.status,
       })),
+      sentPayments: sentPayments.map((s) => ({
+        id: s.id,
+        recipientAddress: s.recipientAddress,
+        recipientPortName: s.recipientPortName,
+        amount: s.amount,
+        amountFormatted: this.formatAmount(s.amount, s.currency, s.tokenAddress),
+        amountCop: this.calculateCop(s.amount, s.currency, s.tokenAddress),
+        currency: s.currency,
+        tokenAddress: s.tokenAddress,
+        source: s.source,
+        sourceLabel: sourceLabels[s.source] || s.source,
+        txHash: s.txHash,
+        chainId: s.chainId,
+        timestamp: s.createdAt?.toISO() || null,
+        status: s.status,
+        memo: s.memo,
+      })),
       summary: {
         totalTransactions: receipts.length,
-        totalReceivedByToken: byToken,
-        grandTotalCop,
+        totalReceivedByToken: byTokenReceived,
+        grandTotalReceivedCop,
+        totalSentTransactions: sentPayments.length,
+        totalSentByToken: byTokenSent,
+        grandTotalSentCop,
+        netBalanceCop,
       },
-      compliance: {
-        jurisdiction: 'CO',
-        uiafThreshold: UIAF_THRESHOLD_COP,
-        transactionsAboveThreshold: aboveThreshold,
-        note: 'Transactions above 600,000 COP (~$150 USD) may require UIAF reporting',
-      },
+      compliance: complianceInfo,
       metadata: {
         ratesUsed: RATES_COP,
         rateSource: 'hardcoded_mvp',
         generatedBy: 'galeon-api',
       },
+    }
+  }
+
+  /**
+   * Build jurisdiction-specific compliance information
+   */
+  private buildComplianceInfo(
+    jurisdiction: Jurisdiction,
+    transactionsAboveThreshold: number
+  ): TaxSummaryReport['compliance'] {
+    if (jurisdiction === 'CO') {
+      return {
+        jurisdiction: 'CO',
+        uiafThreshold: UIAF_THRESHOLD_COP,
+        transactionsAboveThreshold,
+        note: 'Transactions above 600,000 COP (~$150 USD) may require UIAF reporting per Resolution 314',
+      }
+    }
+
+    // US jurisdiction - note: transactionsAboveThreshold represents PAYERS above threshold
+    return {
+      jurisdiction: 'US',
+      uiafThreshold: IRS_THRESHOLD_COP, // Convert to COP for consistent API
+      transactionsAboveThreshold, // For US: counts payers, not individual transactions
+      note: 'Counts unique payers whose aggregate payments exceed $600 USD (1099-K threshold)',
     }
   }
 
@@ -307,6 +430,41 @@ export default class ComplianceService {
     }
 
     return portMap
+  }
+
+  /**
+   * Count individual transactions above threshold (for CO/UIAF reporting)
+   */
+  private countTransactionsAboveThreshold(receipts: Receipt[], thresholdCop: number): number {
+    return receipts.filter(
+      (r) => this.calculateCop(r.amount, r.currency, r.tokenAddress) >= thresholdCop
+    ).length
+  }
+
+  /**
+   * Count unique payers whose aggregate payments exceed threshold (for US/1099-K reporting)
+   * Aggregates all payments from each payer address and counts those above threshold
+   */
+  private countPayersAboveThreshold(receipts: Receipt[], thresholdCop: number): number {
+    // Aggregate payments by payer address
+    const payerTotals = new Map<string, number>()
+
+    for (const r of receipts) {
+      const payer = r.payerAddress?.toLowerCase() || 'unknown'
+      const amountCop = this.calculateCop(r.amount, r.currency, r.tokenAddress)
+      const current = payerTotals.get(payer) || 0
+      payerTotals.set(payer, current + amountCop)
+    }
+
+    // Count payers above threshold
+    let count = 0
+    for (const total of payerTotals.values()) {
+      if (total >= thresholdCop) {
+        count++
+      }
+    }
+
+    return count
   }
 
   /**
@@ -408,6 +566,37 @@ export default class ComplianceService {
         total: current.total + BigInt(r.amount || '0'),
         count: current.count + 1,
         tokenAddress: r.tokenAddress || current.tokenAddress,
+      })
+    }
+
+    return Array.from(tokenMap.entries()).map(([symbol, data]) => ({
+      token: symbol,
+      symbol: symbol,
+      decimals: this.getTokenDecimals(symbol),
+      totalWei: data.total.toString(),
+      totalFormatted: this.formatAmount(data.total.toString(), symbol, data.tokenAddress),
+      totalCop: this.calculateCop(data.total.toString(), symbol, data.tokenAddress),
+      transactionCount: data.count,
+      rateCop: RATES_COP[symbol] || 0,
+    }))
+  }
+
+  /**
+   * Aggregate sent payments by token
+   */
+  private aggregateSentByToken(sentPayments: SentPayment[]): TokenSummary[] {
+    const tokenMap = new Map<
+      string,
+      { total: bigint; count: number; tokenAddress: string | null }
+    >()
+
+    for (const s of sentPayments) {
+      const symbol = this.resolveTokenSymbol(s.currency, s.tokenAddress)
+      const current = tokenMap.get(symbol) || { total: 0n, count: 0, tokenAddress: null }
+      tokenMap.set(symbol, {
+        total: current.total + BigInt(s.amount || '0'),
+        count: current.count + 1,
+        tokenAddress: s.tokenAddress || current.tokenAddress,
       })
     }
 

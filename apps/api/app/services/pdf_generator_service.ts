@@ -105,6 +105,49 @@ interface TDocumentDefinitions {
 // Flag to track if fonts have been registered
 let fontsRegistered = false
 
+type Jurisdiction = 'US' | 'CO'
+
+// Locale strings interface
+interface LocaleStrings {
+  title: string
+  period: string
+  summaryByToken: string
+  token: string
+  amount: string
+  estValue: string
+  txs: string
+  total: string
+  ports: string
+  name: string
+  type: string
+  status: string
+  transactions: string
+  date: string
+  port: string
+  payer: string
+  complianceNotes: string
+  jurisdiction: string
+  reportingThreshold: string
+  txsAboveThreshold: string
+  footer: string
+  noTxs: string
+  moreTransactions: (n: number) => string
+  reportInfo: string
+  rateSource: string
+  ratesUsed: string
+  generatedBy: string
+  disclaimerNote: string
+  // Sent payments
+  sentPayments: string
+  receivedSummary: string
+  sentSummary: string
+  recipient: string
+  source: string
+  netBalance: string
+  noSentPayments: string
+  moreSentPayments: (n: number) => string
+}
+
 /**
  * Register standard Helvetica fonts in pdfmake virtual file system
  */
@@ -122,24 +165,36 @@ function registerFonts(): void {
 }
 
 /**
- * Format number as Colombian Peso
+ * Format currency based on jurisdiction
  */
-function formatCOP(amount: number): string {
-  return new Intl.NumberFormat('es-CO', {
+function formatCurrency(amount: number, jurisdiction: Jurisdiction): string {
+  if (jurisdiction === 'CO') {
+    // COP format
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+  // USD format - convert from COP-equivalent (~4000 COP = 1 USD)
+  const usdAmount = amount / 4000
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(usdAmount)
 }
 
 /**
- * Format date for display
+ * Format date for display based on jurisdiction
  */
-function formatDate(dateStr: string | null): string {
+function formatDate(dateStr: string | null, jurisdiction: Jurisdiction = 'US'): string {
   if (!dateStr) return '-'
   try {
-    return new Date(dateStr).toLocaleDateString('es-CO', {
+    const locale = jurisdiction === 'CO' ? 'es-CO' : 'en-US'
+    return new Date(dateStr).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -172,15 +227,21 @@ export default class PdfGeneratorService {
   /**
    * Generate PDF buffer from tax summary report
    */
-  async generateTaxSummaryPdf(report: TaxSummaryReport): Promise<Buffer> {
-    const docDefinition = this.buildDocumentDefinition(report)
+  async generateTaxSummaryPdf(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction = 'US'
+  ): Promise<Buffer> {
+    const docDefinition = this.buildDocumentDefinition(report, jurisdiction)
     return this.createPdfBuffer(docDefinition)
   }
 
   /**
    * Build the PDF document definition
    */
-  private buildDocumentDefinition(report: TaxSummaryReport): TDocumentDefinitions {
+  private buildDocumentDefinition(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction
+  ): TDocumentDefinitions {
     const styles: StyleDictionary = {
       title: { fontSize: 18, bold: true, color: '#1a1a1a' },
       subtitle: { fontSize: 12, color: '#666666' },
@@ -192,45 +253,140 @@ export default class PdfGeneratorService {
       small: { fontSize: 8, color: '#6b7280' },
     }
 
+    // Localized strings
+    const strings =
+      jurisdiction === 'CO'
+        ? {
+            title: 'RESUMEN TRIBUTARIO',
+            period: 'Periodo',
+            summaryByToken: 'Resumen por Token',
+            token: 'Token',
+            amount: 'Cantidad',
+            estValue: 'Est. COP',
+            txs: 'Txs',
+            total: 'TOTAL',
+            ports: 'Puertos',
+            name: 'Nombre',
+            type: 'Tipo',
+            status: 'Estado',
+            transactions: 'Transacciones',
+            date: 'Fecha',
+            port: 'Puerto',
+            payer: 'Pagador',
+            complianceNotes: 'Notas de Cumplimiento',
+            jurisdiction: 'Colombia (CO)',
+            reportingThreshold: 'Umbral de Reporte',
+            txsAboveThreshold: 'Transacciones sobre el umbral',
+            footer: 'Galeon - Pagos Privados',
+            noTxs: 'Sin transacciones en este periodo.',
+            moreTransactions: (n: number) =>
+              `... y ${n} transacciones más. Ver reporte JSON para la lista completa.`,
+            reportInfo: 'Información del Reporte',
+            rateSource: 'Fuente de tasas',
+            ratesUsed: 'Tasas usadas',
+            generatedBy: 'Generado por',
+            disclaimerNote:
+              'Este reporte es solo para fines informativos. Consulte con un profesional tributario para asesoría específica.',
+            sentPayments: 'Pagos Enviados',
+            receivedSummary: 'Resumen Recibido',
+            sentSummary: 'Resumen Enviado',
+            recipient: 'Destinatario',
+            source: 'Origen',
+            netBalance: 'Balance Neto',
+            noSentPayments: 'Sin pagos enviados en este periodo.',
+            moreSentPayments: (n: number) =>
+              `... y ${n} pagos más. Ver reporte JSON para la lista completa.`,
+          }
+        : {
+            title: 'TAX SUMMARY REPORT',
+            period: 'Period',
+            summaryByToken: 'Summary by Token',
+            token: 'Token',
+            amount: 'Amount',
+            estValue: 'Est. USD',
+            txs: 'Txs',
+            total: 'TOTAL',
+            ports: 'Ports',
+            name: 'Name',
+            type: 'Type',
+            status: 'Status',
+            transactions: 'Transactions',
+            date: 'Date',
+            port: 'Port',
+            payer: 'Payer',
+            complianceNotes: 'Compliance Notes',
+            jurisdiction: 'United States (US)',
+            reportingThreshold: 'Reporting Threshold',
+            txsAboveThreshold: 'Payers above threshold',
+            footer: 'Galeon - Private Payments',
+            noTxs: 'No transactions in this period.',
+            moreTransactions: (n: number) =>
+              `... and ${n} more transactions. See JSON report for complete list.`,
+            reportInfo: 'Report Information',
+            rateSource: 'Rate source',
+            ratesUsed: 'Rates used',
+            generatedBy: 'Generated by',
+            disclaimerNote:
+              'This report is for informational purposes only. Consult a tax professional for specific advice.',
+            sentPayments: 'Sent Payments',
+            receivedSummary: 'Received Summary',
+            sentSummary: 'Sent Summary',
+            recipient: 'Recipient',
+            source: 'Source',
+            netBalance: 'Net Balance',
+            noSentPayments: 'No sent payments in this period.',
+            moreSentPayments: (n: number) =>
+              `... and ${n} more payments. See JSON report for complete list.`,
+          }
+
     const content: Content = [
       // Title
       {
-        text: 'RESUMEN TRIBUTARIO',
+        text: strings.title,
         style: 'title',
         alignment: 'center',
         margin: [0, 0, 0, 5],
       },
       {
-        text: `Periodo: ${report.period.label}`,
+        text: `${strings.period}: ${report.period.label}`,
         style: 'subtitle',
         alignment: 'center',
         margin: [0, 0, 0, 20],
       },
 
       // User Info
-      this.buildUserSection(report),
+      this.buildUserSection(report, jurisdiction),
 
-      // Summary Section
-      ...this.buildSummarySection(report),
+      // Summary Section (Received)
+      ...this.buildSummarySection(report, jurisdiction, strings),
+
+      // Sent Summary Section
+      ...this.buildSentSummarySection(report, jurisdiction, strings),
+
+      // Net Balance Section
+      ...this.buildNetBalanceSection(report, jurisdiction, strings),
 
       // Ports Section
-      this.buildPortsSection(report),
+      this.buildPortsSection(report, jurisdiction, strings),
 
-      // Transactions Section
-      ...this.buildTransactionsSection(report),
+      // Transactions Section (Received)
+      ...this.buildTransactionsSection(report, jurisdiction, strings),
+
+      // Sent Payments Section
+      ...this.buildSentPaymentsSection(report, jurisdiction, strings),
 
       // Compliance Notes
-      ...this.buildComplianceSection(report),
+      ...this.buildComplianceSection(report, jurisdiction, strings),
 
       // Metadata
-      ...this.buildMetadataSection(report),
+      ...this.buildMetadataSection(report, jurisdiction, strings),
     ]
 
     return {
       pageSize: 'LETTER',
       pageMargins: [40, 60, 40, 60],
       header: this.buildHeader(report),
-      footer: this.buildFooter(report),
+      footer: this.buildFooter(report, jurisdiction, strings),
       content,
       styles,
       defaultStyle: { font: 'Helvetica' },
@@ -245,7 +401,7 @@ export default class PdfGeneratorService {
       columns: [
         { text: 'GALEON', style: { fontSize: 12, bold: true, color: '#6366f1' } },
         {
-          text: `Reporte: ${report.reportId.slice(0, 8)}`,
+          text: `Report: ${report.reportId.slice(0, 8)}`,
           alignment: 'right',
           style: { fontSize: 8, color: '#9ca3af' },
         },
@@ -257,15 +413,19 @@ export default class PdfGeneratorService {
   /**
    * Build page footer
    */
-  private buildFooter(report: TaxSummaryReport): DynamicContent {
+  private buildFooter(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): DynamicContent {
     return () => ({
       columns: [
         {
-          text: `Generado: ${formatDate(report.generatedAt)}`,
+          text: `Generated: ${formatDate(report.generatedAt, jurisdiction)}`,
           style: { fontSize: 8, color: '#9ca3af' },
         },
         {
-          text: 'Galeon - Pagos Privados',
+          text: strings.footer,
           alignment: 'right',
           style: { fontSize: 8, color: '#9ca3af' },
         },
@@ -277,7 +437,8 @@ export default class PdfGeneratorService {
   /**
    * Build user information section
    */
-  private buildUserSection(report: TaxSummaryReport): Content {
+  private buildUserSection(report: TaxSummaryReport, jurisdiction: Jurisdiction): Content {
+    const periodConnector = jurisdiction === 'CO' ? 'a' : 'to'
     return {
       table: {
         widths: ['auto', '*'],
@@ -291,9 +452,13 @@ export default class PdfGeneratorService {
             },
           ],
           [
-            { text: 'Periodo:', style: 'tableHeader', border: [false, false, false, false] },
             {
-              text: `${report.period.startDate} a ${report.period.endDate}`,
+              text: jurisdiction === 'CO' ? 'Periodo:' : 'Period:',
+              style: 'tableHeader',
+              border: [false, false, false, false],
+            },
+            {
+              text: `${report.period.startDate} ${periodConnector} ${report.period.endDate}`,
               style: 'tableCell',
               border: [false, false, false, false],
             },
@@ -308,33 +473,37 @@ export default class PdfGeneratorService {
   /**
    * Build summary section with totals by token
    */
-  private buildSummarySection(report: TaxSummaryReport): Content[] {
+  private buildSummarySection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
     const tokenRows: TableCell[][] = report.summary.totalReceivedByToken.map((token) => [
       { text: token.symbol, style: 'tableCell' },
       { text: token.totalFormatted, style: 'tableCellRight' },
-      { text: formatCOP(token.totalCop), style: 'tableCellRight' },
+      { text: formatCurrency(token.totalCop, jurisdiction), style: 'tableCellRight' },
       { text: token.transactionCount.toString(), style: 'tableCellRight' },
     ])
 
     return [
-      { text: 'Resumen por Token', style: 'sectionHeader' },
+      { text: strings.receivedSummary, style: 'sectionHeader' },
       {
         table: {
           headerRows: 1,
           widths: ['*', 'auto', 'auto', 'auto'],
           body: [
             [
-              { text: 'Token', style: 'tableHeader' },
-              { text: 'Cantidad', style: 'tableHeader', alignment: 'right' },
-              { text: 'Valor COP', style: 'tableHeader', alignment: 'right' },
-              { text: 'Txs', style: 'tableHeader', alignment: 'right' },
+              { text: strings.token, style: 'tableHeader' },
+              { text: strings.amount, style: 'tableHeader', alignment: 'right' },
+              { text: strings.estValue, style: 'tableHeader', alignment: 'right' },
+              { text: strings.txs, style: 'tableHeader', alignment: 'right' },
             ],
             ...tokenRows,
             [
-              { text: 'TOTAL', style: 'tableHeader', colSpan: 2 },
+              { text: strings.total, style: 'tableHeader', colSpan: 2 },
               {},
               {
-                text: formatCOP(report.summary.grandTotalCop),
+                text: formatCurrency(report.summary.grandTotalReceivedCop, jurisdiction),
                 style: 'tableHeader',
                 alignment: 'right',
               },
@@ -359,9 +528,111 @@ export default class PdfGeneratorService {
   }
 
   /**
+   * Build sent payments summary section
+   */
+  private buildSentSummarySection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
+    if (report.summary.totalSentByToken.length === 0) {
+      return []
+    }
+
+    const tokenRows: TableCell[][] = report.summary.totalSentByToken.map((token) => [
+      { text: token.symbol, style: 'tableCell' },
+      { text: token.totalFormatted, style: 'tableCellRight' },
+      { text: formatCurrency(token.totalCop, jurisdiction), style: 'tableCellRight' },
+      { text: token.transactionCount.toString(), style: 'tableCellRight' },
+    ])
+
+    return [
+      { text: strings.sentSummary, style: 'sectionHeader' },
+      {
+        table: {
+          headerRows: 1,
+          widths: ['*', 'auto', 'auto', 'auto'],
+          body: [
+            [
+              { text: strings.token, style: 'tableHeader' },
+              { text: strings.amount, style: 'tableHeader', alignment: 'right' },
+              { text: strings.estValue, style: 'tableHeader', alignment: 'right' },
+              { text: strings.txs, style: 'tableHeader', alignment: 'right' },
+            ],
+            ...tokenRows,
+            [
+              { text: strings.total, style: 'tableHeader', colSpan: 2 },
+              {},
+              {
+                text: formatCurrency(report.summary.grandTotalSentCop, jurisdiction),
+                style: 'tableHeader',
+                alignment: 'right',
+              },
+              {
+                text: report.summary.totalSentTransactions.toString(),
+                style: 'tableHeader',
+                alignment: 'right',
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0,
+          hLineColor: () => '#e5e7eb',
+          paddingTop: () => 6,
+          paddingBottom: () => 6,
+        },
+        margin: [0, 0, 0, 15] as [number, number, number, number],
+      },
+    ]
+  }
+
+  /**
+   * Build net balance section
+   */
+  private buildNetBalanceSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
+    const netBalance = report.summary.netBalanceCop
+    const isPositive = netBalance >= 0
+
+    return [
+      {
+        table: {
+          widths: ['*', 'auto'],
+          body: [
+            [
+              {
+                text: strings.netBalance,
+                style: 'tableHeader',
+                border: [false, false, false, false],
+              } as TableCell,
+              {
+                text: `${isPositive ? '+' : ''}${formatCurrency(netBalance, jurisdiction)}`,
+                style: 'tableHeader',
+                alignment: 'right' as Alignment,
+                border: [false, false, false, false],
+              } as TableCell,
+            ],
+          ],
+        },
+        layout: 'noBorders',
+        margin: [0, 0, 0, 15] as [number, number, number, number],
+      },
+    ]
+  }
+
+  /**
    * Build ports section
    */
-  private buildPortsSection(report: TaxSummaryReport): Content {
+  private buildPortsSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content {
     if (report.ports.length === 0) {
       return { text: '' }
     }
@@ -369,24 +640,24 @@ export default class PdfGeneratorService {
     const portRows: TableCell[][] = report.ports.map((port) => [
       { text: port.portName, style: 'tableCell' },
       { text: port.type, style: 'tableCell' },
-      { text: formatCOP(port.totalReceivedCop), style: 'tableCellRight' },
+      { text: formatCurrency(port.totalReceivedCop, jurisdiction), style: 'tableCellRight' },
       { text: port.transactionCount.toString(), style: 'tableCellRight' },
       { text: port.status, style: 'tableCell' },
     ])
 
     return [
-      { text: 'Puertos', style: 'sectionHeader' },
+      { text: strings.ports, style: 'sectionHeader' },
       {
         table: {
           headerRows: 1,
           widths: ['*', 'auto', 'auto', 'auto', 'auto'],
           body: [
             [
-              { text: 'Nombre', style: 'tableHeader' },
-              { text: 'Tipo', style: 'tableHeader' },
-              { text: 'Total COP', style: 'tableHeader', alignment: 'right' },
-              { text: 'Txs', style: 'tableHeader', alignment: 'right' },
-              { text: 'Estado', style: 'tableHeader' },
+              { text: strings.name, style: 'tableHeader' },
+              { text: strings.type, style: 'tableHeader' },
+              { text: strings.estValue, style: 'tableHeader', alignment: 'right' },
+              { text: strings.txs, style: 'tableHeader', alignment: 'right' },
+              { text: strings.status, style: 'tableHeader' },
             ],
             ...portRows,
           ],
@@ -406,11 +677,15 @@ export default class PdfGeneratorService {
   /**
    * Build transactions section
    */
-  private buildTransactionsSection(report: TaxSummaryReport): Content[] {
+  private buildTransactionsSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
     if (report.transactions.length === 0) {
       return [
-        { text: 'Transacciones', style: 'sectionHeader' },
-        { text: 'No hay transacciones en este periodo.', style: 'small', margin: [0, 0, 0, 15] },
+        { text: strings.transactions, style: 'sectionHeader' },
+        { text: strings.noTxs, style: 'small', margin: [0, 0, 0, 15] },
       ]
     }
 
@@ -419,26 +694,26 @@ export default class PdfGeneratorService {
     const hasMore = report.transactions.length > 50
 
     const txRows: TableCell[][] = displayTransactions.map((tx) => [
-      { text: formatDate(tx.timestamp), style: 'tableCell' },
+      { text: formatDate(tx.timestamp, jurisdiction), style: 'tableCell' },
       { text: tx.portName || '-', style: 'tableCell' },
       { text: truncateAddress(tx.payerAddress), style: 'tableCell' },
       { text: `${tx.amountFormatted} ${tx.currency || ''}`, style: 'tableCellRight' },
-      { text: formatCOP(tx.amountCop), style: 'tableCellRight' },
+      { text: formatCurrency(tx.amountCop, jurisdiction), style: 'tableCellRight' },
     ])
 
     const content: Content[] = [
-      { text: 'Transacciones', style: 'sectionHeader' },
+      { text: strings.transactions, style: 'sectionHeader' },
       {
         table: {
           headerRows: 1,
           widths: ['auto', '*', 'auto', 'auto', 'auto'],
           body: [
             [
-              { text: 'Fecha', style: 'tableHeader' },
-              { text: 'Puerto', style: 'tableHeader' },
-              { text: 'Pagador', style: 'tableHeader' },
-              { text: 'Cantidad', style: 'tableHeader', alignment: 'right' },
-              { text: 'COP', style: 'tableHeader', alignment: 'right' },
+              { text: strings.date, style: 'tableHeader' },
+              { text: strings.port, style: 'tableHeader' },
+              { text: strings.payer, style: 'tableHeader' },
+              { text: strings.amount, style: 'tableHeader', alignment: 'right' },
+              { text: strings.estValue, style: 'tableHeader', alignment: 'right' },
             ],
             ...txRows,
           ],
@@ -456,7 +731,73 @@ export default class PdfGeneratorService {
 
     if (hasMore) {
       content.push({
-        text: `... y ${report.transactions.length - 50} transacciones mas. Consulte el reporte JSON para el listado completo.`,
+        text: strings.moreTransactions(report.transactions.length - 50),
+        style: 'small',
+        margin: [0, 0, 0, 15],
+      })
+    }
+
+    return content
+  }
+
+  /**
+   * Build sent payments section
+   */
+  private buildSentPaymentsSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
+    if (report.sentPayments.length === 0) {
+      return [
+        { text: strings.sentPayments, style: 'sectionHeader' },
+        { text: strings.noSentPayments, style: 'small', margin: [0, 0, 0, 15] },
+      ]
+    }
+
+    // Limit to 50 sent payments in PDF
+    const displayPayments = report.sentPayments.slice(0, 50)
+    const hasMore = report.sentPayments.length > 50
+
+    const paymentRows: TableCell[][] = displayPayments.map((p) => [
+      { text: formatDate(p.timestamp, jurisdiction), style: 'tableCell' },
+      { text: p.recipientPortName || truncateAddress(p.recipientAddress), style: 'tableCell' },
+      { text: p.sourceLabel, style: 'tableCell' },
+      { text: `${p.amountFormatted} ${p.currency}`, style: 'tableCellRight' },
+      { text: formatCurrency(p.amountCop, jurisdiction), style: 'tableCellRight' },
+    ])
+
+    const content: Content[] = [
+      { text: strings.sentPayments, style: 'sectionHeader' },
+      {
+        table: {
+          headerRows: 1,
+          widths: ['auto', '*', 'auto', 'auto', 'auto'],
+          body: [
+            [
+              { text: strings.date, style: 'tableHeader' },
+              { text: strings.recipient, style: 'tableHeader' },
+              { text: strings.source, style: 'tableHeader' },
+              { text: strings.amount, style: 'tableHeader', alignment: 'right' },
+              { text: strings.estValue, style: 'tableHeader', alignment: 'right' },
+            ],
+            ...paymentRows,
+          ],
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0,
+          hLineColor: () => '#e5e7eb',
+          paddingTop: () => 4,
+          paddingBottom: () => 4,
+        },
+        margin: [0, 0, 0, 10] as [number, number, number, number],
+      },
+    ]
+
+    if (hasMore) {
+      content.push({
+        text: strings.moreSentPayments(report.sentPayments.length - 50),
         style: 'small',
         margin: [0, 0, 0, 15],
       })
@@ -468,28 +809,44 @@ export default class PdfGeneratorService {
   /**
    * Build compliance notes section
    */
-  private buildComplianceSection(report: TaxSummaryReport): Content[] {
+  private buildComplianceSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
     return [
-      { text: 'Notas de Cumplimiento', style: 'sectionHeader' },
+      { text: strings.complianceNotes, style: 'sectionHeader' },
       {
         table: {
           widths: ['auto', '*'],
           body: [
             [
-              { text: 'Jurisdiccion:', style: 'tableCell', border: [false, false, false, false] },
-              { text: 'Colombia (CO)', style: 'tableCell', border: [false, false, false, false] },
-            ],
-            [
-              { text: 'Umbral UIAF:', style: 'tableCell', border: [false, false, false, false] },
               {
-                text: formatCOP(report.compliance.uiafThreshold),
+                text: jurisdiction === 'CO' ? 'Jurisdicción:' : 'Jurisdiction:',
+                style: 'tableCell',
+                border: [false, false, false, false],
+              },
+              {
+                text: strings.jurisdiction,
                 style: 'tableCell',
                 border: [false, false, false, false],
               },
             ],
             [
               {
-                text: 'Transacciones sobre umbral:',
+                text: `${strings.reportingThreshold}:`,
+                style: 'tableCell',
+                border: [false, false, false, false],
+              },
+              {
+                text: formatCurrency(report.compliance.uiafThreshold, jurisdiction),
+                style: 'tableCell',
+                border: [false, false, false, false],
+              },
+            ],
+            [
+              {
+                text: `${strings.txsAboveThreshold}:`,
                 style: 'tableCell',
                 border: [false, false, false, false],
               },
@@ -505,7 +862,7 @@ export default class PdfGeneratorService {
         margin: [0, 0, 0, 10] as [number, number, number, number],
       },
       {
-        text: report.compliance.note,
+        text: strings.disclaimerNote,
         style: 'small',
         margin: [0, 0, 0, 15],
       },
@@ -515,9 +872,13 @@ export default class PdfGeneratorService {
   /**
    * Build metadata section
    */
-  private buildMetadataSection(report: TaxSummaryReport): Content[] {
+  private buildMetadataSection(
+    report: TaxSummaryReport,
+    jurisdiction: Jurisdiction,
+    strings: LocaleStrings
+  ): Content[] {
     const ratesText = Object.entries(report.metadata.ratesUsed)
-      .map(([token, rate]) => `${token}: ${formatCOP(rate)}/unidad`)
+      .map(([token, rate]) => `${token}: ${formatCurrency(rate, jurisdiction)}/unit`)
       .join(', ')
 
     return [
@@ -527,11 +888,11 @@ export default class PdfGeneratorService {
         ],
         margin: [0, 10, 0, 10] as [number, number, number, number],
       },
-      { text: 'Informacion del Reporte', style: 'small', bold: true, margin: [0, 0, 0, 5] },
+      { text: strings.reportInfo, style: 'small', bold: true, margin: [0, 0, 0, 5] },
       { text: `ID: ${report.reportId}`, style: 'small' },
-      { text: `Fuente de tasas: ${report.metadata.rateSource}`, style: 'small' },
-      { text: `Tasas usadas: ${ratesText}`, style: 'small' },
-      { text: `Generado por: ${report.metadata.generatedBy}`, style: 'small' },
+      { text: `${strings.rateSource}: ${report.metadata.rateSource}`, style: 'small' },
+      { text: `${strings.ratesUsed}: ${ratesText}`, style: 'small' },
+      { text: `${strings.generatedBy}: ${report.metadata.generatedBy}`, style: 'small' },
     ]
   }
 

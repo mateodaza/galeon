@@ -16,6 +16,7 @@ import scheduler from 'adonisjs-scheduler/services/main'
 // Import job classes
 import VerifyPorts from '#jobs/verify_ports'
 import VerifyReceipts from '#jobs/verify_receipts'
+import VerifySentPayments from '#jobs/verify_sent_payments'
 import UpdateASPRoot from '#jobs/update_asp_root'
 
 /**
@@ -36,6 +37,17 @@ scheduler
 scheduler
   .call(async () => {
     await VerifyReceipts.dispatch({ batchSize: 100 })
+  })
+  .everyMinute()
+  .withoutOverlapping()
+
+/**
+ * Verify pending sent payments against the blockchain.
+ * Runs every minute to confirm transactions were successfully mined.
+ */
+scheduler
+  .call(async () => {
+    await VerifySentPayments.dispatch({ batchSize: 100 })
   })
   .everyMinute()
   .withoutOverlapping()

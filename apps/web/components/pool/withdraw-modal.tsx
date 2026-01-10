@@ -743,6 +743,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
       setStep('success')
       onSuccess?.(hashes[hashes.length - 1])
 
+      // NOTE: Pool withdrawals are NOT recorded to backend - that's the privacy guarantee!
+      // History is reconstructed client-side using user's keys in /history page
+
       // Force full sync after withdrawal to track any change commitments
       setTimeout(() => {
         forceSync().catch(console.error)

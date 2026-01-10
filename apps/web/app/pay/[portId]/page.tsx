@@ -7,9 +7,10 @@
  * Generates a new stealth address for each payment.
  */
 
-import { use, useState } from 'react'
+import { use, useState, useEffect, useRef } from 'react'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { useAccount } from 'wagmi'
+import { parseEther } from 'viem'
 import { Loader2, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
 import { ConnectButton } from '@/components/wallet-button'
 import { AppShell } from '@/components/layout'
@@ -18,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getTxExplorerUrl } from '@/lib/chains'
 import { usePortMetaAddress, usePayNative } from '@/hooks/use-payment'
+import { sentPaymentsApi } from '@/lib/api'
 
 interface PayPageProps {
   params: Promise<{
@@ -51,13 +53,53 @@ export default function PayPage({ params }: PayPageProps) {
   const portName = 'Port'
   const isProcessing = isPending || isConfirming
 
+  // Track if we've recorded this payment to avoid duplicates
+  const recordedTxRef = useRef<string | null>(null)
+  // Store payment data at send time (before inputs can change)
+  const paymentDataRef = useRef<{
+    stealthAddress: `0x${string}`
+    amount: string
+    memo: string
+  } | null>(null)
+
+  // Record sent payment when transaction succeeds
+  useEffect(() => {
+    if (isSuccess && txHash && recordedTxRef.current !== txHash && paymentDataRef.current) {
+      recordedTxRef.current = txHash
+      const { stealthAddress, amount: paymentAmount, memo: paymentMemo } = paymentDataRef.current
+
+      // Record the sent payment (fire-and-forget, don't block UI)
+      sentPaymentsApi
+        .create({
+          txHash,
+          chainId: chain?.id ?? 5000,
+          recipientAddress: stealthAddress, // Use the actual stealth address, not portId
+          recipientPortName: portName,
+          amount: parseEther(paymentAmount).toString(),
+          currency: 'MNT',
+          source: 'wallet',
+          memo: paymentMemo || undefined, // Use memo from send time, not current state
+        })
+        .then(() => {
+          console.log('[QuickPay] Sent payment recorded:', txHash)
+        })
+        .catch((err) => {
+          // Non-blocking - just log the error
+          console.warn('[QuickPay] Failed to record sent payment:', err)
+        })
+    }
+  }, [isSuccess, txHash, chain?.id, portName])
+
   const handlePay = async () => {
     if (!amount || !isConnected || !metaAddress) return
 
     setPaymentError(null)
 
     try {
-      await payNative(metaAddress, amount, memo, portId as `0x${string}`)
+      // payNative returns the stealth address that received the payment
+      const stealthAddress = await payNative(metaAddress, amount, memo, portId as `0x${string}`)
+      // Store all payment data at send time for recording after tx confirms
+      paymentDataRef.current = { stealthAddress, amount, memo }
     } catch (error) {
       console.error('Payment failed:', error)
       setPaymentError(error instanceof Error ? error.message : 'Payment failed')

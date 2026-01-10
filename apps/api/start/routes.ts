@@ -22,6 +22,7 @@ const AspController = () => import('#controllers/asp_controller')
 const PoolRelayController = () => import('#controllers/pool_relay_controller')
 const NullifiersController = () => import('#controllers/nullifiers_controller')
 const HealthController = () => import('#controllers/health_controller')
+const SentPaymentsController = () => import('#controllers/sent_payments_controller')
 
 // Health check
 router.get('/', async () => {
@@ -34,12 +35,18 @@ router
     // Announcements (public - used for payment scanning)
     router.get('/announcements', [AnnouncementsController, 'index'])
 
+    // Public receipt verification (for shareable receipts)
+    router.get('/receipts/public/:id', [ReceiptsController, 'showPublic'])
+
     // Pool deposits (public - used for deposit recovery)
     router.get('/deposits', [DepositsController, 'index'])
     router.get('/deposits/merges', [DepositsController, 'merges'])
 
     // Nullifiers (public - check if a nullifier has been spent)
     router.get('/nullifiers/:hex', [NullifiersController, 'show'])
+
+    // Public receipt lookup by stealth address (for linking payments to receipts)
+    router.get('/receipts/by-stealth/:address', [ReceiptsController, 'showByStealthAddress'])
 
     // Auth routes (public)
     router
@@ -102,6 +109,17 @@ router
         router.get('/tax-summary/pdf', [ComplianceController, 'taxSummaryPdf'])
       })
       .prefix('/compliance')
+      .use(middleware.auth())
+
+    // Sent payments routes (protected - payment history)
+    router
+      .group(() => {
+        router.get('/', [SentPaymentsController, 'index'])
+        router.post('/', [SentPaymentsController, 'store'])
+        router.get('/stats', [SentPaymentsController, 'stats'])
+        router.get('/:id', [SentPaymentsController, 'show'])
+      })
+      .prefix('/sent-payments')
       .use(middleware.auth())
     // Registry routes (protected - verified balance checks)
     router

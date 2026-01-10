@@ -53,6 +53,7 @@ import {
   nullifierApi,
   mergeDepositsApi,
   healthApi,
+  sentPaymentsApi,
   type PreflightResult,
 } from '@/lib/api'
 import { poseidonHash, recoverMergeDeposit, type MergeDepositEvent } from '@galeon/pool'
@@ -415,6 +416,7 @@ export function useCollection() {
 
       const collectedHashes: `0x${string}`[] = []
       const collectedAddresses: `0x${string}`[] = []
+      const actualAmountsSent: bigint[] = [] // Track actual amounts sent (after gas)
 
       // If target amount specified, only process ONE payment (highest balance first)
       const paymentsToProcess =
@@ -512,6 +514,7 @@ export function useCollection() {
 
           collectedHashes.push(hash)
           collectedAddresses.push(payment.stealthAddress)
+          actualAmountsSent.push(properAmountToSend) // Track the actual amount sent
         }
 
         // Update state with collected hashes
@@ -528,6 +531,34 @@ export function useCollection() {
             await queryClient.invalidateQueries({ queryKey: ['ports'] })
           } catch (err) {
             console.warn('[collectAll] Failed to mark receipts as collected (non-blocking):', err)
+          }
+
+          // Record sent payment for payment history (only if sending to external recipient)
+          // This is a "stealth pay" - paying from collected stealth funds
+          if (toAddress && toAddress !== address) {
+            try {
+              // Calculate total amount ACTUALLY sent (not original balance - gas deducted)
+              const totalSent = actualAmountsSent.reduce((sum, amt) => sum + amt, 0n)
+
+              await sentPaymentsApi.create({
+                txHash: collectedHashes[0], // Use first tx hash as reference
+                chainId: chainId ?? 5000,
+                recipientAddress: toAddress,
+                amount: totalSent.toString(),
+                currency: 'MNT',
+                source: 'port',
+                memo: undefined,
+              })
+              console.log(
+                '[collectAll] Sent payment recorded:',
+                collectedHashes[0],
+                'Amount:',
+                formatEther(totalSent),
+                'MNT'
+              )
+            } catch (err) {
+              console.warn('[collectAll] Failed to record sent payment (non-blocking):', err)
+            }
           }
         }
       } catch (error) {
