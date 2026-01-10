@@ -226,9 +226,9 @@ test.group('ComplianceController', (group) => {
 
     response.assertStatus(200)
     assert.exists(response.body().reportId)
-    assert.equal(response.body().reportType, 'tax_summary_co')
+    assert.equal(response.body().reportType, 'tax_summary_us')
     assert.equal(response.body().summary.totalTransactions, 0)
-    assert.equal(response.body().summary.grandTotalCop, 0)
+    assert.equal(response.body().summary.grandTotalReceivedCop, 0)
     assert.lengthOf(response.body().transactions, 0)
   })
 
@@ -266,7 +266,7 @@ test.group('ComplianceController', (group) => {
     response.assertStatus(200)
     assert.equal(response.body().summary.totalTransactions, 2)
     assert.lengthOf(response.body().transactions, 2)
-    assert.isAbove(response.body().summary.grandTotalCop, 0)
+    assert.isAbove(response.body().summary.grandTotalReceivedCop, 0)
   })
 
   test('GET /compliance/tax-summary filters by date range', async ({ client, assert }) => {
@@ -416,7 +416,7 @@ test.group('ComplianceController', (group) => {
     assert.equal(response.body().summary.totalTransactions, 1)
   })
 
-  test('GET /compliance/tax-summary returns correct compliance info', async ({
+  test('GET /compliance/tax-summary returns correct compliance info for CO', async ({
     client,
     assert,
   }) => {
@@ -425,7 +425,7 @@ test.group('ComplianceController', (group) => {
 
     const response = await client
       .get('/api/v1/compliance/tax-summary')
-      .qs({ period: 'annual', year: 2024 })
+      .qs({ period: 'annual', year: 2024, jurisdiction: 'CO' })
       .header('Authorization', `Bearer ${accessToken}`)
 
     response.assertStatus(200)
@@ -449,7 +449,7 @@ test.group('ComplianceController', (group) => {
     assert.equal(response.body().metadata.generatedBy, 'galeon-api')
   })
 
-  test('GET /compliance/tax-summary counts transactions above UIAF threshold', async ({
+  test('GET /compliance/tax-summary counts transactions above UIAF threshold (CO)', async ({
     client,
     assert,
   }) => {
@@ -480,7 +480,7 @@ test.group('ComplianceController', (group) => {
 
     const response = await client
       .get('/api/v1/compliance/tax-summary')
-      .qs({ period: 'annual', year: 2024 })
+      .qs({ period: 'annual', year: 2024, jurisdiction: 'CO' })
       .header('Authorization', `Bearer ${accessToken}`)
 
     response.assertStatus(200)
