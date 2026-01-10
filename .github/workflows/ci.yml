@@ -116,5 +116,6 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @galeon/config build
       - run: pnpm --filter @galeon/stealth build
       - run: pnpm --filter @galeon/api test
