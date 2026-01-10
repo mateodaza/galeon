@@ -189,6 +189,8 @@ Next.js 16 frontend with React 19 and Tailwind v4:
 - `/pay/[portId]` - Payment flow with stealth addresses
 - `/collect` - Scan blockchain and collect payments
 - `/pool` - Privacy Pool interface
+- `/reports` - Shipwreck tax compliance reports with PDF export
+- `/history` - Payment history with filter tabs
 
 ### API (`apps/api`)
 

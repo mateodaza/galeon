@@ -1,7 +1,7 @@
 # Galeon - Development Progress
 
 > Global tracker synced with app/package progress files.
-> Last updated: 2026-01-04
+> Last updated: 2026-01-09
 
 ## Current Phase: 3 - Polish + Submission
 
@@ -52,22 +52,35 @@
 
 **Goal:** Production-ready for hackathon demo
 
-| Task                   | Status      | Owner | Notes                                                 |
-| ---------------------- | ----------- | ----- | ----------------------------------------------------- |
-| Error handling         | Done        | -     | Network guard, graceful env handling                  |
-| README                 | Done        | -     | Root + frontend docs with contract addrs              |
-| Ponder indexer         | Done        | -     | Replace event scanning with indexed data + pagination |
-| Backend API            | Done        | -     | SIWE auth, port sync, fog payments - 145 tests        |
-| Wallet state           | Done        | -     | Address-keyed remounting, pool recovery race fix      |
-| **Relayer service**    | **Done**    | -     | Private withdrawals - user address hidden on-chain    |
-| **Nullifier tracking** | **Done**    | -     | Spent deposits filtered from balance via indexer      |
-| **State tree sync**    | **Done**    | -     | Merkle leaves API for correct tree reconstruction     |
-| Receipt claim          | Pending     | -     | Frontend claim → API verify via Ponder                |
-| Smoke tests            | Not Started | -     | E2E on Mantle Sepolia                                 |
-| Evidence bundle        | Not Started | -     | Screenshots, video                                    |
-| Submission             | Not Started | -     | Hackathon write-up                                    |
+| Task                   | Status       | Owner | Notes                                                 |
+| ---------------------- | ------------ | ----- | ----------------------------------------------------- |
+| Error handling         | Done         | -     | Network guard, graceful env handling                  |
+| README                 | Done         | -     | Root + frontend docs with contract addrs              |
+| Ponder indexer         | Done         | -     | Replace event scanning with indexed data + pagination |
+| Backend API            | Done         | -     | SIWE auth, port sync, fog payments - 145 tests        |
+| Wallet state           | Done         | -     | Address-keyed remounting, pool recovery race fix      |
+| **Relayer service**    | **Done**     | -     | Private withdrawals - user address hidden on-chain    |
+| **Nullifier tracking** | **Done**     | -     | Spent deposits filtered from balance via indexer      |
+| **State tree sync**    | **Done**     | -     | Merkle leaves API for correct tree reconstruction     |
+| **ASP auto-approve**   | **Done**     | -     | Auto-approve deposits into ASP tree every 30s         |
+| **Shipwreck reports**  | **Done**     | -     | Tax compliance reports with PDF export (US/CO)        |
+| **Sent payments**      | **Done**     | -     | Track outgoing payments with on-chain verification    |
+| **Payment history**    | **Done**     | -     | Unified history view with filter tabs                 |
+| Receipt claim          | Low Priority | -     | Public API ready, nice-to-have for demo               |
+| Smoke tests            | Not Started  | -     | E2E on Mantle Mainnet                                 |
+| Evidence bundle        | Not Started  | -     | Screenshots, video                                    |
+| Submission             | Not Started  | -     | Hackathon write-up                                    |
 
 **Deadline:** January 15, 2026
+
+**Recent Fixes (Jan 9):**
+
+- Shipwreck Reports: Full tax compliance with PDF export, US/CO jurisdiction support
+- Payment History: Unified view with filter tabs (All, Wallet, Port, Pool)
+- Sent Payments: Track outgoing payments, on-chain verification job
+- Pool withdrawals: Show net amount (after relayer fee)
+- US compliance: Count unique payers above $600 (not individual transactions)
+- Audit fixes: Receipt endpoints exclude failed status, port filter in PDF
 
 **Recent Fixes (Jan 4):**
 
@@ -121,10 +134,10 @@ Port C ──┘        (merge)              (1 proof, 30s)
 
 | TODO                                     | Status      | Priority | Notes                                                                                    |
 | ---------------------------------------- | ----------- | -------- | ---------------------------------------------------------------------------------------- |
-| **Receipt verification flow**            | Not Started | High     | `/verify` page stub exists; needs Ponder integration to verify receipts                  |
-| **Shipwreck reports (proof generation)** | Not Started | High     | Referenced in FAQ and About page; needs minimal JSON export at minimum                   |
-| **Port deactivation UX**                 | Not Started | Medium   | Contract supports it (`GaleonRegistry.sol:135`); UI shows archive-only currently         |
-| **Ragequit UI**                          | Not Started | Medium   | Contract supports ragequit; roadmap says "UI coming soon"                                |
+| **Receipt verification flow**            | Low         | Low      | `/verify` page stub exists; public API ready, nice-to-have                               |
+| **Shipwreck reports (proof generation)** | ✅ Done     | High     | Full implementation with PDF export, US/CO jurisdiction support                          |
+| **Port deactivation UX**                 | Post-hack   | Low      | Contract supports it (`GaleonRegistry.sol:135`); post-hackathon                          |
+| **Ragequit UI**                          | Post-hack   | High     | Contract ready; first priority after hackathon (emergency exit for users)                |
 | **About page contract address sourcing** | Not Started | Low      | Currently hardcoded; should source from `packages/config/src/contracts.ts`               |
 | **Relayer bypass UX note**               | Not Started | Low      | Relayer is optional; UX should convey users CAN withdraw directly (loses sender privacy) |
 

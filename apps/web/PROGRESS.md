@@ -1,7 +1,7 @@
 # Frontend (apps/web) Progress
 
 > Next.js 16 + React 19 frontend with Reown AppKit
-> Last updated: 2026-01-03
+> Last updated: 2026-01-09
 
 ## Setup
 
@@ -80,7 +80,6 @@
 - GaleonRegistry: 0x85F23B63E2a40ba74cD418063c43cE19bcbB969C
 - ERC5564Announcer: 0x8C04238c49e22EB687ad706bEe645698ccF41153
 - ERC6538Registry: 0xE6586103756082bf3E43D3BB73f9fE479f0BDc22
-- GaleonTender: 0x29D52d01947d91e241e9c7A4312F7463199e488c
 
 ## Audit Fixes (2025-12-27)
 
@@ -107,15 +106,38 @@
 - [x] Auto-scan on page load when keys are available
 - [x] Removed manual "Scan Now" button (auto-scan handles it)
 
+## Shipwreck Reports (2026-01-09) ✅
+
+Full tax compliance reporting with PDF export:
+
+- [x] `/reports` page with period selection (annual, quarterly, monthly, custom)
+- [x] Jurisdiction support (US / Colombia) with localized labels
+- [x] Token breakdown by currency (MNT, USDC, USDT)
+- [x] Sent payments tracking with source labels (Quick Pay, Stealth Pay, Private Send)
+- [x] Net balance calculation (received - sent)
+- [x] Compliance thresholds:
+  - US: $600 aggregate per-payer (IRS 1099-K)
+  - CO: 600,000 COP per-transaction (UIAF Resolution 314)
+- [x] PDF export with jurisdiction-specific formatting
+- [x] Port filter support (report for specific port)
+
+## Payment History (2026-01-09) ✅
+
+- [x] `/history` page with unified view of all payments
+- [x] Filter tabs: All, Wallet (Quick Pay), Port (Stealth Pay), Pool (Private Send)
+- [x] Client-side pool withdrawal reconstruction (privacy-preserving)
+- [x] Pool withdrawals show net amount (after relayer fee)
+- [x] Smooth filter transitions with `useTransition`
+
 ## Pre-Launch TODOs
 
 > Features referenced in website copy that need implementation.
 
 | TODO                             | Priority | Notes                                                        |
 | -------------------------------- | -------- | ------------------------------------------------------------ |
-| Receipt verification (`/verify`) | High     | Page stub exists; integrate with Ponder API                  |
-| Shipwreck reports UI             | High     | About page mentions it; need JSON export at minimum          |
-| Port deactivation UX             | Medium   | Contract supports deactivation; currently shows archive-only |
+| Receipt verification (`/verify`) | Low      | Page stub exists; public API ready, nice-to-have for demo    |
+| Shipwreck reports UI             | ✅ Done  | Full implementation with PDF export                          |
+| Port deactivation UX             | Low      | Contract supports deactivation; post-hackathon               |
 | Ragequit UI                      | Medium   | Contract ready; roadmap says "UI coming soon"                |
 | Direct withdrawal option         | Low      | Add note that relayer can be bypassed (loses sender privacy) |
 
@@ -123,7 +145,7 @@
 
 **Next Steps:**
 
-1. Integrate GaleonTender for batch collection (gas savings)
-2. Add tenderAbi to contracts.ts and update useCollection
-3. Add SSE for real-time payment notifications
-4. Receipt claim flow (claim → backend verifies via Ponder)
+1. Evidence bundle (screenshots, video demo)
+2. Hackathon submission write-up
+3. Ragequit UI (post-hackathon, first priority)
+4. ~~Add SSE for real-time payment notifications~~ (post-hackathon)

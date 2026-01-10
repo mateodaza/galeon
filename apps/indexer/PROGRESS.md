@@ -14,7 +14,6 @@ Ponder indexer fully implemented with event handlers, schema, and REST API.
 | ERC5564Announcer | `0x8C04238c49e22EB687ad706bEe645698ccF41153` | `Announcement`                      |
 | ERC6538Registry  | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` | `StealthMetaAddressSet`             |
 | GaleonRegistry   | `0x85F23B63E2a40ba74cD418063c43cE19bcbB969C` | `PortRegistered`, `ReceiptAnchored` |
-| GaleonTender     | `0x29D52d01947d91e241e9c7A4312F7463199e488c` | (not used yet)                      |
 
 **Deployment Block:** `89365202` (start indexing from here)
 

@@ -1,15 +1,15 @@
 # Backend (apps/api) Progress
 
 > AdonisJS 6 API server
-> Last updated: 2026-01-04
+> Last updated: 2026-01-09
 
 ## Setup
 
 - [x] Initialize AdonisJS 6
 - [x] Configure PostgreSQL (Lucid)
 - [x] Configure Redis
-- [ ] Set up Transmit SSE
-- [ ] Set up adonisjs-jobs (BullMQ)
+- [x] Set up adonisjs-jobs (BullMQ)
+- [ ] Set up Transmit SSE (post-hackathon)
 
 ## Phase 1: Dependencies & Config ✅
 
@@ -214,6 +214,53 @@ ENTRYPOINT_ADDRESS=0x54BA91d29f84B8bAd161880798877e59f2999f7a
 4. For hackathon: auto-approves ALL labels (no blocklist check)
 5. Production: would check depositor addresses against sanctions lists
 6. If tree root changed, calls `Entrypoint.updateRoot(root, ipfsCID)`
+
+## Phase 13: Compliance & Tax Reports (2026-01-09) ✅
+
+### Compliance Service
+
+- [x] `ComplianceService` for tax summary reports
+- [x] Period support: annual, quarterly, monthly, custom date range
+- [x] Jurisdiction support: US (English/USD) and CO (Spanish/COP)
+- [x] Token aggregation with hardcoded rates (MNT, ETH, USDC, USDT)
+- [x] Net balance calculation (received - sent)
+- [x] Compliance thresholds:
+  - US: $600 aggregate per-payer (IRS 1099-K)
+  - CO: 600,000 COP per-transaction (UIAF Resolution 314)
+
+### PDF Generator Service
+
+- [x] `PdfGeneratorService` using pdfmake
+- [x] Jurisdiction-specific formatting (language, currency)
+- [x] Token breakdown table
+- [x] Transaction list with payer addresses
+- [x] Sent payments section
+- [x] Compliance notes section
+
+### Sent Payments Tracking
+
+- [x] `SentPayment` model for outgoing payments
+- [x] `SentPaymentsController` CRUD endpoints
+- [x] `VerifySentPayments` job for on-chain verification
+- [x] Per-chain RPC support (Mantle mainnet + testnet)
+- [x] Status lifecycle: pending → confirmed/failed
+
+### API Endpoints
+
+| Method | Endpoint                             | Auth | Description              |
+| ------ | ------------------------------------ | ---- | ------------------------ |
+| GET    | `/api/v1/compliance/tax-summary`     | JWT  | Get tax summary JSON     |
+| GET    | `/api/v1/compliance/tax-summary/pdf` | JWT  | Download tax summary PDF |
+| GET    | `/api/v1/sent-payments`              | JWT  | List sent payments       |
+| POST   | `/api/v1/sent-payments`              | JWT  | Record sent payment      |
+| GET    | `/api/v1/sent-payments/:id`          | JWT  | Get sent payment         |
+
+### Audit Fixes (2026-01-09)
+
+- [x] Public receipt endpoints exclude `failed` status (not just `pending`)
+- [x] Sent payment totals only include `confirmed` status
+- [x] US threshold counts unique payers (not individual transactions)
+- [x] PDF download preserves port filter
 
 ### API Endpoints
 
