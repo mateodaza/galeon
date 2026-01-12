@@ -44,4 +44,18 @@ RUN pnpm prune --prod
 EXPOSE 3333
 
 WORKDIR /app/apps/api/build
-CMD ["node", "bin/server.js"]
+
+# Default: run API server
+# Override with PROCESS_TYPE env var:
+#   - api: HTTP server (default)
+#   - scheduler: Job scheduler
+#   - worker: Job worker
+ENV PROCESS_TYPE=api
+
+CMD if [ "$PROCESS_TYPE" = "scheduler" ]; then \
+      node ace scheduler:run; \
+    elif [ "$PROCESS_TYPE" = "worker" ]; then \
+      node ace jobs:listen; \
+    else \
+      node bin/server.js; \
+    fi
