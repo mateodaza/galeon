@@ -1,6 +1,0 @@
-# Note: Configure each service's Dockerfile path in Railway dashboard
-# - api: apps/api/Dockerfile
-# - indexer: apps/indexer/Dockerfile
-
-[build]
-builder = "dockerfile"
