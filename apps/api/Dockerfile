@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -38,7 +38,8 @@ ENV PORT=3333
 # Copy the entire pruned workspace with built packages
 COPY --from=builder /app .
 
-# Remove dev dependencies
+# Remove dev dependencies (use CI=true to skip prompts)
+ENV CI=true
 RUN pnpm prune --prod
 
 EXPOSE 3333
