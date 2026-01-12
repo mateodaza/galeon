@@ -293,3 +293,23 @@ The ASP service exposes these public endpoints for withdrawal proofs:
 - Port model: `id` (UUID) is primary key for FK references; `indexerPortId` (bytes32 hex, nullable) links to Ponder indexer
 - Viewing keys encrypted with APP_KEY via AdonisJS encryption service
 - CORS configured with all methods including PATCH for frontend integration
+
+## Railway Deployment (2026-01-12)
+
+### Services
+
+| Service     | Build Command                           | Start Command                                            |
+| ----------- | --------------------------------------- | -------------------------------------------------------- |
+| @galeon/api | `pnpm turbo build --filter=@galeon/api` | `node apps/api/build/bin/server.js`                      |
+| scheduler   | `pnpm turbo build --filter=@galeon/api` | `cd apps/api/build && node bin/console.js scheduler:run` |
+| worker      | `pnpm turbo build --filter=@galeon/api` | `cd apps/api/build && node bin/console.js jobs:listen`   |
+
+### TODO: Automatic Migrations
+
+Currently migrations are run manually using the public DATABASE_URL. To automate:
+
+1. Go to **@galeon/api** service in Railway
+2. Navigate to **Settings → Deploy**
+3. Add **Pre-deploy Command**: `cd apps/api/build && node bin/console.js migration:run`
+
+This will run migrations automatically within Railway's network before each deploy.
