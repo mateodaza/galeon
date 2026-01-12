@@ -28,6 +28,7 @@ const dbConfig = defineConfig({
         password: env.get('PONDER_DB_PASSWORD'),
         database: env.get('PONDER_DB_DATABASE'),
       },
+      searchPath: [env.get('PONDER_DB_SCHEMA', 'public')],
     },
   },
 })
