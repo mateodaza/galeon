@@ -65,12 +65,16 @@ export default function PayContent() {
   // Get stealth pay summary for amount input
   const stealthPaySummary = getStealthPaySummary(stealthAmount, payments)
 
-  // Auto-scan for stealth payments when switching to stealth mode
+  // Track if we've already attempted a scan for this session
+  const [hasAttemptedScan, setHasAttemptedScan] = useState(false)
+
+  // Auto-scan for stealth payments when switching to stealth mode (only once)
   useEffect(() => {
-    if (mode === 'stealth' && hasKeys && payments.length === 0 && !isScanning) {
+    if (mode === 'stealth' && hasKeys && !hasAttemptedScan && !isScanning) {
+      setHasAttemptedScan(true)
       scan()
     }
-  }, [mode, hasKeys, payments.length, isScanning, scan])
+  }, [mode, hasKeys, hasAttemptedScan, isScanning, scan])
 
   const handleQuickPay = () => {
     if (recipient && isAddress(recipient)) {

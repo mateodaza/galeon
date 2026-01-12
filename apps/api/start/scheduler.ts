@@ -54,15 +54,16 @@ scheduler
 
 /**
  * Update ASP (Association Set Provider) root.
- * Runs every 30 seconds to:
+ * Runs every 15 seconds to:
  * - Auto-approve new deposit labels into the ASP Merkle tree
  * - Update the on-chain ASP root if the tree has changed
  *
  * For hackathon: auto-approves ALL labels (no sanctions check).
+ * Note: Preflight also does on-demand sync as a safety net.
  */
 scheduler
   .call(async () => {
     await UpdateASPRoot.dispatch({})
   })
-  .everyThirtySeconds()
+  .everyFifteenSeconds()
   .withoutOverlapping()

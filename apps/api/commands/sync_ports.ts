@@ -13,6 +13,16 @@ import User from '#models/user'
  * - Recovery after database reset
  * - Manual sync if scheduled jobs missed ports
  *
+ * KEY RECOVERY MECHANISM:
+ * =======================
+ * The `indexerPortId` (on-chain portId) is used for key derivation.
+ * This means ports can ALWAYS be recovered from the blockchain:
+ *   1. This command syncs ports from Ponder → stores indexerPortId
+ *   2. Frontend derives keys from wallet signature + indexerPortId
+ *   3. Keys match the on-chain stealth meta-address
+ *
+ * The backend database is just a cache - it can be rebuilt anytime!
+ *
  * Usage:
  *   node ace sync:ports                    # Sync all ports
  *   node ace sync:ports --dry-run          # Preview without changes

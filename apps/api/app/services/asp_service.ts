@@ -107,8 +107,9 @@ export default class ASPService {
   }
 
   /**
-   * Initialize service by loading state from Redis.
-   * If Redis has no state, rebuilds from indexer.
+   * Initialize service by rebuilding from indexer.
+   * Redis is used only for labelSet membership checks and lastProcessedBlock tracking.
+   * Tree MUST be rebuilt from indexer to ensure correct insertion order matching on-chain.
    * Must be called before using the service.
    */
   async initialize(): Promise<{ source: 'redis' | 'indexer'; labelsLoaded: number }> {
@@ -116,34 +117,8 @@ export default class ASPService {
       return { source: 'redis', labelsLoaded: this.size }
     }
 
-    // Try to load from Redis first
-    const redisLabels = await redis.smembers(REDIS_KEY_LABELS)
-    const redisLastBlock = await redis.get(REDIS_KEY_LAST_BLOCK)
-
-    if (redisLabels.length > 0) {
-      // Load from Redis
-      this.labelSet.clear()
-      this.tree = new LeanIMT<bigint>(poseidonHash)
-
-      const labels: bigint[] = []
-      for (const labelStr of redisLabels) {
-        this.labelSet.add(labelStr)
-        labels.push(BigInt(labelStr))
-      }
-
-      if (labels.length > 0) {
-        // Sort labels to ensure consistent tree structure
-        labels.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-        this.tree.insertMany(labels)
-      }
-
-      this.lastProcessedBlock = redisLastBlock ? BigInt(redisLastBlock) : 0n
-      this.initialized = true
-
-      return { source: 'redis', labelsLoaded: labels.length }
-    }
-
-    // No Redis state, rebuild from indexer
+    // Always rebuild from indexer to ensure correct insertion order
+    // Redis Sets don't preserve order, so we can't rely on them for tree construction
     const { labelsAdded } = await this.rebuildFromDeposits()
     this.initialized = true
 

@@ -135,12 +135,23 @@ export function useCreatePort() {
     let txWasSent = false
 
     try {
-      // Step 1: Create port in backend (just name) → get UUID
-      const backendPort = await portsApi.create({ name, chainId })
-      backendPortId = backendPort.id
+      // =================================================================
+      // CRITICAL: Key derivation uses on-chain portId for recoverability
+      // =================================================================
+      // The on-chain portId is permanent and stored on the blockchain.
+      // This means keys can ALWAYS be recovered by:
+      //   1. Syncing ports from Ponder (gets indexerPortId from chain)
+      //   2. Deriving keys from wallet signature + indexerPortId
+      //
+      // NEVER use backend UUID for key derivation - it's not recoverable!
+      // =================================================================
 
-      // Step 2: Derive keys using UUID hash as portIndex (prevents key reuse)
-      const portIndex = uuidToPortIndex(backendPort.id)
+      // Step 1: Generate on-chain portId FIRST (this is what we'll use for key derivation)
+      const random = crypto.getRandomValues(new Uint8Array(16))
+      const onChainPortId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
+
+      // Step 2: Derive keys using on-chain portId (NOT backend UUID)
+      const portIndex = uuidToPortIndex(onChainPortId)
       const portKeys = derivePortKeys(masterSignature, portIndex)
 
       // Format stealth meta-address as string for backend
@@ -153,12 +164,16 @@ export function useCreatePort() {
       // Get viewing key as hex for backend storage
       const viewingKey = toHex(portKeys.viewingPrivateKey)
 
-      // Step 3: Update port with stealth keys
-      await portsApi.update(backendPort.id, { stealthMetaAddress, viewingKey })
+      // Step 3: Create port in backend with all data including indexerPortId
+      const backendPort = await portsApi.create({ name, chainId })
+      backendPortId = backendPort.id
 
-      // Step 4: Generate on-chain portId and send transaction
-      const random = crypto.getRandomValues(new Uint8Array(16))
-      const onChainPortId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
+      // Step 4: Update port with stealth keys and on-chain portId
+      await portsApi.update(backendPort.id, {
+        stealthMetaAddress,
+        viewingKey,
+        indexerPortId: onChainPortId,
+      })
 
       // Format stealth meta-address as bytes for chain (66 bytes = spending + viewing pubkeys)
       const metaAddressBytes = encodeMetaAddress(

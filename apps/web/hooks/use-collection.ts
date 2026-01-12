@@ -29,7 +29,12 @@ import {
 } from 'viem'
 import { useStealthContext } from '@/contexts/stealth-context'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
-import { scanAnnouncements, derivePortKeys, type Announcement } from '@galeon/stealth'
+import {
+  scanAnnouncements,
+  derivePortKeys,
+  formatStealthMetaAddress,
+  type Announcement,
+} from '@galeon/stealth'
 import {
   createDepositSecrets,
   createWithdrawalSecrets,
@@ -195,10 +200,17 @@ export function useCollection() {
       const apiAnnouncements = await announcementsApi.list({
         chainId: chainId ?? 5000, // Default to Mantle mainnet
       })
+      console.log('[scan] Fetched', apiAnnouncements.length, 'announcements from API')
 
       // Fetch user's Ports to get Port-specific keys
       const portsResponse = await portsApi.list({ limit: 100 })
       const userPorts = portsResponse.data
+      console.log(
+        '[scan] Found',
+        userPorts.length,
+        'ports for user:',
+        userPorts.map((p) => ({ id: p.id, name: p.name }))
+      )
 
       // Convert API response to Announcement format for scanning
       const announcements: Announcement[] = apiAnnouncements.map((ann) => ({
@@ -208,6 +220,16 @@ export function useCollection() {
         txHash: ann.transactionHash as `0x${string}`,
         blockNumber: BigInt(ann.blockNumber),
       }))
+
+      // Debug: Log first few announcements
+      if (announcements.length > 0) {
+        console.log('[scan] First announcement sample:', {
+          stealthAddress: announcements[0].stealthAddress,
+          ephemeralPubKeyLength: announcements[0].ephemeralPubKey.length,
+          metadataLength: announcements[0].metadata.length,
+          viewTag: announcements[0].metadata[0],
+        })
+      }
 
       // Scan for payments across ALL user Ports
       // Each Port has its own derived keys, so we scan with each Port's keys
@@ -221,14 +243,49 @@ export function useCollection() {
       const allScannedPayments: ScannedPaymentWithPort[] = []
 
       for (const port of userPorts) {
-        const portIndex = uuidToPortIndex(port.id)
+        // Use indexerPortId (on-chain portId) for key derivation
+        // Keys are derived from the on-chain portId, which is stable and recoverable
+        if (!port.indexerPortId) {
+          console.log(
+            '[scan] Skipping port',
+            port.name,
+            '- no indexerPortId (pending registration)'
+          )
+          continue
+        }
+        const portIndex = uuidToPortIndex(port.indexerPortId)
         const portKeys = derivePortKeys(masterSignature, portIndex)
+
+        // CRITICAL: Verify derived keys match the on-chain stealth meta-address
+        // This ensures we never scan with wrong keys (which would miss payments)
+        const derivedStealthMeta = formatStealthMetaAddress(
+          portKeys.spendingPublicKey,
+          portKeys.viewingPublicKey,
+          'mnt'
+        )
+        const keysMatch =
+          port.stealthMetaAddress?.toLowerCase() === derivedStealthMeta.toLowerCase()
+
+        if (!keysMatch) {
+          // SKIP ports with mismatched keys - they were created with old key derivation
+          // User needs to create a new port with the updated system
+          console.error('[scan] SKIPPING port', port.name, '- key derivation mismatch!')
+          console.error('[scan]   On-chain stealthMetaAddress:', port.stealthMetaAddress)
+          console.error('[scan]   Derived stealthMetaAddress:', derivedStealthMeta)
+          console.error(
+            '[scan]   This port was created with old key derivation. Create a new port to recover.'
+          )
+          continue
+        }
+
+        console.log('[scan] Scanning port:', port.name, '✓ keys verified')
 
         const portPayments = scanAnnouncements(
           announcements,
           portKeys.spendingPrivateKey,
           portKeys.viewingPrivateKey
         )
+        console.log('[scan] Port', port.name, 'found', portPayments.length, 'payments')
         // Add port info to each payment
         for (const payment of portPayments) {
           allScannedPayments.push({
@@ -238,6 +295,7 @@ export function useCollection() {
           })
         }
       }
+      console.log('[scan] Total scanned payments:', allScannedPayments.length)
 
       const scannedPayments = allScannedPayments
 
