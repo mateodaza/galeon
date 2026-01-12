@@ -41,6 +41,7 @@ router
     // Pool deposits (public - used for deposit recovery)
     router.get('/deposits', [DepositsController, 'index'])
     router.get('/deposits/merges', [DepositsController, 'merges'])
+    router.get('/deposits/leaves', [DepositsController, 'leaves'])
 
     // Nullifiers (public - check if a nullifier has been spent)
     router.get('/nullifiers/:hex', [NullifiersController, 'show'])

@@ -437,6 +437,65 @@ export default class PonderService {
     }
   }
 
+  /** Maximum allowed limit for merkle leaves query */
+  static readonly MAX_MERKLE_LEAVES_LIMIT = 5000
+
+  /** Default limit for merkle leaves query */
+  static readonly DEFAULT_MERKLE_LEAVES_LIMIT = 1000
+
+  /**
+   * List all merkle leaves for a pool
+   * Includes BOTH deposit commitments AND withdrawal change commitments
+   * Required for building the state merkle tree correctly
+   */
+  async listMerkleLeaves(options?: {
+    pool?: string
+    chainId?: number
+    limit?: number
+    offset?: number
+  }): Promise<{ data: PonderMerkleLeaf[]; hasMore: boolean }> {
+    const requestedLimit = options?.limit ?? PonderService.DEFAULT_MERKLE_LEAVES_LIMIT
+    const limit = Math.min(requestedLimit, PonderService.MAX_MERKLE_LEAVES_LIMIT)
+    const offset = options?.offset ?? 0
+
+    const query = db.connection(this.connection).from('merkle_leaves').orderBy('leaf_index', 'asc')
+
+    if (options?.pool) {
+      query.where('pool', options.pool.toLowerCase())
+    }
+    if (options?.chainId !== undefined) {
+      query.where('chain_id', options.chainId)
+    }
+
+    query.limit(limit + 1).offset(offset)
+
+    const results = await query
+    const hasMore = results.length > limit
+    const data = results
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => this.mapMerkleLeaf(row))
+
+    return { data, hasMore }
+  }
+
+  /**
+   * Map database row to PonderMerkleLeaf interface
+   */
+  private mapMerkleLeaf(row: Record<string, unknown>): PonderMerkleLeaf {
+    return {
+      id: String(row.id),
+      pool: String(row.pool),
+      leafIndex: String(row.leaf_index),
+      leaf: String(row.leaf),
+      root: String(row.root),
+      blockNumber: String(row.block_number),
+      blockTimestamp: String(row.block_timestamp),
+      transactionHash: String(row.transaction_hash),
+      logIndex: Number(row.log_index),
+      chainId: Number(row.chain_id),
+    }
+  }
+
   /**
    * Find a merge deposit by the nullifier hash it spent
    * @param nullifierHash - The existing nullifier hash that was spent
@@ -521,6 +580,23 @@ export interface PonderPoolWithdrawal {
   relayer: string | null
   asset: string | null
   feeAmount: string | null
+  blockNumber: string
+  blockTimestamp: string
+  transactionHash: string
+  logIndex: number
+  chainId: number
+}
+
+/**
+ * Merkle leaf data from Ponder indexer database
+ * Includes all commitments (deposits + withdrawal changes)
+ */
+export interface PonderMerkleLeaf {
+  id: string
+  pool: string
+  leafIndex: string
+  leaf: string
+  root: string
   blockNumber: string
   blockTimestamp: string
   transactionHash: string

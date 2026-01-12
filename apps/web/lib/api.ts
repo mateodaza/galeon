@@ -859,7 +859,7 @@ export interface ASPRebuildResponse {
 // ============================================================
 
 // ============================================================
-// Merkle Leaves Types (from Ponder indexer - all tree leaves)
+// Merkle Leaves Types (from Ponder indexer via backend API)
 // ============================================================
 
 export interface MerkleLeafResponse {
@@ -875,21 +875,37 @@ export interface MerkleLeafResponse {
   chainId: number
 }
 
+export interface MerkleLeavesListResponse {
+  data: MerkleLeafResponse[]
+  hasMore: boolean
+  limit: number
+  offset: number
+}
+
 // ============================================================
-// Merkle Leaves API (public - fetch all tree leaves including withdrawal changes)
+// Merkle Leaves API (public - fetch all tree leaves via backend)
 // ============================================================
 
 export const merkleLeavesApi = {
   /**
-   * Fetch all merkle leaves for a pool from the indexer.
+   * Fetch a single page of merkle leaves for a pool via the backend API.
    * This includes BOTH deposit commitments AND withdrawal change commitments.
    * Must be used for building the state tree (not poolDepositsApi which only has deposits).
    *
    * @param pool - Pool address
-   * @param limit - Max results (default 1000)
+   * @param options - Pagination options
    */
-  list: async (pool: string, limit = 1000): Promise<MerkleLeafResponse[]> => {
-    const url = `${INDEXER_URL}/pools/${pool.toLowerCase()}/leaves?limit=${limit}`
+  listPage: async (
+    pool: string,
+    options?: { limit?: number; offset?: number; chainId?: number }
+  ): Promise<MerkleLeavesListResponse> => {
+    const query = new URLSearchParams()
+    query.set('pool', pool)
+    if (options?.chainId !== undefined) query.set('chainId', String(options.chainId))
+    if (options?.limit) query.set('limit', String(options.limit))
+    if (options?.offset) query.set('offset', String(options.offset))
+
+    const url = `${API_BASE_URL}/api/v1/deposits/leaves?${query.toString()}`
     const response = await fetch(url)
 
     if (!response.ok) {
@@ -897,6 +913,28 @@ export const merkleLeavesApi = {
     }
 
     return response.json()
+  },
+
+  /**
+   * Fetch all merkle leaves for a pool by paginating through all pages.
+   *
+   * @param pool - Pool address
+   * @param limit - Max results per page (default 1000, max 5000)
+   */
+  list: async (pool: string, limit = 1000): Promise<MerkleLeafResponse[]> => {
+    const pageSize = Math.min(limit, 5000)
+    const allLeaves: MerkleLeafResponse[] = []
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const page = await merkleLeavesApi.listPage(pool, { limit: pageSize, offset })
+      allLeaves.push(...page.data)
+      hasMore = page.hasMore
+      offset += pageSize
+    }
+
+    return allLeaves
   },
 
   /**
