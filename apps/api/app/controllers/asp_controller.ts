@@ -17,6 +17,8 @@ export default class AspController {
   async status({ response }: HttpContext) {
     try {
       const aspService = getSharedASPService()
+      // Initialize from Redis if not already done
+      await aspService.initialize()
       const status = await aspService.getStatus()
 
       return response.json({
@@ -48,6 +50,8 @@ export default class AspController {
       }
 
       const aspService = getSharedASPService()
+      // Initialize from Redis if not already done
+      await aspService.initialize()
 
       // Parse label as bigint
       let labelBigInt: bigint

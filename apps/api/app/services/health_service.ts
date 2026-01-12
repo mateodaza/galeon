@@ -224,6 +224,8 @@ export default class HealthService {
       }
 
       const aspService = getSharedASPService()
+      // Initialize from Redis if not already done
+      await aspService.initialize()
       const aspStatus = await aspService.getStatus()
 
       const status: HealthStatus = aspStatus.synced

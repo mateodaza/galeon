@@ -272,9 +272,16 @@ The ASP service exposes these public endpoints for withdrawal proofs:
 | GET    | `/api/v1/asp/proof/:label` | Get Merkle proof for a deposit label   |
 | POST   | `/api/v1/asp/rebuild`      | Force rebuild tree and update on-chain |
 
+### Redis Persistence (2026-01-12)
+
+- ASP tree state now persisted to Redis for production-grade deployment
+- All processes (API, scheduler, worker) share the same Redis-backed state
+- State survives restarts without needing to rebuild from indexer
+- Redis keys: `galeon:asp:labels` (Set), `galeon:asp:lastProcessedBlock` (String)
+- On startup, loads from Redis if available; otherwise rebuilds from indexer
+
 ### Notes
 
-- Singleton ASP service instance persists tree state between job runs
 - Uses `poseidon-lite` (pure JS, Node.js compatible) instead of `maci-crypto` (browser-only)
 - IPFS CID is placeholder for hackathon; production would store actual tree data
 - ASP_POSTMAN_PRIVATE_KEY falls back to RELAYER_PRIVATE_KEY if not set

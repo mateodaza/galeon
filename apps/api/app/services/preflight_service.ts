@@ -144,6 +144,8 @@ export default class PreflightService {
       }
 
       const aspService = getSharedASPService()
+      // Initialize from Redis if not already done
+      await aspService.initialize()
       const status = await aspService.getStatus()
 
       return {
@@ -219,6 +221,8 @@ export default class PreflightService {
       if (!ASPService.isConfigured()) return false
 
       const aspService = getSharedASPService()
+      // Initialize from Redis if not already done
+      await aspService.initialize()
       const labelBigInt = BigInt(label)
 
       return aspService.hasLabel(labelBigInt)
@@ -253,6 +257,8 @@ export default class PreflightService {
       try {
         console.log('[Preflight] ASP not synced, attempting on-demand sync...')
         const aspService = getSharedASPService()
+        // Ensure initialized from Redis
+        await aspService.initialize()
 
         // Process any new deposits and update on-chain root
         const { newLabels } = await aspService.processNewDeposits()

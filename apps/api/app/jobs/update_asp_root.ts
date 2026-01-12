@@ -7,7 +7,7 @@ import ASPService, { getSharedASPService } from '#services/asp_service'
  * Scheduled job to auto-approve new deposit labels and update the on-chain ASP root.
  *
  * Flow:
- * 1. On first run, rebuilds tree from all existing deposits
+ * 1. On first run, initializes from Redis (or rebuilds from indexer if Redis empty)
  * 2. Processes any new deposits since last check
  * 3. If tree root changed, updates on-chain root via Entrypoint.updateRoot()
  *
@@ -16,17 +16,15 @@ import ASPService, { getSharedASPService } from '#services/asp_service'
  *
  * Schedule: Every 30 seconds (configured in start/scheduler.ts)
  *
- * IMPORTANT: Uses shared ASP service singleton to ensure all components
- * (controller, preflight, health) see the same tree state.
+ * Redis Persistence:
+ * - State is persisted to Redis so all processes share the same tree
+ * - Survives restarts without needing to rebuild from indexer
  */
 
 export interface UpdateASPRootPayload {
   forceRebuild?: boolean
   aspService?: ASPService // For testing - allows injecting a mock
 }
-
-// Track if we've done the initial rebuild
-let initialized = false
 
 function getASPServiceForJob(payload?: UpdateASPRootPayload): ASPService {
   // Allow mock injection for tests
@@ -47,12 +45,11 @@ export default class UpdateASPRoot extends Job {
 
     const aspService = getASPServiceForJob(payload)
 
-    // Initialize on first run or if forced
-    if (!initialized || payload.forceRebuild) {
-      this.logger?.info('Initializing ASP tree from existing deposits...')
+    // Force rebuild if requested
+    if (payload.forceRebuild) {
+      this.logger?.info('Force rebuilding ASP tree from indexer...')
 
       const { labelsAdded, root } = await aspService.rebuildFromDeposits()
-      initialized = true
 
       this.logger?.info(
         `ASP tree rebuilt: ${labelsAdded} labels, root: ${root.toString().slice(0, 20)}...`
@@ -70,11 +67,29 @@ export default class UpdateASPRoot extends Job {
       return
     }
 
-    // Process new deposits
+    // Initialize from Redis (or rebuild from indexer if no Redis state)
+    const { source, labelsLoaded } = await aspService.initialize()
+
+    if (source === 'indexer') {
+      this.logger?.info(`Initialized ASP tree from indexer: ${labelsLoaded} labels`)
+
+      // Update on-chain root after initial rebuild if needed
+      if (labelsLoaded > 0) {
+        const { updated, txHash, newRoot } = await aspService.updateOnChainRoot()
+        if (updated) {
+          this.logger?.info(
+            `On-chain ASP root updated: ${newRoot.toString().slice(0, 20)}..., tx: ${txHash}`
+          )
+        }
+      }
+      return
+    }
+
+    // Redis state loaded, process new deposits
     const { newLabels, newRoot } = await aspService.processNewDeposits()
 
     if (newLabels.length === 0) {
-      this.logger?.debug('No new deposits to process')
+      this.logger?.debug(`No new deposits (tree size: ${aspService.size})`)
       return
     }
 

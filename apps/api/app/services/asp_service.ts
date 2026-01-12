@@ -3,12 +3,18 @@
  *
  * Manages the ASP Merkle tree of approved deposit labels.
  * Auto-approves labels by:
- * 1. Maintaining an in-memory LeanIMT tree
- * 2. Rebuilding tree from existing deposits on startup
+ * 1. Maintaining an in-memory LeanIMT tree (backed by Redis for persistence)
+ * 2. Rebuilding tree from existing deposits on startup (if Redis state missing)
  * 3. Adding new labels and updating on-chain root
  *
  * For hackathon: Auto-approves ALL labels (no blocklist check).
  * Production: Would check depositor addresses against sanctions lists.
+ *
+ * Redis Persistence:
+ * - labelSet stored as Redis Set (asp:labels)
+ * - lastProcessedBlock stored as string (asp:lastProcessedBlock)
+ * - On startup, loads from Redis if available, otherwise rebuilds from indexer
+ * - All processes (API, scheduler, worker) share the same Redis state
  */
 
 import { LeanIMT } from '@zk-kit/lean-imt'
@@ -18,6 +24,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import env from '#start/env'
 import ChainService from '#services/chain_service'
 import PonderService from '#services/ponder_service'
+import redis from '@adonisjs/redis/services/main'
 
 const ENTRYPOINT_ADDRESS = env.get('ENTRYPOINT_ADDRESS') as `0x${string}` | undefined
 // Use ASP_POSTMAN_PRIVATE_KEY if set, otherwise fallback to RELAYER_PRIVATE_KEY
@@ -59,6 +66,10 @@ export const MAX_ASP_TREE_DEPTH = 32
 /** Placeholder IPFS CID for hackathon (production would store tree data) */
 const PLACEHOLDER_IPFS_CID = 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi'
 
+/** Redis keys for ASP state persistence */
+const REDIS_KEY_LABELS = 'asp:labels'
+const REDIS_KEY_LAST_BLOCK = 'asp:lastProcessedBlock'
+
 /** Minimum balance required to submit on-chain update (0.01 MNT) */
 const MIN_BALANCE_FOR_UPDATE = BigInt('10000000000000000')
 
@@ -88,10 +99,85 @@ export default class ASPService {
   private labelSet: Set<string> = new Set()
   private lastProcessedBlock: bigint = 0n
   private ponderService: PonderService
+  private initialized: boolean = false
 
   constructor() {
     this.tree = new LeanIMT<bigint>(poseidonHash)
     this.ponderService = new PonderService()
+  }
+
+  /**
+   * Initialize service by loading state from Redis.
+   * If Redis has no state, rebuilds from indexer.
+   * Must be called before using the service.
+   */
+  async initialize(): Promise<{ source: 'redis' | 'indexer'; labelsLoaded: number }> {
+    if (this.initialized) {
+      return { source: 'redis', labelsLoaded: this.size }
+    }
+
+    // Try to load from Redis first
+    const redisLabels = await redis.smembers(REDIS_KEY_LABELS)
+    const redisLastBlock = await redis.get(REDIS_KEY_LAST_BLOCK)
+
+    if (redisLabels.length > 0) {
+      // Load from Redis
+      this.labelSet.clear()
+      this.tree = new LeanIMT<bigint>(poseidonHash)
+
+      const labels: bigint[] = []
+      for (const labelStr of redisLabels) {
+        this.labelSet.add(labelStr)
+        labels.push(BigInt(labelStr))
+      }
+
+      if (labels.length > 0) {
+        // Sort labels to ensure consistent tree structure
+        labels.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        this.tree.insertMany(labels)
+      }
+
+      this.lastProcessedBlock = redisLastBlock ? BigInt(redisLastBlock) : 0n
+      this.initialized = true
+
+      return { source: 'redis', labelsLoaded: labels.length }
+    }
+
+    // No Redis state, rebuild from indexer
+    const { labelsAdded } = await this.rebuildFromDeposits()
+    this.initialized = true
+
+    return { source: 'indexer', labelsLoaded: labelsAdded }
+  }
+
+  /**
+   * Persist current label to Redis
+   */
+  private async persistLabel(label: bigint): Promise<void> {
+    await redis.sadd(REDIS_KEY_LABELS, label.toString())
+  }
+
+  /**
+   * Persist multiple labels to Redis
+   */
+  private async persistLabels(labels: bigint[]): Promise<void> {
+    if (labels.length === 0) return
+    await redis.sadd(REDIS_KEY_LABELS, ...labels.map((l) => l.toString()))
+  }
+
+  /**
+   * Persist last processed block to Redis
+   */
+  private async persistLastProcessedBlock(): Promise<void> {
+    await redis.set(REDIS_KEY_LAST_BLOCK, this.lastProcessedBlock.toString())
+  }
+
+  /**
+   * Clear all persisted state from Redis
+   */
+  private async clearPersistedState(): Promise<void> {
+    await redis.del(REDIS_KEY_LABELS)
+    await redis.del(REDIS_KEY_LAST_BLOCK)
   }
 
   /**
@@ -216,20 +302,19 @@ export default class ASPService {
 
   /**
    * Initialize/rebuild tree from existing deposits in indexer.
-   * Should be called on service startup.
+   * Clears Redis state and rebuilds from scratch.
    */
   async rebuildFromDeposits(): Promise<{ labelsAdded: number; root: bigint }> {
-    // Clear existing state for full rebuild
+    // Clear existing state for full rebuild (memory + Redis)
     this.labelSet.clear()
     this.tree = new LeanIMT<bigint>(poseidonHash)
     this.lastProcessedBlock = 0n
+    await this.clearPersistedState()
 
     const labels: bigint[] = []
     let offset = 0
     const limit = 500
     let hasMore = true
-
-    // Rebuild tree from deposits (silent - job handles logging)
 
     // Fetch all deposits in order (by block_number, log_index)
     while (hasMore) {
@@ -238,8 +323,6 @@ export default class ASPService {
         limit,
         offset,
       })
-
-      // Silently process deposits
 
       for (const deposit of result.data) {
         const labelBigInt = BigInt(deposit.label)
@@ -261,14 +344,19 @@ export default class ASPService {
     // Rebuild tree with all labels
     if (labels.length > 0) {
       this.tree.insertMany(labels)
+      // Persist all labels to Redis
+      await this.persistLabels(labels)
     }
+
+    // Persist last processed block
+    await this.persistLastProcessedBlock()
 
     return { labelsAdded: labels.length, root: this.root }
   }
 
   /**
    * Process new deposits and add their labels to ASP tree.
-   * Returns labels that were newly added.
+   * Returns labels that were newly added. Persists new labels to Redis.
    */
   async processNewDeposits(): Promise<{ newLabels: bigint[]; newRoot: bigint }> {
     const newLabels: bigint[] = []
@@ -299,6 +387,9 @@ export default class ASPService {
         this.labelSet.add(labelStr)
         this.tree.insert(labelBigInt)
 
+        // Persist label to Redis immediately
+        await this.persistLabel(labelBigInt)
+
         // Update last processed block
         const blockNum = BigInt(deposit.blockNumber)
         if (blockNum > this.lastProcessedBlock) {
@@ -308,6 +399,11 @@ export default class ASPService {
 
       hasMore = result.hasMore
       offset += limit
+    }
+
+    // Persist last processed block if we added any labels
+    if (newLabels.length > 0) {
+      await this.persistLastProcessedBlock()
     }
 
     return { newLabels, newRoot: this.root }
