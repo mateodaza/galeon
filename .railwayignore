@@ -1,0 +1,37 @@
+# Dependencies (will be installed in Docker)
+node_modules
+**/node_modules
+
+# Build outputs (will be built in Docker)
+dist
+**/dist
+build
+**/build
+.next
+**/.next
+.turbo
+**/.turbo
+
+# Apps we don't need for API deploy
+apps/web
+apps/indexer
+
+# Dev/local files
+.env.local
+.env.*.local
+*.log
+.DS_Store
+
+# Git
+.git
+
+# IDE
+.vscode
+.idea
+
+# Test artifacts
+coverage
+**/coverage
+
+# Misc
+docs
