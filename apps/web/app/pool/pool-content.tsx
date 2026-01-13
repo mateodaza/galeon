@@ -14,6 +14,7 @@ import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { WithdrawModal } from '@/components/pool/withdraw-modal'
+import { PrivacyHealthCard } from '@/components/pool/privacy-health-card'
 
 export default function PoolContent() {
   const { isConnected } = useAccount()
@@ -97,6 +98,9 @@ export default function PoolContent() {
           </CardContent>
         </Card>
       )}
+
+      {/* Privacy Health */}
+      <PrivacyHealthCard />
 
       {/* Pool Keys Status */}
       <Card variant="glass" className="mt-6">

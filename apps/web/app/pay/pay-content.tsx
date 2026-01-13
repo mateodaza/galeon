@@ -17,6 +17,7 @@ import {
   Lock,
   RefreshCw,
   Loader2,
+  Info,
 } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ import { Input } from '@/components/ui/input'
 import { usePoolContext } from '@/contexts/pool-context'
 import { useCollection } from '@/hooks/use-collection'
 import { WithdrawModal } from '@/components/pool/withdraw-modal'
+import { healthApi, type PoolPrivacyHealth } from '@/lib/api'
 
 type PayMode = 'quick' | 'stealth' | 'private'
 
@@ -41,7 +43,11 @@ export default function PayContent() {
     totalBalance: poolBalance,
     isDerivingKeys,
     derivePoolKeys,
+    contracts,
   } = usePoolContext()
+
+  // Privacy health state for private send tab
+  const [privacyHealth, setPrivacyHealth] = useState<PoolPrivacyHealth | null>(null)
 
   const {
     payments,
@@ -75,6 +81,16 @@ export default function PayContent() {
       scan()
     }
   }, [mode, hasKeys, hasAttemptedScan, isScanning, scan])
+
+  // Fetch privacy health when switching to private mode
+  useEffect(() => {
+    if (mode === 'private' && contracts?.pool) {
+      healthApi
+        .getPoolPrivacy(contracts.pool)
+        .then(setPrivacyHealth)
+        .catch(() => setPrivacyHealth(null))
+    }
+  }, [mode, contracts?.pool])
 
   const handleQuickPay = () => {
     if (recipient && isAddress(recipient)) {
@@ -492,6 +508,69 @@ export default function PayContent() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Privacy health indicator - subtle inline style */}
+                {privacyHealth && (
+                  <div className="text-muted-foreground flex items-center gap-3 text-xs">
+                    <div
+                      className="flex cursor-help items-center gap-1.5"
+                      title={
+                        privacyHealth.strength === 'strong'
+                          ? 'Your withdrawal blends in with many others.'
+                          : privacyHealth.strength === 'moderate'
+                            ? 'Good privacy. More deposits would make it stronger.'
+                            : 'Limited pool activity. Privacy improves as more people use the pool.'
+                      }
+                    >
+                      <Shield
+                        className={`h-3.5 w-3.5 ${
+                          privacyHealth.strength === 'strong'
+                            ? 'text-emerald-500'
+                            : privacyHealth.strength === 'moderate'
+                              ? 'text-blue-500'
+                              : 'text-amber-500'
+                        }`}
+                      />
+                      <span
+                        className={`font-medium ${
+                          privacyHealth.strength === 'strong'
+                            ? 'text-emerald-500'
+                            : privacyHealth.strength === 'moderate'
+                              ? 'text-blue-500'
+                              : 'text-amber-500'
+                        }`}
+                      >
+                        {privacyHealth.strength === 'strong'
+                          ? 'Strong'
+                          : privacyHealth.strength === 'moderate'
+                            ? 'Moderate'
+                            : 'Limited'}{' '}
+                        Privacy
+                      </span>
+                    </div>
+                    <span className="text-muted-foreground/50">·</span>
+                    <span>
+                      <span className="text-foreground font-medium">
+                        {privacyHealth.anonymitySetSize}
+                      </span>{' '}
+                      deposits
+                    </span>
+                    <span className="text-muted-foreground/50">·</span>
+                    <span>
+                      <span className="text-foreground font-medium">
+                        {privacyHealth.uniqueDepositors}
+                      </span>{' '}
+                      depositors
+                    </span>
+                    <a
+                      href="/about#privacy-metrics"
+                      className="text-muted-foreground hover:text-foreground ml-1"
+                      title="How we measure privacy"
+                    >
+                      <Info className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
 
                 <Button
                   onClick={() => setShowWithdrawModal(true)}

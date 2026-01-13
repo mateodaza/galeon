@@ -76,11 +76,11 @@ function buildSiweMessage(params: {
   const { address, chainId, nonce, issuedAt, expirationTime } = params
 
   // EIP-4361 compliant SIWE message format
-  // Statement must be a single line
+  // Statement must be a single line - includes trust acknowledgment
   return `${SIWE_DOMAIN} wants you to sign in with your Ethereum account:
 ${address}
 
-Sign in to Galeon - session active for 7 days
+Sign in to Galeon. I understand Galeon stores my viewing keys (encrypted) to detect incoming payments and operates the ASP for pool withdrawals.
 
 URI: ${SIWE_URI}
 Version: 1

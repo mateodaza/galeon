@@ -64,7 +64,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   RELAYER_FEE_BPS: Env.schema.string.optional(), // Fee in basis points (100 = 1%)
   MIN_WITHDRAW_AMOUNT: Env.schema.string.optional(), // Minimum withdrawal in wei
   MAX_GAS_PRICE: Env.schema.string.optional(), // Max gas price in wei
-  POOL_ADDRESS: Env.schema.string.optional(), // Pool contract address for root verification
+  // Note: POOL_ADDRESS removed - now using @galeon/config centralized contracts
 
   /*
   |----------------------------------------------------------

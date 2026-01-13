@@ -1171,6 +1171,18 @@ export interface IndexerHealth {
   timestamp: number
 }
 
+export type PrivacyStrength = 'strong' | 'moderate' | 'weak' | 'minimal'
+
+export interface PoolPrivacyHealth {
+  strength: PrivacyStrength
+  anonymitySetSize: number
+  uniqueDepositors: number
+  totalDeposits: number
+  avgDepositAge: number // hours
+  recommendations: string[]
+  timestamp: number
+}
+
 // ============================================================
 // Health API (public - sync status and pre-flight checks)
 // ============================================================
@@ -1248,6 +1260,23 @@ export const healthApi = {
   ): Promise<{ available: boolean; blockers: string[] }> => {
     const health = await healthApi.getStatus(chainId)
     return health.operations[operation]
+  },
+
+  /**
+   * Get pool privacy health metrics.
+   * Measures anonymity set size and provides privacy strength assessment.
+   * @param poolAddress - Optional pool address
+   */
+  getPoolPrivacy: async (poolAddress?: string): Promise<PoolPrivacyHealth> => {
+    const query = poolAddress ? `?pool=${poolAddress}` : ''
+    const url = `${API_BASE_URL}/api/v1/health/pool-privacy${query}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Pool privacy API error: ${response.statusText}`)
+    }
+
+    return response.json()
   },
 }
 

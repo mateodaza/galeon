@@ -166,7 +166,8 @@ function ReportForm({
     onGenerate(params)
   }
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+  // Only show 2025 and later (we weren't live before 2025)
+  const years = Array.from({ length: currentYear - 2024 }, (_, i) => currentYear - i)
   const quarters = [1, 2, 3, 4]
   const months = [
     'January',

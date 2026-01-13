@@ -242,37 +242,71 @@ export default function AboutPage() {
               </div>
             </section>
 
-            {/* Philosophy */}
+            {/* Trust Model */}
             <section className="mt-16">
-              <h2 className="text-2xl font-bold text-white">Our Philosophy: Trustless by Design</h2>
+              <h2 className="text-2xl font-bold text-white">Trust Model &amp; Security</h2>
               <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
                 <p>
-                  We believe privacy tools should depend on{' '}
-                  <strong className="text-white">
-                    math and consensus, never on the goodwill of intermediaries
-                  </strong>
-                  . Every design decision in Galeon follows this principle.
+                  We believe privacy tools should minimize trust assumptions. Here&apos;s what you{' '}
+                  <strong className="text-white">don&apos;t need to trust</strong> and what remains{' '}
+                  <strong className="text-white">trusted</strong> in the current system.
                 </p>
-                <p>
-                  <strong className="text-white">Server-free key management.</strong> Your spending
-                  keys are derived from your wallet signature and cached in your browser&apos;s
-                  local storage for convenience, never sent to servers. If Galeon disappeared
-                  tomorrow, you could still access your funds with your wallet and the math alone.
-                </p>
-                <p>
-                  <strong className="text-white">No indispensable intermediaries.</strong> Our
-                  relayer helps preserve your privacy by broadcasting transactions on your behalf,
-                  but you can always bypass it. Every withdrawal can be submitted directly to the
-                  smart contract. The relayer can&apos;t steal funds, modify proofs, or censor you.
-                  ZK proofs are verified on-chain, not trusted from a server.
-                </p>
-                <p>
-                  <strong className="text-white">No unverifiable outcomes.</strong> Every state
-                  change in Galeon is reproducible from public blockchain data. Merkle proofs,
-                  nullifiers, commitments: all verifiable by anyone. We don&apos;t ask you to trust
-                  us. We ask you to verify.
-                </p>
-                <p>
+
+                <div className="mt-6 rounded-lg border border-emerald-500/20 bg-emerald-950/20 p-6">
+                  <h3 className="font-semibold text-emerald-400">What&apos;s Trustless</h3>
+                  <ul className="mt-3 space-y-2 text-sm">
+                    <li>
+                      <strong className="text-white">Key management:</strong> Your spending keys are
+                      derived from your wallet signature and cached locally—never sent to servers.
+                      Funds are always recoverable with your wallet.
+                    </li>
+                    <li>
+                      <strong className="text-white">Proof generation:</strong> ZK proofs are
+                      generated client-side in your browser. Your secrets never leave your device.
+                    </li>
+                    <li>
+                      <strong className="text-white">Proof verification:</strong> All ZK proofs are
+                      verified on-chain by verifier contracts, not trusted from a server.
+                    </li>
+                    <li>
+                      <strong className="text-white">Relayer bypass:</strong> You can always submit
+                      withdrawals directly to the contract (sacrificing sender privacy but
+                      preserving self-custody).
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/20 p-6">
+                  <h3 className="font-semibold text-amber-400">Current Trust Assumptions</h3>
+                  <ul className="mt-3 space-y-2 text-sm">
+                    <li>
+                      <strong className="text-white">ASP (Association Set Provider):</strong>{' '}
+                      Currently operator-controlled for hackathon simplicity. The ASP approves which
+                      deposits can withdraw (all approved by default). Future: decentralized ASP
+                      network with multiple independent operators.
+                    </li>
+                    <li>
+                      <strong className="text-white">Contract upgradeability:</strong> Contracts use
+                      UUPS proxies with admin-controlled upgrades. Plan: time-locked governance.
+                    </li>
+                    <li>
+                      <strong className="text-white">Single relayer:</strong> We operate the only
+                      relayer for private withdrawals. Plan: permissionless relayer network.
+                    </li>
+                    <li>
+                      <strong className="text-white">Deposit blocklist:</strong> Operators can
+                      freeze addresses from depositing (compliance requirement). Existing deposits
+                      remain withdrawable.
+                    </li>
+                    <li>
+                      <strong className="text-white">Local storage:</strong> Keys cached in browser
+                      storage. Device compromise = key exposure. Use dedicated devices for large
+                      amounts.
+                    </li>
+                  </ul>
+                </div>
+
+                <p className="mt-4">
                   This philosophy aligns with the{' '}
                   <a
                     href="https://trustlessness.eth.limo/general/2025/11/11/the-trustless-manifesto.html"
@@ -282,23 +316,57 @@ export default function AboutPage() {
                   >
                     Trustless Manifesto
                   </a>
-                  , a call to builders: measure success not by transactions per second, but by{' '}
-                  <strong className="text-white">trust reduced per transaction</strong>. Privacy
-                  isn&apos;t a feature to add after the fact. It&apos;s the thing itself.
+                  : measure success by{' '}
+                  <strong className="text-white">trust reduced per transaction</strong>. We&apos;re
+                  progressively eliminating each trust assumption as we mature.
                 </p>
+
+                <div
+                  id="privacy-metrics"
+                  className="mt-6 scroll-mt-24 rounded-lg border border-blue-500/20 bg-blue-950/20 p-6"
+                >
+                  <h3 className="font-semibold text-blue-400">How We Measure Privacy</h3>
+                  <p className="mt-2 text-sm text-blue-100/70">
+                    The privacy health indicator shows pool activity levels. For everyday
+                    transactions like paying freelancers or receiving payments, even moderate
+                    privacy is plenty. You don&apos;t need nation-state level protection to keep
+                    your finances private from nosy neighbors or curious competitors.
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm">
+                    <li>
+                      <strong className="text-white">Deposits:</strong> How many transactions are in
+                      the pool. More deposits = bigger crowd to blend into.
+                    </li>
+                    <li>
+                      <strong className="text-white">Depositors:</strong> How many different
+                      addresses have used the pool.
+                    </li>
+                    <li>
+                      <strong className="text-white">Privacy strength:</strong> Our estimate of how
+                      well your transaction blends in. Even &quot;moderate&quot; privacy is good for
+                      most use cases.
+                    </li>
+                  </ul>
+                  <p className="mt-3 text-xs text-blue-100/50">
+                    Technical note: These counts include historical activity and are meant as
+                    general guidance. For most users, any activity in the pool provides meaningful
+                    privacy for everyday transactions.
+                  </p>
+                </div>
               </div>
             </section>
 
-            {/* Colombian Pride */}
+            {/* Origin */}
             <section className="mt-16 rounded-xl border border-cyan-500/20 bg-cyan-950/30 p-8">
               <div className="flex items-start gap-4">
                 <span className="text-4xl">🇨🇴</span>
                 <div>
-                  <h2 className="text-xl font-bold text-cyan-400">Made with Colombian Pride</h2>
+                  <h2 className="text-xl font-bold text-cyan-400">Origin Story</h2>
                   <p className="mt-2 text-cyan-100/70">
-                    The San José rests in Colombian waters, a treasure that belongs to our heritage.
-                    Galeon carries that spirit forward, building technology that protects
-                    what&apos;s yours, from a team proud of where we come from.
+                    Galeon was born at the Mantle Global Hackathon 2025, built by a team from
+                    Colombia—the same waters where the San José rests. We carry that spirit forward:
+                    building technology that protects what&apos;s yours, from a team proud of where
+                    we come from.
                   </p>
                 </div>
               </div>
@@ -329,6 +397,14 @@ export default function AboutPage() {
 
         {/* Footer */}
         <footer className="mt-auto border-t border-white/10 bg-slate-950 px-6 py-6 text-center text-sm text-cyan-100/70">
+          <Link href="/" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Home
+          </Link>
+          <span className="mx-2">·</span>
+          <Link href="/roadmap" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Roadmap
+          </Link>
+          <span className="mx-2">·</span>
           Built for Mantle Global Hackathon 2025
         </footer>
       </main>

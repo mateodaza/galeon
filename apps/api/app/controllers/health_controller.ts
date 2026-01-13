@@ -105,6 +105,30 @@ export default class HealthController {
   }
 
   /**
+   * GET /api/v1/health/pool-privacy
+   * Returns privacy health metrics for the pool.
+   * Measures anonymity set size, unique depositors, and provides recommendations.
+   *
+   * Query params:
+   * - pool: Pool address (optional, defaults to configured pool)
+   */
+  async poolPrivacy({ request, response }: HttpContext) {
+    try {
+      const poolAddress = request.input('pool')
+
+      const healthService = new HealthService()
+      const privacy = await healthService.getPoolPrivacyHealth(poolAddress)
+
+      return response.ok(privacy)
+    } catch (error) {
+      console.error('[HealthController] Pool privacy check failed:', error)
+      return response.internalServerError({
+        error: error instanceof Error ? error.message : 'Pool privacy check failed',
+      })
+    }
+  }
+
+  /**
    * GET /api/v1/health/indexer
    * Returns indexer sync status specifically.
    */

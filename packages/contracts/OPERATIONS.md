@@ -220,6 +220,19 @@ struct RelayData {
 
 The architecture fully supports ERC20 tokens. To add a new token pool:
 
+> **IMPORTANT: Entrypoint Upgrade Required for Merge Deposits**
+>
+> Before deploying ERC20 pools, ensure the Entrypoint has the ERC20 merge deposit fix.
+> The fix (added Jan 2026) pulls ERC20 tokens from caller in `mergeDeposit()`.
+> Without this fix, ERC20 merge deposits will revert.
+>
+> **Check if upgrade needed:**
+>
+> - If Entrypoint was deployed before Jan 2026, upgrade it first (see [Upgrading Contracts](#upgrading-contracts))
+> - The fix is in `GaleonEntrypoint.mergeDeposit()` - it now calls `safeTransferFrom` for ERC20
+>
+> **Note:** This only affects ERC20 pools. Native MNT pools work without the upgrade.
+
 ### Step 1: Deploy New Pool
 
 Use `GaleonPrivacyPoolComplex` for ERC20 tokens (not Simple, which is for native MNT only).

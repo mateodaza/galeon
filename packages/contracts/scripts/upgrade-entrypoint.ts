@@ -8,6 +8,14 @@ import { ethers, upgrades } from 'hardhat'
  * - relay() function for withdrawals
  * - mergeDeposit() function for O(1) withdrawals
  *
+ * IMPORTANT (Jan 2026): This upgrade also includes the ERC20 merge deposit fix.
+ * The fix ensures mergeDeposit() properly transfers ERC20 tokens from the caller
+ * before forwarding to the pool. Without this fix, ERC20 merge deposits fail.
+ *
+ * When to run this upgrade:
+ * - REQUIRED before deploying any ERC20 pools (USDC, etc.)
+ * - NOT required for native MNT pools (they work without this fix)
+ *
  * Run: npx hardhat run scripts/upgrade-entrypoint.ts --network mantle
  */
 

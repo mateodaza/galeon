@@ -155,8 +155,8 @@ export default function RoadmapPage() {
                 />
                 <VisionCard
                   number="04"
-                  title="Privacy-Preserving Compliance"
-                  description="Prove you're not sanctioned without revealing your identity. Our ASP targets instant verification, unlike traditional Privacy Pools' 7-day approval window."
+                  title="Privacy-Preserving Compliance Proofs"
+                  description="Selective disclosure ZK proofs to prove income, ownership, or non-sanction status without revealing your identity. Currently: on-chain receipt verification. Planned: full ZK compliance proofs."
                 />
               </div>
             </section>
@@ -271,6 +271,14 @@ export default function RoadmapPage() {
 
         {/* Footer */}
         <footer className="mt-auto border-t border-white/10 bg-slate-950 px-6 py-6 text-center text-sm text-cyan-100/70">
+          <Link href="/" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Home
+          </Link>
+          <span className="mx-2">·</span>
+          <Link href="/about" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            About
+          </Link>
+          <span className="mx-2">·</span>
           Built for Mantle Global Hackathon 2025
         </footer>
       </main>

@@ -35,7 +35,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
-import { merkleLeavesApi, aspApi, healthApi, type PreflightResult } from '@/lib/api'
+import {
+  merkleLeavesApi,
+  aspApi,
+  healthApi,
+  type PreflightResult,
+  type PoolPrivacyHealth,
+} from '@/lib/api'
 import {
   computeCommitmentHash,
   createWithdrawalSecrets,
@@ -229,6 +235,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   const [preflightError, setPreflightError] = useState<string | null>(null)
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
 
+  // Privacy health state (for informational display)
+  const [privacyHealth, setPrivacyHealth] = useState<PoolPrivacyHealth | null>(null)
+
   const parsedAmount = withdrawAmount ? parseEther(withdrawAmount) : 0n
   const isValidAmount = parsedAmount > 0n && parsedAmount <= totalBalance
   const isValidRecipient = isAddress(recipient)
@@ -254,7 +263,18 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
     setIsLoadingPreflight(false)
     setPreflightError(null)
     setRetryCountdown(null)
+    setPrivacyHealth(null)
   }, [])
+
+  // Fetch privacy health when modal opens (informational only)
+  useEffect(() => {
+    if (!open || !contracts?.pool) return
+
+    healthApi
+      .getPoolPrivacy(contracts.pool)
+      .then(setPrivacyHealth)
+      .catch(() => setPrivacyHealth(null))
+  }, [open, contracts?.pool])
 
   // Fetch relayer quote when amount changes and relayer is enabled
   useEffect(() => {
@@ -863,6 +883,62 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                     <Sparkles className="mr-1 inline h-4 w-4" />
                     This will require {withdrawalPlan.length} transactions (one per deposit used).
                   </p>
+                </div>
+              )}
+
+              {/* Privacy health indicator - subtle inline style */}
+              {privacyHealth && (
+                <div className="text-muted-foreground flex items-center gap-3 text-xs">
+                  <div
+                    className="flex cursor-help items-center gap-1.5"
+                    title={
+                      privacyHealth.strength === 'strong'
+                        ? 'Your withdrawal blends in with many others.'
+                        : privacyHealth.strength === 'moderate'
+                          ? 'Good privacy. More deposits would make it stronger.'
+                          : 'Limited pool activity. Privacy improves as more people use the pool.'
+                    }
+                  >
+                    <Shield
+                      className={`h-3.5 w-3.5 ${
+                        privacyHealth.strength === 'strong'
+                          ? 'text-emerald-500'
+                          : privacyHealth.strength === 'moderate'
+                            ? 'text-blue-500'
+                            : 'text-amber-500'
+                      }`}
+                    />
+                    <span
+                      className={`font-medium ${
+                        privacyHealth.strength === 'strong'
+                          ? 'text-emerald-500'
+                          : privacyHealth.strength === 'moderate'
+                            ? 'text-blue-500'
+                            : 'text-amber-500'
+                      }`}
+                    >
+                      {privacyHealth.strength === 'strong'
+                        ? 'Strong'
+                        : privacyHealth.strength === 'moderate'
+                          ? 'Moderate'
+                          : 'Limited'}{' '}
+                      Privacy
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>
+                    <span className="text-foreground font-medium">
+                      {privacyHealth.anonymitySetSize}
+                    </span>{' '}
+                    deposits
+                  </span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>
+                    <span className="text-foreground font-medium">
+                      {privacyHealth.uniqueDepositors}
+                    </span>{' '}
+                    depositors
+                  </span>
                 </div>
               )}
             </div>

@@ -2,12 +2,19 @@
 
 > Compliant Privacy Mixing for Private Payments
 
-> ⚠️ **Architecture Update (Jan 2026):** References to "fog wallets" in this spec are outdated.
-> The current architecture uses **direct Pool withdrawals**:
+> ⚠️ **DEPRECATED (Jan 2026):** This spec is no longer actively maintained and may be out of sync with the implementation.
 >
-> - Port → Pool (deposit) → Recipient (withdraw with ZK proof)
-> - No intermediate fog wallets - withdrawals go directly to payment recipients
-> - See [FOG-SHIPWRECK-PLAN.md](./FOG-SHIPWRECK-PLAN.md) for the updated implementation plan
+> **For current implementation details, refer to:**
+>
+> - Contract code: `packages/contracts/contracts/privacy-pool/`
+> - Operations guide: `packages/contracts/OPERATIONS.md`
+> - Trust model: See "Current Trust Assumptions" section below (kept current)
+>
+> **Known outdated sections:**
+>
+> - Code snippets use old function names (e.g., `isValidPortAddress` → `canDeposit`)
+> - "Fog wallets" references - we now use direct Pool withdrawals
+> - Some freeze/ragequit details may not match implementation
 
 ## Overview
 
@@ -46,6 +53,16 @@ Privacy Pools is a mixing protocol that allows Galeon users to break the link be
 | **Pool** | ✅ Yes (ZK proofs)       | ✅ Partial (can't trace withdrawal, CAN link deposit) | ✅ Yes (exclusion set)        |
 
 > **User Understanding**: Users should know Galeon is NOT a trustless protocol. It's "privacy from public + compliance capability" not "privacy from everyone."
+
+**Current Trust Assumptions:**
+
+1. **Viewing Key Custody**: Port viewing keys are stored server-side (encrypted with APP_KEY). The server can scan announcements and link inbound payments to ports. Users trust Galeon to handle this data responsibly.
+
+2. **ASP Control**: The Association Set Provider (ASP) is Galeon-operated. Galeon decides which commitments are in the "valid set" for withdrawals. Excluded users cannot withdraw normally, but can always ragequit (original depositor exit, no ASP approval needed).
+
+3. **Contract Upgradeability**: Contracts may be upgradeable. Users trust Galeon not to introduce malicious upgrades.
+
+These assumptions are intentional for the compliance model. Users seeking trustless privacy should use other protocols.
 
 ---
 

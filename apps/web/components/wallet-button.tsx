@@ -64,7 +64,7 @@ const styles = {
     divider: 'bg-white/20',
     indicator: {
       complete: 'bg-cyan-500',
-      partial: 'bg-amber-500',
+      partial: 'bg-red-500', // Red for "needs setup" - amber reserved for stealth values
       none: 'bg-white/20',
     },
   },
@@ -76,7 +76,7 @@ const styles = {
     divider: 'bg-slate-200',
     indicator: {
       complete: 'bg-cyan-500',
-      partial: 'bg-amber-500',
+      partial: 'bg-red-500', // Red for "needs setup" - amber reserved for stealth values
       none: 'bg-slate-300',
     },
   },
@@ -92,7 +92,7 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const { address, isConnected } = useAppKitAccount()
   const { disconnect } = useDisconnect()
   const { isAuthenticated, hasKeys, isFullySignedIn, isLoading, signOut } = useSignIn()
-  const { hasPoolKeys, totalBalance: poolBalance } = usePoolContext()
+  const { hasPoolKeys, totalBalance: poolBalance, isRecovering, isRestoring } = usePoolContext()
   const [showModal, setShowModal] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -102,10 +102,6 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const { data: balance } = useBalance({
     address: address as `0x${string}` | undefined,
   })
-
-  // Format pool balance for display
-  const poolBalanceFormatted =
-    hasPoolKeys && poolBalance > 0n ? formatBalance(poolBalance, 18) : null
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -182,16 +178,18 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
             {/* Port Balance - shown if user is authenticated and has collectable funds */}
             {isAuthenticated && <CollectableBalance dividerClassName={variantStyles.divider} />}
 
-            {/* Pool Balance - shown if user has pool keys and balance */}
-            {poolBalanceFormatted && (
+            {/* Pool Balance - shown if user has pool keys and loading or has balance */}
+            {hasPoolKeys && (isRestoring || isRecovering || poolBalance > 0n) && (
               <>
                 <span className={cn('h-4 w-px', variantStyles.divider)} />
                 <span
                   className="flex items-center gap-1 font-semibold text-emerald-400"
                   title="Balance in Privacy Pool"
                 >
-                  <Shield className="h-3.5 w-3.5" />
-                  {poolBalanceFormatted} MNT
+                  <Shield
+                    className={cn('h-3.5 w-3.5', (isRestoring || isRecovering) && 'animate-pulse')}
+                  />
+                  {isRestoring || isRecovering ? '...' : `${formatBalance(poolBalance, 18)} MNT`}
                 </span>
               </>
             )}

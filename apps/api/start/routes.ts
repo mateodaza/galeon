@@ -155,6 +155,7 @@ router
         router.get('/status', [HealthController, 'status'])
         router.get('/preflight/:operation', [HealthController, 'preflight'])
         router.get('/indexer', [HealthController, 'indexer'])
+        router.get('/pool-privacy', [HealthController, 'poolPrivacy'])
       })
       .prefix('/health')
   })

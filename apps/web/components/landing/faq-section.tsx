@@ -29,7 +29,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'How does sending privately work?',
     answer:
-      'Deposit funds to the Privacy Pool, then withdraw to any address using a ZK proof. The proof cryptographically breaks the link between your deposit and withdrawal. No one can trace where the money went.',
+      "Deposit funds to the Privacy Pool, then withdraw to any address using a ZK proof. The proof cryptographically breaks the on-chain link between your deposit and withdrawal. Privacy strength depends on the pool's anonymity set size—more deposits means stronger privacy. Note: timing patterns and amount correlation can still reveal information if not managed carefully.",
   },
   {
     question: 'Why do I need both stealth addresses AND Privacy Pool?',
@@ -54,7 +54,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'Is my private key stored anywhere?',
     answer:
-      "Your spending key is derived from your wallet signature and stored in your browser's local storage for convenience, never sent to servers. If you clear browser data, reconnect your wallet and sign again to recover access. Your funds are always recoverable from your wallet signature.",
+      "Your spending key is derived from your wallet signature and cached in your browser's local storage for convenience—never sent to servers. Security note: anyone with access to your device or browser profile could extract these keys. Clear your session if using shared devices. If you clear browser data, reconnect your wallet and sign again to recover access. Your funds are always recoverable as long as you control the same wallet address.",
   },
   {
     question: 'Why Mantle?',

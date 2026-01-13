@@ -145,9 +145,14 @@ Port C ──┘        (merge)              (1 proof, 30s)
 
 ## Known Limitations / Future Improvements
 
-| Issue                      | Status      | Notes                                                                                                                                                                                                                                                               |
-| -------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Port labels are public** | Known Issue | Port names (e.g., "Freelance", "Donations") are stored on-chain and visible to anyone. To make them private, we'd need to store only a hash on-chain and keep the actual name encrypted in the backend/client. Users should be informed of this privacy limitation. |
+| Issue                              | Status      | Notes                                                                                                                                                                                                                                                               |
+| ---------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Port labels are public**         | Known Issue | Port names (e.g., "Freelance", "Donations") are stored on-chain and visible to anyone. To make them private, we'd need to store only a hash on-chain and keep the actual name encrypted in the backend/client. Users should be informed of this privacy limitation. |
+| **ERC20 merge deposits**           | ✅ Fixed    | Fixed in `GaleonEntrypoint.mergeDeposit` - now pulls ERC20 tokens from caller before forwarding to pool. Deployed pools need upgrade to get fix.                                                                                                                    |
+| **Viewing key server custody**     | Known Issue | Viewing keys are stored server-side (encrypted with APP_KEY). Server can scan and link inbound payments to ports. This is documented in trust model but users should understand Galeon is not trustless.                                                            |
+| **Privacy health is heuristic**    | Known Issue | Anonymity set uses total leaves (including spent), unique depositors are stealth addresses, merge deposits not counted separately. Metrics may overstate real-world privacy. UI tooltips now clarify this.                                                          |
+| **mergeData binding is off-chain** | Known Issue | `mergeData` is only hashed into context and never interpreted on-chain. Any "binding" to depositor is client-side convention. Cryptographically sound but should be documented.                                                                                     |
+| **128-bit value limit**            | Known Issue | Circuit caps values to 128 bits. Once merged balance exceeds 2^128 wei (~340 undecillion MNT), future proofs fail. Fine for practical use but documented as hard limit.                                                                                             |
 
 ---
 

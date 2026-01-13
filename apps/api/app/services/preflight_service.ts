@@ -12,6 +12,7 @@ import ASPService, { getSharedASPService } from '#services/asp_service'
 import env from '#start/env'
 import { LeanIMT } from '@zk-kit/lean-imt'
 import { poseidon2 } from 'poseidon-lite'
+import { getPoolContracts, type SupportedChainId } from '@galeon/config'
 
 // Pool contract ABI
 const POOL_ABI = [
@@ -24,8 +25,20 @@ const POOL_ABI = [
   },
 ] as const
 
-// Contract addresses
-const POOL_ADDRESS = env.get('POOL_ADDRESS') as Address | undefined
+/**
+ * Get pool address from centralized config for a chain
+ */
+function getPoolAddress(chainId: number): Address | undefined {
+  try {
+    const contracts = getPoolContracts(chainId as SupportedChainId)
+    const pool = contracts?.pool
+    // Return undefined if pool is zero address
+    if (pool === '0x0000000000000000000000000000000000000000') return undefined
+    return pool as Address
+  } catch {
+    return undefined
+  }
+}
 
 // Ponder indexer HTTP URL (for /ready health check)
 const INDEXER_URL = env.get('INDEXER_URL')
@@ -167,10 +180,16 @@ export default class PreflightService {
   ): Promise<{ valid: boolean; localRoot: string; onChainRoot: string }> {
     try {
       const client = this.getPublicClient(chainId)
+      // Use passed pool address, or fall back to config
+      const effectivePoolAddress = poolAddress || getPoolAddress(chainId)
+
+      if (!effectivePoolAddress) {
+        return { valid: false, localRoot: '0', onChainRoot: '0' }
+      }
 
       // Get on-chain root
       const onChainRoot = (await client.readContract({
-        address: (POOL_ADDRESS ?? poolAddress) as Address,
+        address: effectivePoolAddress as Address,
         abi: POOL_ABI,
         functionName: 'currentRoot',
       })) as bigint

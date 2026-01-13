@@ -195,6 +195,14 @@ contract GaleonEntrypoint is AccessControlUpgradeable, UUPSUpgradeable, Reentran
                           MERGE DEPOSIT
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev ERC20 FIX (Jan 2026): This function now properly pulls ERC20 tokens
+     * from the caller before forwarding to the pool. Without this fix, ERC20 merge
+     * deposits would fail because the pool tries to pull from Entrypoint which had
+     * no tokens. Native MNT was unaffected.
+     *
+     * If upgrading from a pre-Jan-2026 deployment, this fix is included.
+     */
     /// @inheritdoc IGaleonEntrypoint
     function mergeDeposit(
         bytes calldata _mergeData,
@@ -213,9 +221,18 @@ contract GaleonEntrypoint is AccessControlUpgradeable, UUPSUpgradeable, Reentran
         AssetConfig memory _config = assetConfig[_asset];
         if (_depositValue < _config.minimumDepositAmount) revert MinimumDepositAmount();
 
-        // Forward to pool (value for native asset, 0 for ERC20)
+        // Forward to pool (value for native asset, transfer for ERC20)
         // Note: No vetting fee for mergeDeposit - the depositValue is baked into the ZK proof
-        uint256 _nativeValue = address(_asset) == Constants.NATIVE_ASSET ? _depositValue : 0;
+        uint256 _nativeValue;
+        if (address(_asset) == Constants.NATIVE_ASSET) {
+            _nativeValue = _depositValue;
+        } else {
+            // ERC20: pull tokens from caller to entrypoint first
+            // Pool will then pull from entrypoint via _pull()
+            _nativeValue = 0;
+            _asset.safeTransferFrom(msg.sender, address(this), _depositValue);
+            _asset.safeIncreaseAllowance(address(_pool), _depositValue);
+        }
         _pool.mergeDeposit{value: _nativeValue}(msg.sender, _mergeData, _proof);
 
         emit MergeDeposited(msg.sender, _pool, _proof.md_newCommitmentHash(), _depositValue);

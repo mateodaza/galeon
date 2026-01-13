@@ -17,6 +17,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts'
 import env from '#start/env'
 import ChainService from '#services/chain_service'
+import { getPoolContracts, type SupportedChainId } from '@galeon/config'
 
 // ============================================================
 // Types
@@ -126,18 +127,38 @@ const POOL_ABI = [
   },
 ] as const
 
-// Pool addresses per chain
-const POOL_ADDRESSES: Record<number, Address> = {
-  5000: (env.get('POOL_ADDRESS') as Address) || '0x0000000000000000000000000000000000000000',
+/**
+ * Get pool address from centralized config for a chain
+ */
+function getPoolAddress(chainId: number): Address | undefined {
+  try {
+    const contracts = getPoolContracts(chainId as SupportedChainId)
+    const pool = contracts?.pool
+    // Return undefined if pool is zero address
+    if (pool === '0x0000000000000000000000000000000000000000') return undefined
+    return pool as Address
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Get entrypoint address from centralized config for a chain
+ */
+function getEntrypointAddress(chainId: number): Address | undefined {
+  try {
+    const contracts = getPoolContracts(chainId as SupportedChainId)
+    const entrypoint = contracts?.entrypoint
+    // Return undefined if entrypoint is zero address
+    if (entrypoint === '0x0000000000000000000000000000000000000000') return undefined
+    return entrypoint as Address
+  } catch {
+    return undefined
+  }
 }
 
 // Native asset address (for fee calculations)
 const NATIVE_ASSET = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-
-// Contract addresses per chain
-const ENTRYPOINT_ADDRESSES: Record<number, Address> = {
-  5000: '0x8633518fbbf23E78586F1456530c3452885efb21', // Mantle Mainnet
-}
 
 // ============================================================
 // Service
@@ -223,7 +244,7 @@ export default class PoolRelayService {
    * Get entrypoint address for chain
    */
   static getEntrypointAddress(chainId: number): Address {
-    const address = ENTRYPOINT_ADDRESSES[chainId]
+    const address = getEntrypointAddress(chainId)
     if (!address) {
       throw new Error(`No entrypoint configured for chain ${chainId}`)
     }
@@ -289,7 +310,7 @@ export default class PoolRelayService {
     // Note: scope validation can be added later to verify it's a known pool
 
     // Check chain is supported
-    const entrypoint = ENTRYPOINT_ADDRESSES[chainId]
+    const entrypoint = getEntrypointAddress(chainId)
     if (!entrypoint) {
       return { valid: false, error: `Chain ${chainId} not supported` }
     }
@@ -387,8 +408,8 @@ export default class PoolRelayService {
       const proofStateRoot = proof.pubSignals[3]
       const proofASPRoot = proof.pubSignals[5]
 
-      const poolAddress = POOL_ADDRESSES[chainId]
-      if (poolAddress && poolAddress !== '0x0000000000000000000000000000000000000000') {
+      const poolAddress = getPoolAddress(chainId)
+      if (poolAddress) {
         const [onChainStateRoot, onChainASPRoot] = await Promise.all([
           publicClient.readContract({
             address: poolAddress,
