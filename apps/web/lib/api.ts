@@ -320,6 +320,7 @@ export interface PortResponse {
   txHash: string | null
   totalReceived: string
   totalCollected: string
+  paymentCount: number
   archived: boolean
   createdAt: string
   updatedAt?: string
@@ -451,7 +452,54 @@ export interface RecalculateTotalsResponse {
   portsUpdated: number
 }
 
+export type ReceiptStatus = 'pending' | 'confirmed' | 'collected' | 'failed'
+
+export interface ReceiptResponse {
+  id: string
+  receiptHash: string
+  portId: string
+  portName?: string
+  stealthAddress: string
+  amount: string
+  currency: string
+  tokenAddress?: string
+  status: ReceiptStatus
+  blockNumber: string
+  createdAt: string
+}
+
+export interface ReceiptsListResponse {
+  data: ReceiptResponse[]
+  meta: {
+    total: number
+    perPage: number
+    currentPage: number
+    lastPage: number
+  }
+}
+
+export interface ReceiptsListParams {
+  portId?: string
+  status?: ReceiptStatus
+  page?: number
+  limit?: number
+}
+
 export const receiptsApi = {
+  /**
+   * List receipts for the authenticated user's ports.
+   * @param params - Optional filters and pagination
+   */
+  list: async (params: ReceiptsListParams = {}): Promise<ReceiptsListResponse> => {
+    const query = new URLSearchParams()
+    if (params.portId) query.set('portId', params.portId)
+    if (params.status) query.set('status', params.status)
+    if (params.page) query.set('page', String(params.page))
+    if (params.limit) query.set('limit', String(params.limit))
+    const queryString = query.toString()
+    return api.get<ReceiptsListResponse>(`/api/v1/receipts${queryString ? `?${queryString}` : ''}`)
+  },
+
   /**
    * Mark receipts as collected after pool deposit or wallet collect.
    * Updates receipt status and port totals.

@@ -32,13 +32,14 @@ scheduler
 
 /**
  * Verify pending receipts against the Ponder indexer.
- * Runs every minute to check if on-chain announcements have been indexed.
+ * Runs every 15 seconds to check if on-chain announcements have been indexed.
+ * Faster interval reduces wait time for receipt confirmation.
  */
 scheduler
   .call(async () => {
     await VerifyReceipts.dispatch({ batchSize: 100 })
   })
-  .everyMinute()
+  .everyFifteenSeconds()
   .withoutOverlapping()
 
 /**

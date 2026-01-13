@@ -34,6 +34,7 @@ export interface Port {
   createdAt?: string
   totalReceived: string // Total received in wei
   totalCollected: string // Total collected in wei
+  paymentCount: number // Number of confirmed receipts
   archived: boolean
 }
 
@@ -238,6 +239,7 @@ export function useCreatePort() {
           createdAt: backendPort.createdAt,
           totalReceived: '0',
           totalCollected: '0',
+          paymentCount: 0,
           archived: false,
         }
         return old ? [newPort, ...old] : [newPort]
@@ -322,6 +324,7 @@ function mapPortResponse(port: PortResponse): Port {
     createdAt: port.createdAt,
     totalReceived: port.totalReceived ?? '0',
     totalCollected: port.totalCollected ?? '0',
+    paymentCount: port.paymentCount ?? 0,
     archived: port.archived,
   }
 }

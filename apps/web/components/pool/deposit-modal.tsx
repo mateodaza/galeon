@@ -75,8 +75,18 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
 
   const parsedAmount = amount ? parseEther(amount) : BigInt(0)
-  const hasEnoughBalance = balance && parsedAmount <= balance.value
   const hasExistingDeposits = deposits.length > 0
+  // Reserve more gas for merge deposits (ZK proof generation uses more gas)
+  // New deposits: ~0.02 MNT, Merge deposits: ~0.08 MNT
+  const gasReserve = hasExistingDeposits ? parseEther('0.08') : parseEther('0.02')
+  const maxDepositable = balance
+    ? balance.value > gasReserve
+      ? balance.value - gasReserve
+      : 0n
+    : 0n
+  const hasEnoughBalance = balance && parsedAmount <= balance.value
+  // Check if user would have enough for gas after deposit
+  const hasEnoughForGas = balance && balance.value - parsedAmount >= gasReserve
 
   // Deposit type is now automatic - merge if existing deposits, new otherwise
   const depositType: DepositType = hasExistingDeposits ? 'merge' : 'new'
@@ -180,6 +190,20 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
         setError('Insufficient balance')
         return
       }
+      // Check if user has enough left for gas, auto-adjust if depositing full balance
+      if (!hasEnoughForGas) {
+        if (maxDepositable > 0n) {
+          // Auto-adjust amount to leave room for gas
+          setAmount(formatEther(maxDepositable))
+          setError(`Amount adjusted to leave ${formatEther(gasReserve)} MNT for gas`)
+          return
+        } else {
+          setError(
+            `Insufficient balance for gas (need ${formatEther(gasReserve)} MNT for ${hasExistingDeposits ? 'merge deposit' : 'deposit'})`
+          )
+          return
+        }
+      }
 
       // Auto-select largest deposit for merge (if we have deposits)
       if (hasExistingDeposits) {
@@ -241,6 +265,9 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
     amount,
     parsedAmount,
     hasEnoughBalance,
+    hasEnoughForGas,
+    maxDepositable,
+    gasReserve,
     hasPoolKeys,
     hasExistingDeposits,
     largestDeposit,
@@ -253,14 +280,10 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
   ])
 
   const handleSetMax = useCallback(() => {
-    if (balance) {
-      // Leave some for gas (0.01 MNT)
-      const maxAmount = balance.value - parseEther('0.01')
-      if (maxAmount > BigInt(0)) {
-        setAmount(formatEther(maxAmount))
-      }
+    if (maxDepositable > 0n) {
+      setAmount(formatEther(maxDepositable))
     }
-  }, [balance])
+  }, [maxDepositable])
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -280,7 +303,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
           {/* Amount Input Step */}
           {step === 'amount' && (
             <div className="space-y-2">
@@ -306,9 +329,22 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
                 </Button>
               </div>
               {balance && (
-                <p className="text-muted-foreground text-sm">
-                  Balance: {formatEther(balance.value)} MNT
-                </p>
+                <div className="text-muted-foreground space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Balance:</span>
+                    <span className="font-mono">{formatEther(balance.value)} MNT</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Gas reserve:</span>
+                    <span className="font-mono">-{formatEther(gasReserve)} MNT</span>
+                  </div>
+                  <div className="border-border flex justify-between border-t pt-1 text-xs font-medium">
+                    <span>Max deposit:</span>
+                    <span className="font-mono">
+                      {maxDepositable > 0n ? formatEther(maxDepositable) : '0'} MNT
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           )}

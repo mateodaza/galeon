@@ -466,11 +466,7 @@ export default function CollectPortContent() {
                   ) : destination === 'pool' ? (
                     <>
                       <Shield className="mr-2 h-4 w-4" />
-                      Deposit{' '}
-                      {amountInput === ''
-                        ? totalVerifiedBalanceFormatted
-                        : effectiveAmount.toFixed(4)}{' '}
-                      MNT
+                      Deposit {effectiveAmount.toFixed(4)} MNT
                     </>
                   ) : (
                     <>

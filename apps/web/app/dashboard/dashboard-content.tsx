@@ -4,9 +4,19 @@
  * Dashboard content component - loaded dynamically to avoid SSR BigInt issues.
  */
 
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Anchor, Send, ArrowDownToLine, FileText, Loader2, Droplets } from 'lucide-react'
+import {
+  Anchor,
+  Send,
+  ArrowDownToLine,
+  FileText,
+  Loader2,
+  Droplets,
+  Clock,
+  CheckCircle2,
+  ArrowUpRight,
+} from 'lucide-react'
 import * as m from 'motion/react-m'
 import { useReducedMotion } from 'motion/react'
 import { formatUnits } from 'viem'
@@ -14,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePorts } from '@/hooks/use-ports'
 import { usePoolContext } from '@/contexts/pool-context'
 import { useCollection } from '@/hooks/use-collection'
+import { receiptsApi, type ReceiptResponse } from '@/lib/api'
 
 export default function DashboardContent() {
   const prefersReducedMotion = useReducedMotion()
@@ -27,6 +38,10 @@ export default function DashboardContent() {
     scan,
   } = useCollection()
 
+  // Recent receipts state
+  const [recentReceipts, setRecentReceipts] = useState<ReceiptResponse[]>([])
+  const [isLoadingReceipts, setIsLoadingReceipts] = useState(false)
+
   // Auto-scan on mount if keys available
   const hasScanned = useRef(false)
   useEffect(() => {
@@ -35,6 +50,22 @@ export default function DashboardContent() {
       scan()
     }
   }, [hasKeys, isScanning, scan])
+
+  // Fetch recent receipts
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      setIsLoadingReceipts(true)
+      try {
+        const response = await receiptsApi.list({ limit: 5 })
+        setRecentReceipts(response.data)
+      } catch (error) {
+        console.error('[Dashboard] Failed to fetch receipts:', error)
+      } finally {
+        setIsLoadingReceipts(false)
+      }
+    }
+    fetchReceipts()
+  }, [])
 
   // Format amounts helper (assuming 18 decimals for MNT)
   const formatAmount = (wei: bigint) => {
@@ -58,19 +89,21 @@ export default function DashboardContent() {
 
     let totalReceived = BigInt(0)
     let activePorts = 0
+    let paymentCount = 0
 
     for (const port of ports) {
       if (port.status === 'confirmed' && !port.archived) {
         activePorts++
       }
       totalReceived += BigInt(port.totalReceived || '0')
+      paymentCount += port.paymentCount ?? 0
     }
 
     return {
       totalReceived: totalReceived.toString(),
       totalReceivedFormatted: formatAmount(totalReceived),
       activePorts,
-      paymentCount: ports.reduce((acc, p) => acc + (p.totalReceived !== '0' ? 1 : 0), 0),
+      paymentCount,
     }
   }, [ports])
 
@@ -261,11 +294,24 @@ export default function DashboardContent() {
       {/* Recent activity */}
       <m.div {...fadeInUpDelayed(0.3)}>
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Activity</CardTitle>
+            {recentReceipts.length > 0 && (
+              <Link
+                href="/reports"
+                className="text-primary flex items-center gap-1 text-sm hover:underline"
+              >
+                View all
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            )}
           </CardHeader>
           <CardContent>
-            {stats.paymentCount === 0 ? (
+            {isLoadingReceipts ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+              </div>
+            ) : recentReceipts.length === 0 ? (
               <div className="text-muted-foreground flex flex-col items-center justify-center py-8">
                 <p>No payments yet</p>
                 <p className="mt-1 text-sm">
@@ -273,11 +319,58 @@ export default function DashboardContent() {
                 </p>
               </div>
             ) : (
-              <div className="text-muted-foreground flex flex-col items-center justify-center py-8">
-                <p>View detailed transaction history in Reports</p>
-                <Link href="/reports" className="text-primary mt-2 text-sm hover:underline">
-                  Go to Shipwreck Reports
-                </Link>
+              <div className="space-y-3">
+                {recentReceipts.map((receipt) => (
+                  <Link
+                    key={receipt.id}
+                    href={`/receipt/${receipt.id}`}
+                    className="hover:bg-muted/50 flex items-center justify-between rounded-lg p-3 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                          receipt.status === 'pending'
+                            ? 'bg-yellow-500/10 text-yellow-500'
+                            : receipt.status === 'confirmed'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-green-500/10 text-green-500'
+                        }`}
+                      >
+                        {receipt.status === 'pending' ? (
+                          <Clock className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-foreground text-sm font-medium">
+                          {receipt.portName || 'Unknown Port'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {receipt.status === 'pending'
+                            ? 'Processing...'
+                            : new Date(receipt.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-foreground text-sm font-medium">
+                        +{formatAmount(BigInt(receipt.amount || '0'))} {receipt.currency}
+                      </p>
+                      <p
+                        className={`text-xs capitalize ${
+                          receipt.status === 'pending'
+                            ? 'text-yellow-500'
+                            : receipt.status === 'collected'
+                              ? 'text-green-500'
+                              : 'text-muted-foreground'
+                        }`}
+                      >
+                        {receipt.status}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>

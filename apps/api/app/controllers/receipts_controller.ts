@@ -34,8 +34,13 @@ export default class ReceiptsController {
 
     const query = Receipt.query()
       .whereIn('portId', portIds)
-      .whereNotNull('amount')
-      .whereNot('amount', '0') // Filter out 0-value receipts (ghost registrations)
+      // Include pending receipts (amount='0' is placeholder before verification)
+      // Only filter out 0-value confirmed/collected receipts (ghost registrations)
+      .where((q) => {
+        q.where('status', 'pending').orWhere((inner) => {
+          inner.whereNotNull('amount').whereNot('amount', '0')
+        })
+      })
       .orderBy('createdAt', 'desc')
 
     // Filter by specific port if provided
@@ -84,9 +89,8 @@ export default class ReceiptsController {
    */
   async store({ auth, request, response }: HttpContext) {
     const user = auth.user!
-    const { transactionHash, portId, chainId } = await createReceiptValidator.validate(
-      request.body()
-    )
+    const { transactionHash, portId, chainId, stealthAddress } =
+      await createReceiptValidator.validate(request.body())
 
     // Verify the port belongs to the user
     const port = await Port.query().where('id', portId).where('userId', user.id).first()
@@ -113,7 +117,8 @@ export default class ReceiptsController {
     }
 
     // Create pending receipt with minimal data
-    // Cronjob will fill in: stealthAddress, ephemeralPubKey, viewTag, amount, etc.
+    // Cronjob will fill in: ephemeralPubKey, viewTag, amount, etc.
+    // stealthAddress can be provided by frontend for immediate receipt lookup
     const receipt = await Receipt.create({
       portId: port.id,
       txHash: transactionHash,
@@ -121,7 +126,7 @@ export default class ReceiptsController {
       status: 'pending',
       // Placeholder values - will be filled by verify job
       receiptHash: '',
-      stealthAddress: '',
+      stealthAddress: stealthAddress ?? '', // Use provided address or empty placeholder
       ephemeralPubKey: '',
       viewTag: 0,
       payerAddress: '',
@@ -325,6 +330,7 @@ export default class ReceiptsController {
   /**
    * GET /receipts/by-stealth/:address
    * Public lookup - find receipt by stealth address
+   * Returns pending receipts too (for immediate feedback after payment)
    */
   async showByStealthAddress({ params, response }: HttpContext) {
     const { address } = params
@@ -340,14 +346,14 @@ export default class ReceiptsController {
       })
     }
 
-    // Only return confirmed/collected receipts (not pending or failed)
-    if (receipt.status === 'pending' || receipt.status === 'failed') {
+    // Only exclude failed receipts
+    if (receipt.status === 'failed') {
       return response.notFound({
-        error: 'Receipt not found or not yet confirmed',
+        error: 'Receipt not found',
       })
     }
 
-    // Return just the receipt ID for linking
+    // Return receipt ID and status (pending receipts included for immediate feedback)
     return response.ok({
       id: receipt.id,
       status: receipt.status,
@@ -369,10 +375,24 @@ export default class ReceiptsController {
       })
     }
 
-    // Only show confirmed/collected receipts publicly (not pending or failed)
-    if (receipt.status === 'pending' || receipt.status === 'failed') {
+    // Only exclude failed receipts - pending receipts are shown with limited data
+    if (receipt.status === 'failed') {
       return response.notFound({
-        error: 'Receipt not found or not yet confirmed',
+        error: 'Receipt not found',
+      })
+    }
+
+    // For pending receipts, return limited data (verification still in progress)
+    if (receipt.status === 'pending') {
+      return response.ok({
+        id: receipt.id,
+        portName: receipt.port?.name || 'Anonymous Port',
+        status: 'pending',
+        txHash: receipt.txHash,
+        chainId: receipt.chainId,
+        createdAt: receipt.createdAt,
+        verified: false,
+        message: 'Receipt verification in progress',
       })
     }
 

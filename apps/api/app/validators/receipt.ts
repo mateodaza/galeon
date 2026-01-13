@@ -24,6 +24,7 @@ export const getReceiptValidator = vine.compile(
 /**
  * Validator for creating a pending receipt
  * Frontend sends txHash and portId after making on-chain donation
+ * stealthAddress is optional but recommended for immediate receipt lookup
  */
 export const createReceiptValidator = vine.compile(
   vine.object({
@@ -33,5 +34,10 @@ export const createReceiptValidator = vine.compile(
       .transform((value) => value.toLowerCase()),
     portId: vine.string().uuid(),
     chainId: vine.number().positive(),
+    stealthAddress: vine
+      .string()
+      .regex(/^0x[a-fA-F0-9]{40}$/)
+      .transform((value) => value.toLowerCase())
+      .optional(),
   })
 )

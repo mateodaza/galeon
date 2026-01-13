@@ -826,7 +826,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
           {/* Amount Step */}
           {step === 'amount' && (
             <div className="space-y-4">

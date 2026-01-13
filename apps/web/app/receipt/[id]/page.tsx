@@ -31,21 +31,22 @@ type PaymentType = 'regular' | 'stealth_pay' | 'private_send'
 
 interface PublicReceipt {
   id: string
-  receiptHash: string
+  receiptHash?: string
   portName: string
-  stealthAddress: string
-  amount: string
-  currency: string
-  tokenAddress: string | null
-  paymentType: PaymentType
-  payerAddress: string | null // null for stealth_pay/private_send
-  status: 'confirmed' | 'collected'
-  blockNumber: string
+  stealthAddress?: string
+  amount?: string
+  currency?: string
+  tokenAddress?: string | null
+  paymentType?: PaymentType
+  payerAddress?: string | null // null for stealth_pay/private_send
+  status: 'pending' | 'confirmed' | 'collected'
+  blockNumber?: string
   txHash: string
   chainId: number
   createdAt: string
   verified: boolean
-  verifiedAt: string
+  verifiedAt?: string
+  message?: string // For pending receipts
 }
 
 type LoadingState = 'loading' | 'success' | 'error'
@@ -79,9 +80,11 @@ export default function PublicReceiptPage() {
         const data: PublicReceipt = await response.json()
         setReceipt(data)
         setState('success')
+        return data.status
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load receipt')
         setState('error')
+        return null
       }
     }
 
@@ -89,6 +92,28 @@ export default function PublicReceiptPage() {
       fetchReceipt()
     }
   }, [id])
+
+  // Auto-refresh for pending receipts
+  useEffect(() => {
+    if (receipt?.status !== 'pending') return
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/receipts/public/${id}`)
+        if (response.ok) {
+          const data: PublicReceipt = await response.json()
+          if (data.status !== 'pending') {
+            setReceipt(data)
+            clearInterval(interval)
+          }
+        }
+      } catch {
+        // Silently ignore polling errors
+      }
+    }, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(interval)
+  }, [id, receipt?.status])
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
@@ -215,6 +240,46 @@ export default function PublicReceiptPage() {
     )
   }
 
+  // Pending receipt - show verification in progress
+  if (receipt.status === 'pending') {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+        <SeaBackground />
+        <m.div {...fadeInUp} className="relative z-10 w-full max-w-md">
+          <div className="rounded-2xl border border-amber-500/20 bg-slate-900/60 p-8 text-center backdrop-blur-xl">
+            <div className="relative mx-auto mb-4 h-16 w-16">
+              <div className="absolute inset-0 animate-ping rounded-full border-2 border-amber-400/30" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Clock className="h-8 w-8 text-amber-400" />
+              </div>
+            </div>
+            <h1 className="mb-2 text-xl font-bold text-white">Payment Processing</h1>
+            <p className="mb-4 text-sm text-slate-300">
+              Your payment has been submitted and is being verified on the blockchain.
+            </p>
+            <div className="mb-6 rounded-lg border border-white/10 bg-slate-950/30 p-4">
+              <p className="mb-2 text-xs text-slate-400">Transaction Hash</p>
+              <p className="break-all font-mono text-sm text-white">{receipt.txHash}</p>
+            </div>
+            <p className="mb-6 text-xs text-slate-400">
+              This page will update automatically once the payment is confirmed. This usually takes
+              a few seconds.
+            </p>
+            <a
+              href={getExplorerUrl(receipt.txHash, receipt.chainId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View on Explorer
+            </a>
+          </div>
+        </m.div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-8">
       <SeaBackground />
@@ -248,9 +313,11 @@ export default function PublicReceiptPage() {
                 </p>
                 <div className="flex items-baseline justify-center gap-2">
                   <span className="text-4xl font-bold tracking-tight text-white">
-                    {formatAmount(receipt.amount, receipt.currency)}
+                    {formatAmount(receipt.amount ?? '0', receipt.currency ?? 'MNT')}
                   </span>
-                  <span className="text-xl font-medium text-cyan-400">{receipt.currency}</span>
+                  <span className="text-xl font-medium text-cyan-400">
+                    {receipt.currency ?? 'MNT'}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm text-slate-400">
                   to <span className="font-medium text-white">{receipt.portName}</span>
@@ -279,8 +346,8 @@ export default function PublicReceiptPage() {
               <div className="space-y-0 rounded-xl border border-white/5 bg-slate-950/30 backdrop-blur-sm">
                 <DetailRow
                   label="Payment Type"
-                  value={getPaymentTypeLabel(receipt.paymentType)}
-                  subValue={getPaymentTypeDescription(receipt.paymentType)}
+                  value={getPaymentTypeLabel(receipt.paymentType ?? 'regular')}
+                  subValue={getPaymentTypeDescription(receipt.paymentType ?? 'regular')}
                 />
                 {receipt.payerAddress ? (
                   <DetailRow
@@ -294,19 +361,23 @@ export default function PublicReceiptPage() {
                 )}
                 <DetailRow label="Date" value={formatDate(receipt.createdAt)} />
                 <DetailRow label="Chain" value={getChainName(receipt.chainId)} />
-                <DetailRow
-                  label="Stealth Address"
-                  value={shortenAddress(receipt.stealthAddress)}
-                  fullValue={receipt.stealthAddress}
-                  onCopy={() => copyToClipboard(receipt.stealthAddress, 'address')}
-                />
+                {receipt.stealthAddress && (
+                  <DetailRow
+                    label="Stealth Address"
+                    value={shortenAddress(receipt.stealthAddress)}
+                    fullValue={receipt.stealthAddress}
+                    onCopy={() => copyToClipboard(receipt.stealthAddress!, 'address')}
+                  />
+                )}
                 <DetailRow
                   label="Transaction"
                   value={shortenAddress(receipt.txHash)}
                   fullValue={receipt.txHash}
                   href={getExplorerUrl(receipt.txHash, receipt.chainId)}
                 />
-                <DetailRow label="Block" value={`#${receipt.blockNumber}`} isLast />
+                {receipt.blockNumber && (
+                  <DetailRow label="Block" value={`#${receipt.blockNumber}`} isLast />
+                )}
               </div>
 
               {/* Actions */}
