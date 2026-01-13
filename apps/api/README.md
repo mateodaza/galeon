@@ -123,6 +123,38 @@ app/
     └── verify_receipts.ts       # Receipt verification job
 ```
 
+## Operations & Costs
+
+### ASP Root Updates
+
+The Association Set Provider (ASP) maintains a Merkle tree of approved deposit labels. The scheduler polls every 15 seconds, but only submits on-chain `updateRoot` transactions when there are new deposits to approve.
+
+**Cost per update (Mantle L2):**
+
+- ~0.01 MNT (~$0.01 USD)
+- Gas: ~496M units at ~0.02 gwei
+
+**Monthly cost estimates:**
+
+| Usage Level | Deposits/Day | Updates/Month | Cost/Month     |
+| ----------- | ------------ | ------------- | -------------- |
+| Low         | 10           | ~300          | ~3 MNT (~$3)   |
+| Medium      | 50           | ~1,500        | ~15 MNT (~$15) |
+| High        | 100          | ~3,000        | ~30 MNT (~$30) |
+
+**Key points:**
+
+- Costs scale with deposit activity, not time
+- No deposits = No on-chain updates = ~$0/month
+- Extremely cheap due to Mantle L2 gas efficiency
+- Same operations on Ethereum mainnet would cost 100-1000x more
+
+**Configuration:**
+
+- Scheduler interval: `start/scheduler.ts` (default: 15 seconds)
+- ASP postman wallet: `ASP_POSTMAN_PRIVATE_KEY` env var
+- Job implementation: `app/jobs/update_asp_root.ts`
+
 ## Related Documentation
 
 - [BACKEND-PONDER-PLAN.md](../../docs/BACKEND-PONDER-PLAN.md) - Full architecture plan

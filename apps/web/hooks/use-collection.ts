@@ -1043,27 +1043,41 @@ export function useCollection() {
             const gasPrice = await stealthPublicClient.getGasPrice()
             console.log('[collectToPool] Gas price:', gasPrice.toString())
 
+            // Determine if we should merge FIRST (affects gas calculation)
+            // Use localLatestDeposit to track deposits created in THIS loop iteration,
+            // since deposits.length is React state that won't update mid-loop
+            const shouldMerge = localLatestDeposit !== null || deposits.length > 0
+            console.log('[collectToPool] Should merge:', shouldMerge, {
+              localLatestDeposit: localLatestDeposit !== null,
+              depositsLength: deposits.length,
+              paymentIdx,
+            })
+
             // Calculate gas reserve based on CURRENT gas price for accurate estimation
-            // Merge deposits use ~2.1B gas, regular deposits ~200M gas
-            // We add 30% margin to account for gas price fluctuations during tx
-            const MERGE_GAS_UNITS = 2_500_000_000n // Upper bound for merge (actual ~2.1B)
-            const DEPOSIT_GAS_UNITS = 250_000_000n // Upper bound for first deposit
-            const baseGasUnits = deposits.length > 0 ? MERGE_GAS_UNITS : DEPOSIT_GAS_UNITS
-            const gasMarginMultiplier = 130n // 30% margin
+            // From real tx data on Mantle:
+            // - First deposits use ~1.45B gas (tx 0x0aec41a90dfa32aba950973100a6c983592110c576e9514a2565723950e84051)
+            // - Merge deposits use ~2.07B gas
+            // We use upper bounds and 3x margin because Mantle's gas estimator is unreliable
+            const MERGE_GAS_UNITS = 2_500_000_000n // Upper bound for merge (~2.07B actual)
+            const DEPOSIT_GAS_UNITS = 2_000_000_000n // Upper bound for first deposit (~1.45B actual)
+            const baseGasUnits = shouldMerge ? MERGE_GAS_UNITS : DEPOSIT_GAS_UNITS
+            const gasMarginMultiplier = 300n // 3x margin required for Mantle gas estimation
             const minGasReserve = (baseGasUnits * gasPrice * gasMarginMultiplier) / 100n
             const availableForDeposit = currentBalance - minGasReserve
 
             if (availableForDeposit <= 0n) {
+              const needed = formatEther(minGasReserve)
+              const have = formatEther(currentBalance)
               console.log(
                 `[collectToPool] Payment ${paymentIdx + 1} has insufficient balance for gas. ` +
-                  `Need ~${formatEther(minGasReserve)} MNT for gas, but only have ${formatEther(currentBalance)} MNT. Skipping.`
+                  `Need ~${needed} MNT for gas, but only have ${have} MNT. Skipping.`
               )
               // Skip this payment and try the next one
               results.push({
                 address: payment.stealthAddress,
                 hash: null,
                 success: false,
-                error: `Insufficient balance: need ~${formatEther(minGasReserve)} MNT for gas`,
+                error: `Insufficient gas: need ~${needed} MNT, have ${have} MNT`,
                 amount: 0n,
               })
               continue
@@ -1074,16 +1088,8 @@ export function useCollection() {
               baseGasUnits: baseGasUnits.toString(),
               minGasReserve: formatEther(minGasReserve),
               availableForDeposit: formatEther(availableForDeposit),
-            })
-
-            // Determine if we should merge (user has existing deposits) or create new
-            const shouldMerge = deposits.length > 0
-            console.log(
-              '[collectToPool] Should merge:',
               shouldMerge,
-              'deposits.length:',
-              deposits.length
-            )
+            })
 
             // DEBUG: Log all deposits from context
             if (deposits.length > 0) {
@@ -1332,31 +1338,39 @@ export function useCollection() {
                 throw new Error('Failed to resolve existing deposit for merge')
               }
 
-              // Calculate deposit amount using the DYNAMIC gas reserve calculated earlier
-              // This is based on actual gas price, not a fixed estimate
-              // IMPORTANT: We must reserve enough upfront because the proof commits to the value
-              // and we can't adjust it later.
+              // Calculate deposit amount - the minimum of:
+              // 1. availableForDeposit (currentBalance - gasReserve)
+              // 2. registryVerifiedBalance (what the registry allows)
+              // This ensures we NEVER exceed what we can actually pay for
               let depositAmount = availableForDeposit
+              if (depositAmount > registryVerifiedBalance) {
+                depositAmount = registryVerifiedBalance
+              }
 
               console.log('[collectToPool] Using dynamic gas reserve for deposit calculation:', {
                 currentBalance: formatEther(currentBalance),
                 gasReserve: formatEther(minGasReserve),
-                availableForDeposit: formatEther(depositAmount),
+                availableForDeposit: formatEther(availableForDeposit),
+                registryVerifiedBalance: formatEther(registryVerifiedBalance),
+                depositAmount: formatEther(depositAmount),
               })
 
               // Check if this payment has enough for merge (gas + minimum deposit)
               if (depositAmount < minimumDepositAmount) {
+                const minRequired = formatEther(minimumDepositAmount)
+                const available = formatEther(depositAmount)
                 console.log(
                   `[collectToPool] Payment ${paymentIdx + 1} has insufficient balance for merge deposit. ` +
-                    `Balance: ${formatEther(currentBalance)} MNT, need ~0.05 MNT for gas + deposit. Skipping.`
+                    `Available after gas: ${available} MNT, minimum: ${minRequired} MNT. Skipping.`
                 )
-                // Skip this payment and continue to next
+                results.push({
+                  address: payment.stealthAddress,
+                  hash: null,
+                  success: false,
+                  error: `Below minimum: ${available} MNT available, need ${minRequired} MNT`,
+                  amount: 0n,
+                })
                 continue
-              }
-
-              // Cap by verified balance
-              if (depositAmount > registryVerifiedBalance) {
-                depositAmount = registryVerifiedBalance
               }
 
               // Cap by target amount if specified
@@ -1368,10 +1382,19 @@ export function useCollection() {
               }
 
               if (depositAmount < minimumDepositAmount) {
+                const available = formatEther(depositAmount)
+                const minRequired = formatEther(minimumDepositAmount)
                 console.log(
-                  `[collectToPool] Payment ${paymentIdx + 1} deposit amount (${formatEther(depositAmount)} MNT) ` +
-                    `below minimum (${formatEther(minimumDepositAmount)} MNT) after caps. Skipping.`
+                  `[collectToPool] Payment ${paymentIdx + 1} deposit amount (${available} MNT) ` +
+                    `below minimum (${minRequired} MNT) after caps. Skipping.`
                 )
+                results.push({
+                  address: payment.stealthAddress,
+                  hash: null,
+                  success: false,
+                  error: `Below minimum after caps: ${available} MNT, need ${minRequired} MNT`,
+                  amount: 0n,
+                })
                 continue
               }
 
@@ -1979,8 +2002,8 @@ export function useCollection() {
                 }),
                 value: depositAmount,
               })
-              // Add 20% buffer to estimated gas for safety
-              const mergeGasLimit = (estimatedGas * 120n) / 100n
+              // Add 2x buffer to estimated gas for safety
+              const mergeGasLimit = (estimatedGas * 200n) / 100n
               const actualGasCost = mergeGasLimit * gasPrice
 
               // Verify we have enough for gas (proof is already built with depositAmount, can't change it)
@@ -2051,56 +2074,16 @@ export function useCollection() {
               firstDepositPrecommitment = precommitment
               firstDepositIndex = depositIndex
 
-              // Calculate deposit amount
-              const roughGasLimit = 200000000n
-              const roughGasCost = roughGasLimit * gasPrice
-              let roughDepositAmount = currentBalance - roughGasCost
+              // Calculate deposit amount using the same gas reserve calculated earlier
+              // (minGasReserve already uses DEPOSIT_GAS_UNITS with 2x margin for first deposit)
+              let depositAmount = availableForDeposit
 
               // Cap by verified balance
-              if (roughDepositAmount > registryVerifiedBalance) {
-                roughDepositAmount = registryVerifiedBalance
-              }
-
-              // Cap by target amount if specified
-              if (targetAmount !== undefined) {
-                const targetAmountWei = parseEther(targetAmount.toString())
-                if (roughDepositAmount > targetAmountWei) {
-                  roughDepositAmount = targetAmountWei
-                }
-              }
-
-              if (roughDepositAmount < minimumDepositAmount) {
-                setCollectError(
-                  `Amount too low for pool deposit. Minimum is ${formatEther(minimumDepositAmount)} MNT`
-                )
-                return
-              }
-
-              // Estimate gas
-              let estimatedGas: bigint
-              try {
-                estimatedGas = await stealthPublicClient.estimateContractGas({
-                  address: contracts.entrypoint as Address,
-                  abi: entrypointAbi,
-                  functionName: 'deposit',
-                  args: [precommitment.hash],
-                  value: roughDepositAmount,
-                  account: stealthAccount,
-                })
-              } catch (estimateError) {
-                console.error('[collectToPool] Gas estimation failed:', estimateError)
-                throw new Error(
-                  `Gas estimation failed: ${estimateError instanceof Error ? estimateError.message : 'Unknown error'}`
-                )
-              }
-
-              const gasLimit = (estimatedGas * 120n) / 100n
-              const maxGasCost = gasLimit * gasPrice
-
-              let depositAmount = currentBalance - maxGasCost
               if (depositAmount > registryVerifiedBalance) {
                 depositAmount = registryVerifiedBalance
               }
+
+              // Cap by target amount if specified
               if (targetAmount !== undefined) {
                 const targetAmountWei = parseEther(targetAmount.toString())
                 if (depositAmount > targetAmountWei) {
@@ -2109,10 +2092,26 @@ export function useCollection() {
               }
 
               if (depositAmount < minimumDepositAmount) {
-                throw new Error(
-                  `Final deposit amount too low. Minimum is ${formatEther(minimumDepositAmount)} MNT`
+                const available = formatEther(depositAmount)
+                const minRequired = formatEther(minimumDepositAmount)
+                console.log(
+                  `[collectToPool] Payment ${paymentIdx + 1} has insufficient balance for first deposit. ` +
+                    `Available: ${available} MNT, minimum: ${minRequired} MNT. Skipping.`
                 )
+                results.push({
+                  address: payment.stealthAddress,
+                  hash: null,
+                  success: false,
+                  error: `Below minimum: ${available} MNT available, need ${minRequired} MNT`,
+                  amount: 0n,
+                })
+                continue
               }
+
+              // Use fixed gas limit instead of estimation
+              // Mantle's gas estimator is unreliable and reverts when balance is near the edge
+              // First deposits use ~1.45B gas on Mantle, we use 2B with buffer
+              const gasLimit = 2_000_000_000n
 
               console.log(
                 '[collectToPool] Final deposit amount:',
@@ -2277,6 +2276,18 @@ export function useCollection() {
             if (paymentError instanceof Error) {
               errMsg = paymentError.message
 
+              // Ignore "replacement transaction underpriced" if we already have a hash
+              // This is a false positive from Mantle/RPC when a duplicate tx is submitted
+              if (
+                errMsg.includes('replacement transaction underpriced') &&
+                successfulHashes.length > 0
+              ) {
+                console.log(
+                  '[collectToPool] Ignoring "replacement transaction underpriced" - tx already submitted'
+                )
+                continue
+              }
+
               // Check for common contract revert reasons
               if (errMsg.includes('InvalidProof')) {
                 errMsg =
@@ -2431,10 +2442,10 @@ export function useCollection() {
   const willMergeDeposit = deposits.length > 0
 
   // Gas cost for pool deposits on Mantle
-  // Merge deposits use ~2.5B gas units at ~0.02-0.025 Gwei = ~0.05-0.0625 MNT
-  // Using 0.08 MNT as conservative upper bound to avoid "insufficient gas" failures
-  // The actual collectToPool function uses dynamic gas price calculation for precision
-  const POOL_GAS_COST_PER_DEPOSIT = parseEther('0.08')
+  // Actual merge cost is ~0.041 MNT, but Mantle's gas estimator is unreliable
+  // and reverts with lower reserves. We need 3x buffer for estimation to succeed.
+  // Using 0.15 MNT for UI estimate to match runtime calculation (Mantle L2 quirk)
+  const POOL_GAS_COST_PER_DEPOSIT = parseEther('0.15')
 
   /**
    * Calculate pool deposit stats for a set of payments.

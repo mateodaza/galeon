@@ -189,6 +189,12 @@ export default function CollectPortContent() {
     window.dispatchEvent(new CustomEvent('galeon:rescan-payments'))
   }
 
+  // Manual rescan function - must be defined before early returns to avoid hooks error
+  const handleRescan = useCallback(() => {
+    hasScanned.current = false
+    scan()
+  }, [scan])
+
   // Success screen
   if (collectTxHashes.length > 0) {
     return (
@@ -235,12 +241,6 @@ export default function CollectPortContent() {
       </AppShell>
     )
   }
-
-  // Manual rescan function
-  const handleRescan = useCallback(() => {
-    hasScanned.current = false
-    scan()
-  }, [scan])
 
   return (
     <AppShell requireAuth requireKeys>
