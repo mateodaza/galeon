@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
 
 // Glassmorphic slide container for better readability
 function SlideContainer({
@@ -100,7 +99,7 @@ export default function PitchPage() {
 
   return (
     <main className="relative flex h-screen flex-col overflow-hidden">
-      <DeepSeaGradient variant="ocean" intensity="calm" />
+      {/* Uses global DeepSeaGradient from layout.tsx */}
 
       {/* Header */}
       <header className="absolute left-0 right-0 top-0 z-50 flex items-center justify-between bg-slate-950/60 px-6 py-4 backdrop-blur-md">

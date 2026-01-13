@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { MeshGradient } from '@mesh-gradient/react'
 
 type GradientVariant = 'ocean' | 'teal' | 'driftwood'
@@ -26,21 +27,92 @@ const calmPalettes: Record<GradientVariant, [string, string, string, string]> = 
   driftwood: ['#d6d3d1', '#a8a29e', '#57534e', '#292524'],
 }
 
+// CSS gradient fallbacks for low-performance mode
+const staticGradients: Record<GradientVariant, Record<GradientIntensity, string>> = {
+  ocean: {
+    calm: 'linear-gradient(180deg, #67e8f9 0%, #06b6d4 30%, #0c4a6e 70%, #020617 100%)',
+    subtle: 'linear-gradient(180deg, #0f172a 0%, #0c4a6e 40%, #0891b2 80%, #06b6d4 100%)',
+    vibrant: 'linear-gradient(180deg, #0284c7 0%, #06b6d4 40%, #22d3ee 80%, #67e8f9 100%)',
+  },
+  teal: {
+    calm: 'linear-gradient(180deg, #5eead4 0%, #14b8a6 30%, #0f766e 70%, #042f2e 100%)',
+    subtle: 'linear-gradient(180deg, #042f2e 0%, #0f766e 40%, #14b8a6 80%, #2dd4bf 100%)',
+    vibrant: 'linear-gradient(180deg, #0f766e 0%, #14b8a6 40%, #2dd4bf 80%, #5eead4 100%)',
+  },
+  driftwood: {
+    calm: 'linear-gradient(180deg, #d6d3d1 0%, #a8a29e 30%, #57534e 70%, #292524 100%)',
+    subtle: 'linear-gradient(180deg, #292524 0%, #57534e 40%, #78716c 80%, #a8a29e 100%)',
+    vibrant: 'linear-gradient(180deg, #57534e 0%, #78716c 40%, #a8a29e 80%, #d6d3d1 100%)',
+  },
+}
+
+/**
+ * Detect if device should use reduced motion/performance mode.
+ * Checks: prefers-reduced-motion, device memory, hardware concurrency
+ */
+function useReducedPerformance(): boolean {
+  const [reduced, setReduced] = useState(false)
+
+  useEffect(() => {
+    // Check prefers-reduced-motion media query
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    // Check device memory (< 4GB suggests lower-end device)
+    const lowMemory =
+      'deviceMemory' in navigator && (navigator as { deviceMemory?: number }).deviceMemory
+        ? (navigator as { deviceMemory: number }).deviceMemory < 4
+        : false
+
+    // Check hardware concurrency (< 4 cores suggests lower-end device)
+    const lowCores = navigator.hardwareConcurrency ? navigator.hardwareConcurrency < 4 : false
+
+    // Check for save-data header hint
+    const saveData =
+      'connection' in navigator &&
+      (navigator as { connection?: { saveData?: boolean } }).connection?.saveData
+
+    setReduced(prefersReducedMotion || lowMemory || lowCores || saveData || false)
+  }, [])
+
+  return reduced
+}
+
 interface DeepSeaGradientProps {
   variant?: GradientVariant
   intensity?: GradientIntensity
   className?: string
+  /** Force static gradient (no WebGL) */
+  forceStatic?: boolean
 }
 
 /**
  * Animated mesh gradient background with variant and intensity support.
  * Uses WebGL for smooth, GPU-accelerated animation.
+ * Automatically falls back to static CSS gradient on low-performance devices.
  */
 export function DeepSeaGradient({
   variant = 'ocean',
   intensity = 'vibrant',
   className = '',
+  forceStatic = false,
 }: DeepSeaGradientProps) {
+  const reducedPerformance = useReducedPerformance()
+  const useStaticGradient = forceStatic || reducedPerformance
+
+  // Static CSS gradient fallback for low-performance devices
+  if (useStaticGradient) {
+    return (
+      <div
+        className={`absolute inset-0 -z-10 ${className}`}
+        style={{
+          width: '100%',
+          height: '100%',
+          background: staticGradients[variant][intensity],
+        }}
+      />
+    )
+  }
+
   const palettes =
     intensity === 'calm' ? calmPalettes : intensity === 'subtle' ? subtlePalettes : vibrantPalettes
 
@@ -63,8 +135,8 @@ export function DeepSeaGradient({
         frequency,
         seed: variant === 'ocean' ? 42 : variant === 'teal' ? 123 : 456,
         pauseOnOutsideViewport: true,
-        appearance: 'default', // Use default to minimize fade-in flicker
-        appearanceDuration: 100, // Very short transition
+        appearance: 'default',
+        appearanceDuration: 100,
       }}
     />
   )
