@@ -11,7 +11,8 @@ import { use, useState, useEffect, useRef } from 'react'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { useAccount } from 'wagmi'
 import { parseEther } from 'viem'
-import { Loader2, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { Loader2, ExternalLink, CheckCircle2, XCircle, Receipt } from 'lucide-react'
+import Link from 'next/link'
 import { ConnectButton } from '@/components/wallet-button'
 import { AppShell } from '@/components/layout'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getTxExplorerUrl } from '@/lib/chains'
 import { usePortMetaAddress, usePayNative } from '@/hooks/use-payment'
-import { sentPaymentsApi } from '@/lib/api'
+import { sentPaymentsApi, API_BASE_URL } from '@/lib/api'
 
 interface PayPageProps {
   params: Promise<{
@@ -35,6 +36,8 @@ export default function PayPage({ params }: PayPageProps) {
   const [amount, setAmount] = useState('')
   const [memo, setMemo] = useState('')
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const [isLoadingReceipt, setIsLoadingReceipt] = useState(false)
 
   // Fetch port meta-address from chain
   const { metaAddress, isLoading: isLoadingPort } = usePortMetaAddress(portId as `0x${string}`)
@@ -89,6 +92,48 @@ export default function PayPage({ params }: PayPageProps) {
         })
     }
   }, [isSuccess, txHash, chain?.id, portName])
+
+  // Fetch receipt ID after payment succeeds (with polling for indexer delay)
+  useEffect(() => {
+    if (!isSuccess || !paymentDataRef.current?.stealthAddress) return
+
+    const stealthAddress = paymentDataRef.current.stealthAddress
+    let attempts = 0
+    const maxAttempts = 10 // Try for ~30 seconds
+
+    const fetchReceiptId = async () => {
+      try {
+        setIsLoadingReceipt(true)
+        const response = await fetch(`${API_BASE_URL}/api/v1/receipts/by-stealth/${stealthAddress}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.id && data.status !== 'pending') {
+            setReceiptId(data.id)
+            setIsLoadingReceipt(false)
+            return true // Found it
+          }
+        }
+        return false // Not found yet
+      } catch {
+        return false
+      }
+    }
+
+    // Poll every 3 seconds until receipt is found or max attempts reached
+    const pollInterval = setInterval(async () => {
+      attempts++
+      const found = await fetchReceiptId()
+      if (found || attempts >= maxAttempts) {
+        clearInterval(pollInterval)
+        setIsLoadingReceipt(false)
+      }
+    }, 3000)
+
+    // Initial attempt immediately
+    fetchReceiptId()
+
+    return () => clearInterval(pollInterval)
+  }, [isSuccess])
 
   const handlePay = async () => {
     if (!amount || !isConnected || !metaAddress) return
@@ -151,15 +196,33 @@ export default function PayPage({ params }: PayPageProps) {
               </CardContent>
             </Card>
 
-            <a
-              href={getTxExplorerUrl(txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 mt-4 inline-flex items-center gap-1"
-            >
-              View on Explorer
-              <ExternalLink className="h-4 w-4" />
-            </a>
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <a
+                href={getTxExplorerUrl(txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
+              >
+                View on Explorer
+                <ExternalLink className="h-4 w-4" />
+              </a>
+
+              {/* Receipt link - shows after indexer processes the payment */}
+              {receiptId ? (
+                <Link
+                  href={`/receipt/${receiptId}`}
+                  className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                >
+                  <Receipt className="h-4 w-4" />
+                  View Receipt
+                </Link>
+              ) : isLoadingReceipt ? (
+                <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Generating receipt...
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
       </AppShell>
@@ -180,7 +243,7 @@ export default function PayPage({ params }: PayPageProps) {
               </div>
 
               {!isConnected ? (
-                <div className="mt-8 text-center">
+                <div className="mt-8 flex flex-col items-center text-center">
                   <p className="text-muted-foreground mb-4">
                     Connect your wallet to make a payment
                   </p>

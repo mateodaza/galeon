@@ -32,7 +32,11 @@ export default class ReceiptsController {
       })
     }
 
-    const query = Receipt.query().whereIn('portId', portIds).orderBy('createdAt', 'desc')
+    const query = Receipt.query()
+      .whereIn('portId', portIds)
+      .whereNotNull('amount')
+      .whereNot('amount', '0') // Filter out 0-value receipts (ghost registrations)
+      .orderBy('createdAt', 'desc')
 
     // Filter by specific port if provided
     if (portId) {

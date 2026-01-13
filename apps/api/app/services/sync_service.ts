@@ -124,14 +124,18 @@ export default class SyncService {
           continue
         }
 
-        // Create receipt for this announcement
+        // Create receipt for this announcement (returns null if not a real payment)
         try {
-          await this.createReceiptFromAnnouncement(port, announcement)
-          result.synced++
-          existingTxHashes.add(announcement.transactionHash.toLowerCase())
-          if (announcement.receiptHash) {
-            existingReceiptHashes.add(announcement.receiptHash.toLowerCase())
+          const receipt = await this.createReceiptFromAnnouncement(port, announcement)
+          if (receipt) {
+            result.synced++
+            existingTxHashes.add(announcement.transactionHash.toLowerCase())
+            if (announcement.receiptHash) {
+              existingReceiptHashes.add(announcement.receiptHash.toLowerCase())
+            }
           }
+          // If receipt is null, it's a non-payment announcement (e.g., port registration)
+          // We don't count it as an error, just skip it silently
         } catch (error) {
           // Ignore duplicate key errors (race condition or already synced)
           const errorMsg = error instanceof Error ? error.message : 'Unknown'
@@ -181,34 +185,35 @@ export default class SyncService {
 
   /**
    * Create a receipt record from a Ponder announcement
+   * Returns null if no ReceiptAnchored event exists (e.g., port registration announcements)
    */
   private async createReceiptFromAnnouncement(
     port: Port,
     announcement: PonderAnnouncement
-  ): Promise<Receipt> {
+  ): Promise<Receipt | null> {
     // Try to get amount from receipts_anchored table
     const receiptAnchored = await this.ponderService.findReceiptAnchoredByTxHash(
       announcement.transactionHash,
       announcement.chainId
     )
 
-    let amount = '0'
-    let tokenAddress: string | null = null
-    let currency = port.chainId === 5000 ? 'MNT' : 'ETH'
-
-    if (receiptAnchored) {
-      amount = receiptAnchored.amount
-      tokenAddress =
-        receiptAnchored.token === '0x0000000000000000000000000000000000000000'
-          ? null
-          : receiptAnchored.token
-      currency =
-        receiptAnchored.token === '0x0000000000000000000000000000000000000000'
-          ? port.chainId === 5000
-            ? 'MNT'
-            : 'ETH'
-          : 'ERC20'
+    // Skip announcements without a ReceiptAnchored event
+    // These are likely port registration announcements, not actual payments
+    if (!receiptAnchored) {
+      return null
     }
+
+    const amount = receiptAnchored.amount
+    const tokenAddress =
+      receiptAnchored.token === '0x0000000000000000000000000000000000000000'
+        ? null
+        : receiptAnchored.token
+    const currency =
+      receiptAnchored.token === '0x0000000000000000000000000000000000000000'
+        ? port.chainId === 5000
+          ? 'MNT'
+          : 'ETH'
+        : 'ERC20'
 
     return Receipt.create({
       portId: port.id,
@@ -234,6 +239,8 @@ export default class SyncService {
     const receipts = await Receipt.query()
       .where('portId', port.id)
       .whereIn('status', ['confirmed', 'collected'])
+      .whereNotNull('amount')
+      .whereNot('amount', '0') // Exclude 0-value ghost registrations
 
     let totalReceived = BigInt(0)
     let totalCollected = BigInt(0)

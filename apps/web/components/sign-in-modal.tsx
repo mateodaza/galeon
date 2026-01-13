@@ -16,7 +16,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
 import { Check, Loader2, Wallet, Shield, Key, AlertCircle, X, Lock } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, VisuallyHidden } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/auth-context'
 import { useStealthContext } from '@/contexts/stealth-context'
@@ -297,6 +297,11 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent variant="glass" className="sm:max-w-md" showCloseButton={false}>
+        {/* Accessibility: Screen reader title */}
+        <VisuallyHidden>
+          <DialogTitle>{isComplete ? 'Welcome to Galeon' : 'Get Started with Galeon'}</DialogTitle>
+        </VisuallyHidden>
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-foreground text-lg font-semibold">
@@ -311,10 +316,10 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
         </div>
 
         {/* Stepper */}
-        <div className="px-4 py-4">
+        <div className="px-6 py-4">
           <div className="relative flex items-center justify-between">
             {/* Line container - spans full width, circles will cover the ends */}
-            <div className="pointer-events-none absolute inset-x-0 top-4 mx-4">
+            <div className="pointer-events-none absolute inset-x-0 top-4 mx-6">
               {/* Background line */}
               <div className="bg-border h-0.5 w-full" />
               {/* Progress line overlay */}

@@ -17,7 +17,7 @@ import { useCollection } from '@/hooks/use-collection'
 
 export default function DashboardContent() {
   const prefersReducedMotion = useReducedMotion()
-  const { ports, isLoading } = usePorts()
+  const { ports, isLoading } = usePorts({ enablePolling: true, pollingInterval: 15_000 })
   const { totalBalance: poolBalance, hasPoolKeys } = usePoolContext()
   const {
     totalBalanceFormatted: collectableBalanceFormatted,

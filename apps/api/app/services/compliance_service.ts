@@ -277,6 +277,8 @@ export default class ComplianceService {
       .where('createdAt', '>=', startDate)
       .where('createdAt', '<=', endDate)
       .whereIn('status', ['confirmed', 'collected'])
+      .whereNotNull('amount')
+      .whereNot('amount', '0') // Filter out 0-value receipts (ghost registrations)
       .preload('port')
 
     // Get sent payments for the period - only confirmed payments for tax compliance

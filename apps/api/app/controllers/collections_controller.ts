@@ -65,11 +65,13 @@ export default class CollectionsController {
       })
     }
 
-    // Get confirmed receipts for these ports
+    // Get confirmed receipts for these ports (exclude 0-value ghost registrations)
     const receipts = await Receipt.query()
       .whereIn('portId', portIds)
       .where('status', 'confirmed')
       .whereNull('collectionId')
+      .whereNotNull('amount')
+      .whereNot('amount', '0')
 
     if (receipts.length === 0) {
       return response.badRequest({
@@ -177,6 +179,8 @@ export default class CollectionsController {
       .whereIn('id', receiptIds)
       .whereIn('portId', portIds)
       .where('status', 'confirmed')
+      .whereNotNull('amount')
+      .whereNot('amount', '0') // Exclude 0-value ghost registrations
 
     if (receipts.length !== receiptIds.length) {
       return response.badRequest({

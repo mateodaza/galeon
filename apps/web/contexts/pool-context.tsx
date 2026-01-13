@@ -640,6 +640,51 @@ export function PoolProvider({ children }: PoolProviderProps) {
   }, [isConnected])
 
   /**
+   * Listen for storage changes from other tabs or manual clearing
+   * This ensures we detect when user clears browser data
+   */
+  useEffect(() => {
+    if (!address) return
+
+    const handleStorageChange = (event: StorageEvent) => {
+      // Check if our session was removed
+      if (event.key === getStorageKey(address) && event.newValue === null) {
+        console.log('[Pool] Session cleared externally, resetting keys')
+        setMasterNullifier(null)
+        setMasterSecret(null)
+        setDeposits([])
+        setPoolScope(null)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [address])
+
+  /**
+   * Periodic session validation - checks every 30 seconds if localStorage still has valid session
+   * This catches cases where user clears data in the same tab (storage event doesn't fire)
+   */
+  useEffect(() => {
+    if (!address || !masterNullifier) return
+
+    const validateSession = () => {
+      const session = loadSession(address)
+      if (!session) {
+        console.log('[Pool] Session no longer valid, clearing keys')
+        setMasterNullifier(null)
+        setMasterSecret(null)
+        setDeposits([])
+        setPoolScope(null)
+      }
+    }
+
+    // Check every 30 seconds
+    const interval = setInterval(validateSession, 30_000)
+    return () => clearInterval(interval)
+  }, [address, masterNullifier])
+
+  /**
    * Auto-recover deposits when pool keys become available
    */
   useEffect(() => {

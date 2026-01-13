@@ -63,8 +63,8 @@ export function DeepSeaGradient({
         frequency,
         seed: variant === 'ocean' ? 42 : variant === 'teal' ? 123 : 456,
         pauseOnOutsideViewport: true,
-        appearance: 'smooth',
-        appearanceDuration: 800,
+        appearance: 'default', // Use default to minimize fade-in flicker
+        appearanceDuration: 100, // Very short transition
       }}
     />
   )

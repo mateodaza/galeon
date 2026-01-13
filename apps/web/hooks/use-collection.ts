@@ -269,12 +269,7 @@ export function useCollection() {
         if (!keysMatch) {
           // SKIP ports with mismatched keys - they were created with old key derivation
           // User needs to create a new port with the updated system
-          console.error('[scan] SKIPPING port', port.name, '- key derivation mismatch!')
-          console.error('[scan]   On-chain stealthMetaAddress:', port.stealthMetaAddress)
-          console.error('[scan]   Derived stealthMetaAddress:', derivedStealthMeta)
-          console.error(
-            '[scan]   This port was created with old key derivation. Create a new port to recover.'
-          )
+          // Silent skip - these are legacy ports that can't be recovered
           continue
         }
 

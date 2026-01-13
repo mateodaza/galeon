@@ -32,8 +32,26 @@ import { NetworkGuard } from '@/components/network-guard'
 /**
  * TanStack Query client instance.
  * Shared across the app for caching and deduplication.
+ *
+ * Configured to:
+ * - Not retry on 401 (authentication) errors
+ * - Retry other errors up to 3 times
  */
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // Don't retry on 401 (auth) or 403 (forbidden) errors
+        if (error && 'status' in error && (error.status === 401 || error.status === 403)) {
+          return false
+        }
+        // Default: retry up to 3 times
+        return failureCount < 3
+      },
+      refetchOnWindowFocus: false, // Prevent refetch loops when tabbing back
+    },
+  },
+})
 
 /**
  * Application metadata for WalletConnect.

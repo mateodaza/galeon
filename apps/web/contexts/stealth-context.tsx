@@ -27,7 +27,7 @@ import { useSignMessage, useAccount } from 'wagmi'
 import { deriveStealthKeys, formatStealthMetaAddress, type StealthKeys } from '@galeon/stealth'
 
 /** Message for deriving stealth keys - domain-specific for security */
-const KEY_DERIVATION_MESSAGE = `Galeon - Unlock Stealth Keys (2/2)
+const KEY_DERIVATION_MESSAGE = `Galeon - Unlock Stealth Keys
 
 This signature unlocks your private payment keys.
 Your session will remain active for 7 days.
@@ -39,6 +39,7 @@ IMPORTANT:
 
 App: Galeon
 Action: Derive stealth keys
+Chain: Mantle
 Version: 1`
 
 /** Session duration: 7 days in milliseconds */
@@ -260,6 +261,51 @@ export function StealthProvider({ children }: StealthProviderProps) {
       // Note: We don't clear localStorage here - session persists for reconnection
     }
   }, [isConnected])
+
+  /**
+   * Listen for storage changes from other tabs or manual clearing
+   * This ensures we detect when user clears browser data
+   */
+  useEffect(() => {
+    if (!address) return
+
+    const handleStorageChange = (event: StorageEvent) => {
+      // Check if our session was removed
+      if (event.key === getStorageKey(address) && event.newValue === null) {
+        console.log('[Stealth] Session cleared externally, resetting keys')
+        setKeys(null)
+        setMasterSignature(null)
+        setMetaAddress(null)
+        setHasStoredSession(false)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [address])
+
+  /**
+   * Periodic session validation - checks every 30 seconds if localStorage still has valid session
+   * This catches cases where user clears data in the same tab (storage event doesn't fire)
+   */
+  useEffect(() => {
+    if (!address || !keys) return
+
+    const validateSession = () => {
+      const session = loadSession(address)
+      if (!session) {
+        console.log('[Stealth] Session no longer valid, clearing keys')
+        setKeys(null)
+        setMasterSignature(null)
+        setMetaAddress(null)
+        setHasStoredSession(false)
+      }
+    }
+
+    // Check every 30 seconds
+    const interval = setInterval(validateSession, 30_000)
+    return () => clearInterval(interval)
+  }, [address, keys])
 
   /**
    * Derive keys with wallet signature (prompts user)

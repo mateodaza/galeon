@@ -40,9 +40,14 @@ export default class DepositsController {
         offset: offset !== undefined ? Number(offset) : 0,
       })
     } catch (error) {
-      // If table doesn't exist, return empty result (indexer not running)
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        logger.warn('Merkle leaves table does not exist - indexer may not be running')
+      // If table doesn't exist or ponder DB connection fails, return empty result
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (
+        errorMsg.includes('does not exist') ||
+        errorMsg.includes('ECONNREFUSED') ||
+        errorMsg.includes('connection')
+      ) {
+        logger.warn('Merkle leaves unavailable - indexer may not be running: ' + errorMsg)
         return response.ok({
           data: [],
           hasMore: false,
@@ -50,6 +55,7 @@ export default class DepositsController {
           offset: 0,
         })
       }
+      logger.error('Deposits leaves error:', error)
       throw error
     }
   }
@@ -87,9 +93,14 @@ export default class DepositsController {
         offset: offset !== undefined ? Number(offset) : 0,
       })
     } catch (error) {
-      // If table doesn't exist, return empty result (indexer not running)
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        logger.warn('Pool deposits table does not exist - indexer may not be running')
+      // If table doesn't exist or ponder DB connection fails, return empty result
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (
+        errorMsg.includes('does not exist') ||
+        errorMsg.includes('ECONNREFUSED') ||
+        errorMsg.includes('connection')
+      ) {
+        logger.warn('Pool deposits unavailable - indexer may not be running: ' + errorMsg)
         return response.ok({
           data: [],
           hasMore: false,
@@ -97,6 +108,7 @@ export default class DepositsController {
           offset: 0,
         })
       }
+      logger.error('Deposits index error:', error)
       throw error
     }
   }
@@ -136,9 +148,14 @@ export default class DepositsController {
         offset: offset !== undefined ? Number(offset) : 0,
       })
     } catch (error) {
-      // If table doesn't exist, return empty result (indexer not running)
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        logger.warn('Pool merge deposits table does not exist - indexer may not be running')
+      // If table doesn't exist or ponder DB connection fails, return empty result
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (
+        errorMsg.includes('does not exist') ||
+        errorMsg.includes('ECONNREFUSED') ||
+        errorMsg.includes('connection')
+      ) {
+        logger.warn('Pool merge deposits unavailable - indexer may not be running: ' + errorMsg)
         return response.ok({
           data: [],
           hasMore: false,
@@ -146,6 +163,7 @@ export default class DepositsController {
           offset: 0,
         })
       }
+      logger.error('Deposits merges error:', error)
       throw error
     }
   }

@@ -18,6 +18,7 @@ import { keccak256, toHex, encodePacked, stringToBytes } from 'viem'
 import { galeonRegistryAbi, isSupportedChain, getStealthContracts } from '@/lib/contracts'
 import { derivePortKeys, formatStealthMetaAddress } from '@galeon/stealth'
 import { useStealthContext } from '@/contexts/stealth-context'
+import { useAuth } from '@/contexts/auth-context'
 import { portsApi, type PortResponse, type PortStatus } from '@/lib/api'
 
 /** Port data structure (combines backend + derived data) */
@@ -47,9 +48,15 @@ function uuidToPortIndex(uuid: string): number {
 
 /**
  * Hook for reading user's ports from backend API.
+ * Only fetches when user is authenticated to prevent infinite retry loops.
+ *
+ * @param options.enablePolling - Enable automatic polling for real-time updates (default: false)
+ * @param options.pollingInterval - Polling interval in ms (default: 15000 = 15 seconds)
  */
-export function usePorts() {
+export function usePorts(options?: { enablePolling?: boolean; pollingInterval?: number }) {
+  const { enablePolling = false, pollingInterval = 15_000 } = options ?? {}
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const {
     data: portsData,
@@ -62,7 +69,12 @@ export function usePorts() {
       const response = await portsApi.list()
       return response.data.map((port) => mapPortResponse(port))
     },
-    staleTime: 30_000, // 30 seconds
+    staleTime: 15_000, // 15 seconds - shorter for faster updates
+    enabled: isAuthenticated, // Only fetch when authenticated
+    retry: false, // Don't retry auth-protected endpoints
+    refetchInterval: enablePolling ? pollingInterval : false, // Poll for real-time updates
+    refetchIntervalInBackground: false, // Don't poll when tab is not focused
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   })
 
   const invalidate = useCallback(() => {

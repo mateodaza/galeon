@@ -28,7 +28,10 @@ import { usePorts, useCreatePort } from '@/hooks/use-ports'
 
 export default function ReceivePage() {
   const router = useRouter()
-  const { ports, isLoading, error, refetch } = usePorts()
+  const { ports, isLoading, error, refetch } = usePorts({
+    enablePolling: true,
+    pollingInterval: 15_000,
+  })
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   const actions = (

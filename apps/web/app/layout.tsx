@@ -12,6 +12,28 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
+  openGraph: {
+    title: 'Galeon',
+    description: 'Your payments. Your treasure. Hidden in plain sight.',
+    url: 'https://galeon.xyz',
+    siteName: 'Galeon',
+    images: [
+      {
+        url: '/galeon-cool-graphic.png',
+        width: 1200,
+        height: 630,
+        alt: 'Galeon - Private Payments',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Galeon',
+    description: 'Your payments. Your treasure. Hidden in plain sight.',
+    images: ['/galeon-cool-graphic.png'],
+  },
 }
 
 export const viewport: Viewport = {
@@ -29,7 +51,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" style={{ backgroundColor: '#020617' }}>
       <body className="min-h-screen antialiased">
         {/* Global gradient - persists across page navigations */}
-        <div className="fixed inset-0 -z-10">
+        {/* bg-slate-950 provides fallback color while WebGL canvas initializes */}
+        <div className="fixed inset-0 -z-10 bg-slate-950">
           <DeepSeaGradient variant="ocean" intensity="calm" />
         </div>
         <Providers initialState={initialState}>{children}</Providers>
