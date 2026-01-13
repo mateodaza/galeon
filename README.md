@@ -143,10 +143,11 @@ Centralized chain and contract configuration:
 | GaleonRegistry          | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` |
 | ERC5564Announcer        | `0x8C04238c49e22EB687ad706bEe645698ccF41153` |
 | ERC6538Registry         | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` |
-| GaleonEntrypoint        | `0x54BA91d29f84B8bAd161880798877e59f2999f7a` |
-| GaleonPrivacyPoolSimple | `0x3260c8d8cc654B0897cd93cdf0662Fa679656b36` |
-| WithdrawalVerifier      | `0x7529e3ec251A648A873F53d9969c1C05a44029A1` |
-| RagequitVerifier        | `0xFDb199E0aC8eC430541438aa6E63101F8C205D76` |
+| GaleonEntrypoint        | `0x8633518fbbf23E78586F1456530c3452885efb21` |
+| GaleonPrivacyPoolSimple | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` |
+| WithdrawalVerifier      | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` |
+| RagequitVerifier        | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` |
+| MergeDepositVerifier    | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` |
 
 ## How It Works
 

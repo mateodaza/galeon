@@ -106,17 +106,19 @@ Explorer links:
 
 ---
 
-### Privacy Pool Deployment (Mantle Mainnet)
+### Privacy Pool Deployment (Mantle Mainnet - Current)
 
-| Contract                 | Address                                      | Type        |
-| ------------------------ | -------------------------------------------- | ----------- |
-| PoseidonT3               | `0x1130c821a709e5D414684a7605F5D1f6E7439Ff2` | Library     |
-| PoseidonT4               | `0x669b0039263C3dBF1c2c5726A378433759Fa0df1` | Library     |
-| MockVerifier             | `0x2B2A0A556C29DD43521de61ffB6fF1A78ca13940` | Placeholder |
-| GaleonEntrypoint (proxy) | `0x1767D6A8e6942fdc88cD4BFbFE6796D9D5FbaF2f` | UUPS Proxy  |
-| GaleonPrivacyPoolSimple  | `0x11021e2C1BE35AcCFE9Aa33862Cfb7e54E2036Ef` | UUPS Proxy  |
+| Contract                 | Address                                      | Type       |
+| ------------------------ | -------------------------------------------- | ---------- |
+| PoseidonT3               | `0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954` | Library    |
+| PoseidonT4               | `0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892` | Library    |
+| GaleonEntrypoint (proxy) | `0x8633518fbbf23E78586F1456530c3452885efb21` | UUPS Proxy |
+| GaleonPrivacyPoolSimple  | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` | UUPS Proxy |
+| WithdrawalVerifier       | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` | Verifier   |
+| RagequitVerifier         | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` | Verifier   |
+| MergeDepositVerifier     | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` | Verifier   |
 
-**Pool SCOPE:** `3813115185232120460597786926146817949248386022022309247081941950024775602883`
+**Source of truth:** `packages/config/src/contracts.ts`
 
 ---
 
@@ -206,8 +208,8 @@ Upgrade to Account Model architecture for O(1) withdrawals regardless of deposit
 - [x] Compile mergeDeposit circuit (17,655 constraints, 220 template instances)
 - [x] Generate trusted setup keys (dev keys via circomkit)
 - [x] Generate MergeDepositVerifier.sol
-- [ ] Deploy verifier contract
-- [ ] Call `_setMergeDepositVerifier()` on pool
+- [x] Deploy verifier contract (`0x05DB69e37b8c7509E9d97826249385682CE9b29d`)
+- [x] Call `setMergeDepositVerifier()` on pool
 
 ---
 
