@@ -438,7 +438,7 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
               )}
               {currentStep === 'pool' && !stepError && (
                 <p className="text-muted-foreground mt-4 text-xs">
-                  Pool keys enable anonymous ZK withdrawals from the privacy pool.
+                  Pool keys enable anonymous ZK private sends from the privacy pool.
                 </p>
               )}
             </div>

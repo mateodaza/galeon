@@ -50,6 +50,10 @@ interface DisplayPayment {
   isClientSide?: boolean
 }
 
+// Force dynamic rendering - this page uses client-side BigInt operations
+// that cannot be pre-rendered at build time
+export const dynamic = 'force-dynamic'
+
 export default function HistoryPage() {
   const [backendPayments, setBackendPayments] = useState<SentPayment[]>([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -160,11 +164,12 @@ export default function HistoryPage() {
 
   // Calculate pool stats from client-side data
   const poolStats = {
-    total: poolWithdrawals.reduce((sum, w) => sum + BigInt(w.amount), BigInt(0)).toString(),
+    total: poolWithdrawals.reduce((sum, w) => sum + BigInt(w.amount || '0'), BigInt(0)).toString(),
     count: poolWithdrawals.length,
   }
 
   const formatAmount = (wei: string) => {
+    if (!wei) return '0'
     const num = parseFloat(formatEther(BigInt(wei)))
     if (num === 0) return '0'
     if (num < 0.0001) return '<0.0001'

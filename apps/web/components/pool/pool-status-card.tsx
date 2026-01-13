@@ -6,7 +6,7 @@
  * Displays the user's privacy pool status including:
  * - Total balance in pool
  * - Number of deposits
- * - Quick actions (deposit, withdraw)
+ * - Quick actions (deposit, private send)
  */
 
 import { useState } from 'react'
@@ -71,7 +71,7 @@ export function PoolStatusCard({ className }: PoolStatusCardProps) {
             <Shield className="h-5 w-5" />
             Privacy Pool
           </CardTitle>
-          <CardDescription>ZK-powered private withdrawals</CardDescription>
+          <CardDescription>ZK-powered private sends</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="bg-muted rounded-lg p-4 text-center">
@@ -94,7 +94,7 @@ export function PoolStatusCard({ className }: PoolStatusCardProps) {
             <Shield className="h-5 w-5" />
             Privacy Pool
           </CardTitle>
-          <CardDescription>ZK-powered private withdrawals</CardDescription>
+          <CardDescription>ZK-powered private sends</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -132,7 +132,7 @@ export function PoolStatusCard({ className }: PoolStatusCardProps) {
                 <Shield className="h-5 w-5" />
                 Privacy Pool
               </CardTitle>
-              <CardDescription>ZK-powered private withdrawals</CardDescription>
+              <CardDescription>ZK-powered private sends</CardDescription>
             </div>
             <Badge variant="secondary">{deposits.length} deposits</Badge>
           </div>
@@ -160,7 +160,7 @@ export function PoolStatusCard({ className }: PoolStatusCardProps) {
                 disabled={totalBalance === BigInt(0)}
               >
                 <ArrowUpRight className="h-4 w-4" />
-                Withdraw
+                Private Send
               </Button>
             </div>
 

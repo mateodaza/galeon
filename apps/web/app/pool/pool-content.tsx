@@ -91,7 +91,7 @@ export default function PoolContent() {
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 <Shield className="mr-2 h-4 w-4" />
-                Withdraw
+                Private Send
               </Button>
             </div>
           </CardContent>
@@ -138,7 +138,7 @@ export default function PoolContent() {
             </div>
             <p className="text-muted-foreground mt-2 text-sm">
               Keep your local state in sync with the blockchain. Force Sync traces through all
-              withdrawals and merges to find your current active deposits.
+              transactions and merges to find your current active deposits.
             </p>
             <div className="mt-4 flex gap-2">
               <Button onClick={forceSync} disabled={isRecovering} variant="default">
@@ -159,7 +159,7 @@ export default function PoolContent() {
               </Button>
             </div>
             <p className="text-muted-foreground mt-2 text-xs">
-              Use <strong>Force Sync</strong> if withdrawals fail. It re-traces all transaction
+              Use <strong>Force Sync</strong> if private sends fail. It re-traces all transaction
               chains to find your current balance.
             </p>
           </CardContent>

@@ -125,7 +125,7 @@ export default function DashboardContent() {
           value={`${poolBalanceFormatted} MNT`}
           subtitle={
             poolBalance && poolBalance > 0n
-              ? 'Available to withdraw'
+              ? 'Available to send privately'
               : `${stats.activePorts} active port${stats.activePorts !== 1 ? 's' : ''}`
           }
         />

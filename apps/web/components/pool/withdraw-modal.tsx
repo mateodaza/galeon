@@ -1,9 +1,9 @@
 'use client'
 
 /**
- * Withdraw Modal for Privacy Pool
+ * Private Send Modal for Privacy Pool
  *
- * Allows users to withdraw MNT from the privacy pool with ZK proof.
+ * Allows users to privately send MNT from the privacy pool with ZK proof.
  * Improved UX: Enter total amount, auto-selects deposits, chains multiple txs.
  */
 
@@ -815,14 +815,14 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowUpRight className="h-5 w-5" />
-            Withdraw from Pool
+            Private Send
           </DialogTitle>
           <DialogDescription>
-            {step === 'amount' && 'Enter the total amount you want to withdraw.'}
+            {step === 'amount' && 'Enter the total amount you want to privately send.'}
             {step === 'recipient' && 'Enter the recipient address.'}
-            {step === 'review' && 'Review your withdrawal plan.'}
-            {step === 'executing' && 'Processing withdrawals...'}
-            {step === 'success' && 'All withdrawals completed!'}
+            {step === 'review' && 'Review your private send plan.'}
+            {step === 'executing' && 'Processing private sends...'}
+            {step === 'success' && 'All private sends completed!'}
           </DialogDescription>
         </DialogHeader>
 
@@ -831,7 +831,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
           {step === 'amount' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="withdrawAmount">Withdraw Amount (MNT)</Label>
+                <Label htmlFor="withdrawAmount">Amount (MNT)</Label>
                 <div className="relative">
                   <Input
                     id="withdrawAmount"
@@ -881,14 +881,14 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                   onChange={(e) => setRecipient(e.target.value)}
                 />
                 <p className="text-muted-foreground text-sm">
-                  The address that will receive the withdrawn funds.
+                  The address that will receive the funds.
                 </p>
               </div>
 
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground text-sm">
                   <Shield className="mr-1 inline h-4 w-4" />
-                  ZK proofs ensure no link between your deposits and this withdrawal.
+                  ZK proofs ensure no link between your deposits and this transaction.
                 </p>
               </div>
             </div>
@@ -922,7 +922,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                       {isLoadingPreflight
                         ? 'Checking sync status...'
                         : preflight?.canProceed
-                          ? 'Ready to withdraw'
+                          ? 'Ready to send'
                           : 'Waiting for sync'}
                     </span>
                   </div>
@@ -997,7 +997,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                     <Lock
                       className={`h-4 w-4 ${useRelayer ? 'text-emerald-500' : 'text-muted-foreground'}`}
                     />
-                    <span className="text-sm font-medium">Private Withdrawal</span>
+                    <span className="text-sm font-medium">Private Send Mode</span>
                   </div>
                   <button
                     type="button"
@@ -1068,7 +1068,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
               {/* Breakdown */}
               <div className="space-y-2">
                 <p className="text-muted-foreground text-xs font-medium uppercase">
-                  Withdrawal Breakdown
+                  Transaction Breakdown
                 </p>
                 <div className="max-h-32 space-y-1 overflow-y-auto">
                   {withdrawalPlan.map((plan, i) => (
@@ -1098,7 +1098,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                   <Shield className="text-primary mx-auto h-8 w-8" />
                 )}
                 <p className="mt-2 font-medium">
-                  {useRelayer ? 'Private Withdrawal Ready' : 'Ready to Generate Proofs'}
+                  {useRelayer ? 'Private Send Ready' : 'Ready to Generate Proofs'}
                 </p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   {useRelayer
@@ -1153,10 +1153,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
               <div className="bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-full">
                 <Check className="h-6 w-6" />
               </div>
-              <p className="mt-4 font-medium">Withdrawals Complete!</p>
+              <p className="mt-4 font-medium">Private Sends Complete!</p>
               <p className="text-muted-foreground mt-2 text-center text-sm">
-                {withdrawAmount} MNT has been sent to the recipient in {txHashes.length} transaction
-                {txHashes.length > 1 ? 's' : ''}.
+                {withdrawAmount} MNT has been privately sent to the recipient in {txHashes.length}{' '}
+                transaction{txHashes.length > 1 ? 's' : ''}.
               </p>
               {txHashes.length > 0 && (
                 <div className="mt-4 space-y-1">
@@ -1227,7 +1227,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                 ) : step === 'review' && !preflight?.canProceed ? (
                   'Waiting for Sync...'
                 ) : step === 'review' ? (
-                  `Withdraw (${totalTxCount} TX${totalTxCount > 1 ? 's' : ''})`
+                  `Send (${totalTxCount} TX${totalTxCount > 1 ? 's' : ''})`
                 ) : (
                   'Continue'
                 )}

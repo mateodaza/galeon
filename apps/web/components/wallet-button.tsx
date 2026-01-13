@@ -8,24 +8,24 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useAppKitAccount, useDisconnect } from '@reown/appkit/react'
-import { useBalance, useAccount } from 'wagmi'
+import { useBalance } from 'wagmi'
 import { formatUnits } from 'viem'
-import {
-  Wallet,
-  Shield,
-  Key,
-  ChevronDown,
-  LogOut,
-  UserCircle,
-  RefreshCw,
-  Anchor,
-} from 'lucide-react'
+import { Wallet, Shield, Key, ChevronDown, LogOut, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSignIn } from '@/hooks/use-sign-in'
 import { usePoolContext } from '@/contexts/pool-context'
-import { useCollection } from '@/hooks/use-collection'
 import { SignInModal } from '@/components/sign-in-modal'
+
+// Dynamic imports to avoid @galeon/pool BigInt issues during SSR/build
+const CollectableBalance = dynamic(
+  () => import('./collectable-balance').then((m) => m.CollectableBalance),
+  { ssr: false }
+)
+const RescanButton = dynamic(() => import('./collectable-balance').then((m) => m.RescanButton), {
+  ssr: false,
+})
 
 /**
  * Formats an Ethereum address for display.
@@ -90,24 +90,12 @@ const styles = {
  */
 export function WalletButton({ className = '', variant = 'dark' }: WalletButtonProps) {
   const { address, isConnected } = useAppKitAccount()
-  const { chainId } = useAccount()
   const { disconnect } = useDisconnect()
   const { isAuthenticated, hasKeys, isFullySignedIn, isLoading, signOut } = useSignIn()
   const { hasPoolKeys, totalBalance: poolBalance } = usePoolContext()
-  // Use actual blockchain scan results for accurate collectable balance
-  const {
-    totalBalance: collectableBalance,
-    isScanning,
-    hasKeys: hasCollectionKeys,
-    scan,
-  } = useCollection()
-  const [isSyncing, setIsSyncing] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const hasScannedRef = useRef(false)
-  const prevAddressRef = useRef<string | undefined>(undefined)
-  const prevChainIdRef = useRef<number | undefined>(undefined)
   const variantStyles = styles[variant]
 
   // Fetch real balance from RPC
@@ -115,35 +103,9 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
     address: address as `0x${string}` | undefined,
   })
 
-  // Reset scan state when wallet address, chain, or keys change
-  // This ensures fresh scans after chain switches, re-authentication, or wallet changes
-  useEffect(() => {
-    const addressChanged = address !== prevAddressRef.current
-    const chainChanged = chainId !== prevChainIdRef.current && prevChainIdRef.current !== undefined
-
-    if (!hasCollectionKeys || addressChanged || chainChanged) {
-      hasScannedRef.current = false
-    }
-
-    prevAddressRef.current = address
-    prevChainIdRef.current = chainId
-  }, [hasCollectionKeys, address, chainId])
-
-  // Auto-scan for collectable balance when keys are available (only once per session)
-  useEffect(() => {
-    if (hasCollectionKeys && !hasScannedRef.current && !isScanning) {
-      hasScannedRef.current = true
-      scan()
-    }
-  }, [hasCollectionKeys, isScanning, scan])
-
   // Format pool balance for display
   const poolBalanceFormatted =
     hasPoolKeys && poolBalance > 0n ? formatBalance(poolBalance, 18) : null
-
-  // Format collectable balance (from blockchain scan, not database)
-  const portBalanceFormatted =
-    isAuthenticated && collectableBalance > 0n ? formatBalance(collectableBalance, 18) : null
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -178,22 +140,6 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
   const handleCompleteSetup = () => {
     setShowDropdown(false)
     setShowModal(true)
-  }
-
-  // Handle rescan - triggers a fresh blockchain scan for collectable payments
-  const handleRescan = async () => {
-    if (isSyncing || isScanning) return
-    setIsSyncing(true)
-    setShowDropdown(false)
-    try {
-      // Mark as scanned BEFORE calling scan to prevent auto-scan effect from double-triggering
-      hasScannedRef.current = true
-      await scan()
-    } catch (err) {
-      console.error('Failed to rescan:', err)
-    } finally {
-      setIsSyncing(false)
-    }
   }
 
   if (isConnected && address) {
@@ -234,18 +180,7 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
             </span>
 
             {/* Port Balance - shown if user is authenticated and has collectable funds */}
-            {isAuthenticated && (portBalanceFormatted || isScanning) && (
-              <>
-                <span className={cn('h-4 w-px', variantStyles.divider)} />
-                <span
-                  className="flex items-center gap-1 font-semibold text-amber-400"
-                  title="Available to collect from your Ports"
-                >
-                  <Anchor className={cn('h-3.5 w-3.5', isScanning && 'animate-pulse')} />
-                  {isScanning ? '...' : `${portBalanceFormatted} MNT`}
-                </span>
-              </>
-            )}
+            {isAuthenticated && <CollectableBalance dividerClassName={variantStyles.divider} />}
 
             {/* Pool Balance - shown if user has pool keys and balance */}
             {poolBalanceFormatted && (
@@ -287,18 +222,7 @@ export function WalletButton({ className = '', variant = 'dark' }: WalletButtonP
                   Complete Setup
                 </button>
               )}
-              {isAuthenticated && (
-                <button
-                  onClick={handleRescan}
-                  disabled={isSyncing || isScanning}
-                  className="text-foreground hover:bg-muted flex w-full items-center gap-2 px-4 py-2 text-left text-sm disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={cn('h-4 w-4', (isSyncing || isScanning) && 'animate-spin')}
-                  />
-                  {isSyncing || isScanning ? 'Scanning...' : 'Rescan Payments'}
-                </button>
-              )}
+              {isAuthenticated && <RescanButton onClose={() => setShowDropdown(false)} />}
               <button
                 onClick={handleDisconnect}
                 className="hover:bg-destructive/10 text-destructive flex w-full items-center gap-2 px-4 py-2 text-left text-sm"
