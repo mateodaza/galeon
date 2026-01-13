@@ -148,6 +148,7 @@ export function useCollection() {
   const [dustPayments, setDustPayments] = useState<CollectablePayment[]>([])
   const [isScanning, setIsScanning] = useState(false)
   const [isCollecting, setIsCollecting] = useState(false)
+  const [isConfirmingCollect, setIsConfirmingCollect] = useState(false)
   const [isDepositingToPool, setIsDepositingToPool] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [collectError, setCollectError] = useState<string | null>(null)
@@ -393,6 +394,11 @@ export function useCollection() {
       const paymentsWithBalance = balanceResults.filter((r) => r.balance > 0n && !r.error)
       console.log('[scan] Found', paymentsWithBalance.length, 'addresses with balance')
 
+      // Debug: Log individual balances to verify they're real
+      for (const { payment, balance } of paymentsWithBalance) {
+        console.log('[scan] Address', payment.stealthAddress, 'has', formatEther(balance), 'MNT')
+      }
+
       // Fetch verified balance data from backend API for all payments with balance
       if (paymentsWithBalance.length > 0) {
         console.log(
@@ -536,6 +542,7 @@ export function useCollection() {
       }
 
       setIsCollecting(true)
+      setIsConfirmingCollect(false)
       setCollectError(null)
       setCollectTxHashes([])
 
@@ -548,6 +555,18 @@ export function useCollection() {
         targetAmount !== undefined
           ? [...filteredPayments].sort((a, b) => (b.balance > a.balance ? 1 : -1)).slice(0, 1)
           : filteredPayments
+
+      // Create public client for balance checks (used after loop)
+      const { createPublicClient: createPubClient, http: httpTransport } = await import('viem')
+      const { mantle: mantleChain } = await import('viem/chains')
+      const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
+      const rpcEndpoint = alchemyApiKey
+        ? `https://mantle-mainnet.g.alchemy.com/v2/${alchemyApiKey}`
+        : 'https://rpc.mantle.xyz'
+      const balanceCheckClient = createPubClient({
+        chain: mantleChain,
+        transport: httpTransport(rpcEndpoint),
+      })
 
       try {
         // For each payment, create a transaction from the stealth address
@@ -640,13 +659,81 @@ export function useCollection() {
           collectedHashes.push(hash)
           collectedAddresses.push(payment.stealthAddress)
           actualAmountsSent.push(properAmountToSend) // Track the actual amount sent
+
+          // Show pending state with hash while waiting for confirmation
+          setCollectTxHashes([...collectedHashes])
+          setIsConfirmingCollect(true)
+
+          // Wait for transaction confirmation
+          console.log('[collectAll] Waiting for tx confirmation:', hash)
+          const receipt = await stealthPublicClient.waitForTransactionReceipt({
+            hash,
+            timeout: 60_000, // 60 second timeout
+          })
+
+          if (receipt.status === 'reverted') {
+            throw new Error(`Transaction reverted: ${hash}`)
+          }
+          console.log('[collectAll] Tx confirmed:', hash, 'Block:', receipt.blockNumber)
         }
+
+        // Mark confirmation complete
+        setIsConfirmingCollect(false)
 
         // Update state with collected hashes
         if (collectedHashes.length > 0) {
           setCollectTxHashes(collectedHashes)
-          // Remove collected payments from the list
-          setPayments((prev) => prev.filter((p) => !collectedAddresses.includes(p.stealthAddress)))
+
+          // Check remaining balances for each collected address
+          // If partial send, update balance instead of removing
+          const addressesToRemove: string[] = []
+          const balanceUpdates: { address: string; newBalance: bigint }[] = []
+
+          for (const stealthAddr of collectedAddresses) {
+            try {
+              const remainingBalance = await balanceCheckClient.getBalance({
+                address: stealthAddr as `0x${string}`,
+              })
+              const minCollectable = parseEther('0.01') // Same as MINIMUM_COLLECTABLE_BALANCE
+
+              if (remainingBalance < minCollectable) {
+                // Balance too low, remove from list
+                addressesToRemove.push(stealthAddr)
+              } else {
+                // Partial send - update balance
+                balanceUpdates.push({ address: stealthAddr, newBalance: remainingBalance })
+                console.log(
+                  '[collectAll] Partial send detected, remaining balance:',
+                  formatEther(remainingBalance),
+                  'MNT'
+                )
+              }
+            } catch (err) {
+              // If balance check fails, remove to be safe (rescan will re-add if funds exist)
+              console.warn('[collectAll] Failed to check remaining balance:', err)
+              addressesToRemove.push(stealthAddr)
+            }
+          }
+
+          // Update payments state: remove fully spent, update partial
+          setPayments((prev) => {
+            return prev
+              .filter((p) => !addressesToRemove.includes(p.stealthAddress))
+              .map((p) => {
+                const update = balanceUpdates.find((u) => u.address === p.stealthAddress)
+                if (update) {
+                  return {
+                    ...p,
+                    balance: update.newBalance,
+                    balanceFormatted: formatEther(update.newBalance),
+                    // Cap verified balance at actual balance
+                    verifiedBalance:
+                      p.verifiedBalance > update.newBalance ? update.newBalance : p.verifiedBalance,
+                  }
+                }
+                return p
+              })
+          })
 
           // Mark receipts as collected in backend (update port totals)
           try {
@@ -691,9 +778,10 @@ export function useCollection() {
         setCollectError(error instanceof Error ? error.message : 'Collection failed')
       } finally {
         setIsCollecting(false)
+        setIsConfirmingCollect(false)
       }
     },
-    [walletClient, publicClient, address, payments, queryClient]
+    [walletClient, publicClient, address, payments, queryClient, chainId]
   )
 
   /**
@@ -2075,8 +2163,46 @@ export function useCollection() {
             })
             successfulHashes.push(hash)
 
-            // Remove payment from list immediately
-            setPayments((prev) => prev.filter((p) => p.stealthAddress !== payment.stealthAddress))
+            // Check remaining balance - update or remove payment
+            try {
+              const remainingBalance = await stealthPublicClient.getBalance({
+                address: payment.stealthAddress,
+              })
+              const minCollectable = parseEther('0.01') // Same as MINIMUM_COLLECTABLE_BALANCE
+
+              if (remainingBalance < minCollectable) {
+                // Fully spent, remove from list
+                setPayments((prev) =>
+                  prev.filter((p) => p.stealthAddress !== payment.stealthAddress)
+                )
+              } else {
+                // Partial deposit - update balance
+                console.log(
+                  '[collectToPool] Partial deposit detected, remaining balance:',
+                  formatEther(remainingBalance),
+                  'MNT'
+                )
+                setPayments((prev) =>
+                  prev.map((p) =>
+                    p.stealthAddress === payment.stealthAddress
+                      ? {
+                          ...p,
+                          balance: remainingBalance,
+                          balanceFormatted: formatEther(remainingBalance),
+                          verifiedBalance:
+                            p.verifiedBalance > remainingBalance
+                              ? remainingBalance
+                              : p.verifiedBalance,
+                        }
+                      : p
+                  )
+                )
+              }
+            } catch (err) {
+              // If balance check fails, remove to be safe (rescan will re-add if funds exist)
+              console.warn('[collectToPool] Failed to check remaining balance:', err)
+              setPayments((prev) => prev.filter((p) => p.stealthAddress !== payment.stealthAddress))
+            }
 
             // Immediately update pool context (bypasses indexer lag)
             // This allows subsequent deposits to merge correctly without waiting for forceSync
@@ -2411,12 +2537,16 @@ export function useCollection() {
 
       // If no amount specified, send all
       if (!amountInput || amountInput === '') {
-        const total = filteredPayments.reduce((sum, p) => sum + p.balance, 0n)
+        // Calculate gas-adjusted available amount
+        const stats = calculatePoolDepositStats(filteredPayments)
+        const availableAmount = hasPoolKeys
+          ? stats.totalMaxDepositFormatted
+          : formatBalance(filteredPayments.reduce((sum, p) => sum + p.balance, 0n))
         return {
           mode: 'all',
           selectedPayment: null,
-          canSend: true,
-          message: `Will send from ${filteredPayments.length} address${filteredPayments.length > 1 ? 'es' : ''} (${formatBalance(total)} MNT total)`,
+          canSend: parseFloat(availableAmount) > 0,
+          message: `Will send from ${filteredPayments.length} address${filteredPayments.length > 1 ? 'es' : ''} (${availableAmount} MNT available)`,
           availableAddresses,
         }
       }
@@ -2454,7 +2584,7 @@ export function useCollection() {
         availableAddresses,
       }
     },
-    [findBestPaymentForAmount]
+    [findBestPaymentForAmount, calculatePoolDepositStats, hasPoolKeys]
   )
 
   return {
@@ -2471,6 +2601,7 @@ export function useCollection() {
     minimumCollectableFormatted: formatBalance(MINIMUM_COLLECTABLE_BALANCE),
     isScanning,
     isCollecting,
+    isConfirmingCollect,
     isDepositingToPool,
     scanError,
     collectError,

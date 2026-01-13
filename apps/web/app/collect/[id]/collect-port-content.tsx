@@ -175,13 +175,18 @@ export default function CollectPortContent() {
   const effectiveAmount = amountInput === '' ? maxAmount : enteredAmount
   const isValidAddress = destination === 'pool' || isAddress(externalAddress)
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const amount = amountInput ? parseFloat(amountInput) : undefined
     if (destination === 'external' && externalAddress) {
-      collectAll(externalAddress as `0x${string}`, amount, portId)
+      await collectAll(externalAddress as `0x${string}`, amount, portId)
     } else if (destination === 'pool') {
-      collectToPool(amount, portId)
+      await collectToPool(amount, portId)
     }
+    // Rescan after successful transaction to ensure balances are accurate
+    await scan()
+
+    // Notify navbar to rescan (since it has separate state)
+    window.dispatchEvent(new CustomEvent('galeon:rescan-payments'))
   }
 
   // Success screen

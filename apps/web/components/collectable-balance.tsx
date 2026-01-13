@@ -59,6 +59,18 @@ export function CollectableBalance({ dividerClassName = 'bg-white/20' }: Collect
     }
   }, [hasCollectionKeys, isScanning, scan])
 
+  // Listen for global rescan events (triggered after payments are sent)
+  useEffect(() => {
+    const handleRescan = () => {
+      if (hasCollectionKeys && !isScanning) {
+        scan()
+      }
+    }
+
+    window.addEventListener('galeon:rescan-payments', handleRescan)
+    return () => window.removeEventListener('galeon:rescan-payments', handleRescan)
+  }, [hasCollectionKeys, isScanning, scan])
+
   // Calculate available amount (after gas) for navbar display
   const portBalanceFormatted = useMemo(() => {
     if (!isAuthenticated || payments.length === 0) return null
