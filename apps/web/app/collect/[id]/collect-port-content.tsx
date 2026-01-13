@@ -475,6 +475,7 @@ export default function CollectPortContent() {
                     !isValidAddress ||
                     !isValidAmount ||
                     (destination === 'external' && !externalAddress) ||
+                    (destination === 'pool' && poolStats.paymentsCanDeposit === 0) ||
                     (destination === 'pool' &&
                       willMergeDeposit &&
                       (isLoadingPreflight || !preflight?.canProceed))
