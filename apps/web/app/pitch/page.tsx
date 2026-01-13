@@ -536,8 +536,6 @@ function MarketSlide() {
 function BusinessSlide() {
   const streams = [
     { name: 'Protocol Fee', model: '0.1-0.3% on withdrawals' },
-    { name: 'Premium Ports', model: 'Business features subscription' },
-    { name: 'Shipwreck Reports', model: 'Enterprise compliance exports' },
     { name: 'Relayer Fees', model: 'Transaction broadcast fees' },
   ]
 
@@ -638,7 +636,9 @@ function ClosingSlide() {
       <h1 className="text-5xl font-bold tracking-wide text-white sm:text-6xl">Galeon</h1>
 
       <p className="mt-8 text-xl text-cyan-100/90">
-        Privacy when you receive. Privacy when you send. Compliance when you need it.
+        Privacy when you receive. Privacy when you send.
+        <br />
+        Compliance when you need it.
       </p>
 
       <p className="mt-6 text-2xl font-medium text-cyan-400">Your money, your business.</p>
