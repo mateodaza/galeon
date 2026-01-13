@@ -34,6 +34,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
 import {
   merkleLeavesApi,
@@ -926,12 +927,21 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                     </span>
                   </div>
                   <span className="text-muted-foreground/50">·</span>
-                  <span>
-                    <span className="text-foreground font-medium">
-                      {privacyHealth.anonymitySetSize}
-                    </span>{' '}
-                    deposits
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help">
+                        <span className="text-foreground font-medium">
+                          {privacyHealth.anonymitySetSize}
+                        </span>{' '}
+                        <span className="underline decoration-dotted underline-offset-2">
+                          deposits
+                        </span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[250px]">
+                      <p>Anonymity set size. More deposits = harder to trace your withdrawal.</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <span className="text-muted-foreground/50">·</span>
                   <span>
                     <span className="text-foreground font-medium">

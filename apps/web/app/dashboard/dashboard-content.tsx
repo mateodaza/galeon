@@ -21,6 +21,7 @@ import * as m from 'motion/react-m'
 import { useReducedMotion } from 'motion/react'
 import { formatUnits } from 'viem'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePorts } from '@/hooks/use-ports'
 import { usePoolContext } from '@/contexts/pool-context'
 import { useCollection } from '@/hooks/use-collection'
@@ -31,12 +32,28 @@ export default function DashboardContent() {
   const { ports, isLoading } = usePorts({ enablePolling: true, pollingInterval: 15_000 })
   const { totalBalance: poolBalance, hasPoolKeys } = usePoolContext()
   const {
-    totalBalanceFormatted: collectableBalanceFormatted,
     payments: collectablePayments,
     isScanning,
     hasKeys,
     scan,
+    hasPoolKeys: hasCollectionPoolKeys,
+    calculatePoolDepositStats,
   } = useCollection()
+
+  // Calculate available amount (after gas) for dashboard display
+  const collectableBalanceFormatted = useMemo(() => {
+    if (collectablePayments.length === 0) return '0'
+    const stats = calculatePoolDepositStats(collectablePayments)
+    // If has pool keys, show the max depositable amount (after gas)
+    // Otherwise show raw balance
+    if (hasCollectionPoolKeys) {
+      return stats.totalMaxDepositFormatted
+    }
+    // Fallback to raw sum for users without pool keys
+    return stats.paymentsCanDeposit > 0
+      ? stats.totalMaxDepositFormatted
+      : collectablePayments.reduce((sum, p) => sum + parseFloat(p.balanceFormatted), 0).toFixed(4)
+  }, [collectablePayments, calculatePoolDepositStats, hasCollectionPoolKeys])
 
   // Recent receipts state
   const [recentReceipts, setRecentReceipts] = useState<ReceiptResponse[]>([])
@@ -161,6 +178,7 @@ export default function DashboardContent() {
               ? 'Available to send privately'
               : `${stats.activePorts} active port${stats.activePorts !== 1 ? 's' : ''}`
           }
+          tooltip="Shared pool where deposits mix together. Withdrawals use ZK proofs to hide the link between deposit and recipient."
         />
         <StatCard
           label="Available to Collect"
@@ -380,11 +398,34 @@ export default function DashboardContent() {
   )
 }
 
-function StatCard({ label, value, subtitle }: { label: string; value: string; subtitle: string }) {
+function StatCard({
+  label,
+  value,
+  subtitle,
+  tooltip,
+}: {
+  label: string
+  value: string
+  subtitle: string
+  tooltip?: string
+}) {
   return (
     <Card variant="glass">
       <CardContent className="p-5">
-        <p className="text-muted-foreground text-sm">{label}</p>
+        {tooltip ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="text-muted-foreground w-fit cursor-help text-sm underline decoration-dotted underline-offset-2">
+                {label}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[250px]">
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <p className="text-muted-foreground text-sm">{label}</p>
+        )}
         <p className="text-foreground mt-1 text-2xl font-bold">{value}</p>
         <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
       </CardContent>

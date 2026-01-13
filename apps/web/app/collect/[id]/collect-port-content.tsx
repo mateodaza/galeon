@@ -6,7 +6,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { isAddress, formatEther } from 'viem'
 import {
@@ -29,6 +29,7 @@ import { getTxExplorerUrl } from '@/lib/chains'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCollection, type CollectablePayment } from '@/hooks/use-collection'
 
 /**
@@ -230,6 +231,12 @@ export default function CollectPortContent() {
     )
   }
 
+  // Manual rescan function
+  const handleRescan = useCallback(() => {
+    hasScanned.current = false
+    scan()
+  }, [scan])
+
   return (
     <AppShell requireAuth requireKeys>
       {/* Header */}
@@ -247,6 +254,20 @@ export default function CollectPortContent() {
           <h1 className="text-foreground text-lg font-bold">{portLabel}</h1>
           <p className="text-muted-foreground text-xs">Collect from this Port</p>
         </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={handleRescan}
+              disabled={isScanning}
+              className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isScanning ? 'animate-spin' : ''}`} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Refresh balances from chain</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Scan error */}
@@ -282,9 +303,11 @@ export default function CollectPortContent() {
                 <div className="bg-muted/50 flex-1 rounded-lg p-3">
                   <p className="text-muted-foreground flex items-center gap-1 text-xs">
                     <Wallet className="h-3 w-3" />
-                    Balance
+                    Available
                   </p>
-                  <p className="text-foreground text-lg font-bold">{totalBalanceFormatted} MNT</p>
+                  <p className="text-foreground text-lg font-bold">
+                    {hasPoolKeys ? maxForPool.toFixed(4) : totalBalanceFormatted} MNT
+                  </p>
                 </div>
                 {hasPoolKeys && (
                   <div className="flex-1 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
@@ -626,25 +649,37 @@ function PaymentCard({
     <div className="even:bg-muted/50 flex items-center gap-2 px-3 py-2 text-xs">
       {/* Address with receipt link or explorer link */}
       {receiptId ? (
-        <Link
-          href={`/receipt/${receiptId}`}
-          className="text-primary hover:bg-primary/10 flex items-center gap-1.5 rounded px-1.5 py-0.5 font-mono transition-colors"
-          title="View shareable receipt"
-        >
-          <CheckCircle className="h-3 w-3" />
-          {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/receipt/${receiptId}`}
+              className="text-primary hover:bg-primary/10 flex items-center gap-1.5 rounded px-1.5 py-0.5 font-mono transition-colors"
+            >
+              <CheckCircle className="h-3 w-3" />
+              {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px]">
+            <p>Has shareable receipt. Click to view payment proof.</p>
+          </TooltipContent>
+        </Tooltip>
       ) : (
-        <a
-          href={getTxExplorerUrl(payment.txHash)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-primary flex items-center gap-1.5 font-mono transition-colors"
-          title="View on explorer"
-        >
-          <ExternalLink className="h-3 w-3" />
-          {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
-        </a>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href={getTxExplorerUrl(payment.txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary flex items-center gap-1.5 font-mono transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {payment.stealthAddress.slice(0, 6)}...{payment.stealthAddress.slice(-4)}
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px]">
+            <p>No receipt yet. Click to view transaction on block explorer.</p>
+          </TooltipContent>
+        </Tooltip>
       )}
       <span className="text-muted-foreground">#{payment.blockNumber.toString()}</span>
       <span className="flex-1" />

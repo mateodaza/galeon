@@ -8,7 +8,7 @@ interface PageHeaderProps {
   /**
    * Optional description below the title.
    */
-  description?: string
+  description?: React.ReactNode
   /**
    * Action buttons or controls to display on the right.
    */

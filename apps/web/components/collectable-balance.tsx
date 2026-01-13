@@ -7,27 +7,15 @@
  * during SSR/build which causes BigInt errors.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { Anchor, RefreshCw } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import { formatUnits } from 'viem'
 import { cn } from '@/lib/utils'
 import { useSignIn } from '@/hooks/use-sign-in'
 import { useCollection } from '@/hooks/use-collection'
 
 interface CollectableBalanceProps {
   dividerClassName?: string
-}
-
-function formatBalance(value: bigint | undefined, decimals: number = 18): string {
-  if (!value) return '0'
-  const formatted = formatUnits(value, decimals)
-  const num = parseFloat(formatted)
-  if (num === 0) return '0'
-  if (num < 0.001) return '<0.001'
-  if (num < 1) return num.toFixed(3)
-  if (num < 100) return num.toFixed(2)
-  return num.toFixed(1)
 }
 
 /**
@@ -38,9 +26,11 @@ export function CollectableBalance({ dividerClassName = 'bg-white/20' }: Collect
   const { address, chainId } = useAccount()
   const { isAuthenticated } = useSignIn()
   const {
-    totalBalance: collectableBalance,
+    payments,
     isScanning,
     hasKeys: hasCollectionKeys,
+    hasPoolKeys,
+    calculatePoolDepositStats,
     scan,
   } = useCollection()
 
@@ -69,9 +59,21 @@ export function CollectableBalance({ dividerClassName = 'bg-white/20' }: Collect
     }
   }, [hasCollectionKeys, isScanning, scan])
 
-  // Format collectable balance (from blockchain scan)
-  const portBalanceFormatted =
-    isAuthenticated && collectableBalance > 0n ? formatBalance(collectableBalance, 18) : null
+  // Calculate available amount (after gas) for navbar display
+  const portBalanceFormatted = useMemo(() => {
+    if (!isAuthenticated || payments.length === 0) return null
+    const stats = calculatePoolDepositStats(payments)
+    // If has pool keys, show the max depositable amount (after gas)
+    if (hasPoolKeys) {
+      const amount = parseFloat(stats.totalMaxDepositFormatted)
+      if (amount === 0) return null
+      return stats.totalMaxDepositFormatted
+    }
+    // Fallback to raw sum for users without pool keys
+    const rawTotal = payments.reduce((sum, p) => sum + parseFloat(p.balanceFormatted), 0)
+    if (rawTotal === 0) return null
+    return rawTotal.toFixed(3)
+  }, [isAuthenticated, payments, calculatePoolDepositStats, hasPoolKeys])
 
   // Only show if authenticated and has balance or is scanning
   if (!isAuthenticated || (!portBalanceFormatted && !isScanning)) {

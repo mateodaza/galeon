@@ -114,8 +114,13 @@ export function useCreatePort() {
   const { address, chainId } = useAccount()
   const publicClient = usePublicClient()
   const { masterSignature } = useStealthContext()
-  const { invalidate } = usePorts()
   const queryClient = useQueryClient()
+
+  // Invalidate ports query directly instead of using usePorts hook
+  // Using usePorts here would create an unnecessary query subscription
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['ports'] })
+  }, [queryClient])
 
   const [isPending, setIsPending] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)

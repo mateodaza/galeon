@@ -17,6 +17,7 @@ import * as m from 'motion/react-m'
 import { useReducedMotion } from 'motion/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { Port } from '@/hooks/use-ports'
 
@@ -82,15 +83,27 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
       tabIndex={onClick ? 0 : undefined}
     >
       <Card className={cn(onClick && 'cursor-pointer')}>
-        <CardContent className="pt-6">
+        <CardContent className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
-              <h3 className="text-foreground truncate text-lg font-semibold">{port.name}</h3>
-              <p className="text-muted-foreground mt-1 font-mono text-xs">
-                {port.portId
-                  ? `${port.portId.slice(0, 10)}...${port.portId.slice(-8)}`
-                  : `${port.id.slice(0, 8)}...`}
+              <h3 className="text-foreground truncate text-base font-semibold">{port.name}</h3>
+              <p className="text-muted-foreground mt-0.5 font-mono text-xs">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted underline-offset-2">
+                      {port.portId
+                        ? `${port.portId.slice(0, 10)}...${port.portId.slice(-8)}`
+                        : `${port.id.slice(0, 8)}...`}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[250px]">
+                    <p>
+                      On-chain identifier for this payment link. Used in payment URLs and to derive
+                      your stealth keys.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </p>
             </div>
             <div className="ml-2 flex items-center gap-2">
@@ -110,7 +123,7 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
           </div>
 
           {/* Stealth meta-address (collapsible) */}
-          <div className="mt-4">
+          <div className="mt-3">
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -125,11 +138,27 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
               ) : (
                 <ChevronDown className="h-3 w-3" aria-hidden="true" />
               )}
-              {showMeta ? 'Hide' : 'Show'} stealth address
+              {showMeta ? 'Hide' : 'Show'}{' '}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">
+                    stealth address
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[280px]">
+                  <p>
+                    Cryptographic address payers use to generate unique one-time addresses that only
+                    you can detect and spend.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             </button>
 
             {showMeta && (
-              <m.div {...expandAnimation} className="bg-muted mt-2 overflow-hidden rounded-lg p-3">
+              <m.div
+                {...expandAnimation}
+                className="bg-muted mt-2 overflow-hidden rounded-lg p-2.5"
+              >
                 <p className="text-muted-foreground break-all font-mono text-xs leading-relaxed">
                   {port.stealthMetaAddress}
                 </p>
@@ -138,7 +167,7 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
                     e.stopPropagation()
                     copyMetaAddress()
                   }}
-                  className="text-primary hover:text-primary/80 mt-2 inline-flex items-center gap-1 text-xs transition-colors"
+                  className="text-primary hover:text-primary/80 mt-1.5 inline-flex items-center gap-1 text-xs transition-colors"
                   aria-label={
                     copied === 'address' ? 'Copied stealth address' : 'Copy stealth meta-address'
                   }
@@ -161,7 +190,7 @@ export function PortCard({ port, showPaymentLink = true, onClick, className }: P
 
           {/* Actions */}
           {canShowPaymentLink && (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <Button
                 variant="secondary"
                 className="flex-1"

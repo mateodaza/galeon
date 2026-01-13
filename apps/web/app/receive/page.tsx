@@ -75,26 +75,42 @@ export default function ReceivePage() {
       )}
 
       {/* Ports list */}
-      {!isLoading && !error && ports.length === 0 ? (
-        <Card className="py-16">
-          <CardContent className="flex flex-col items-center justify-center">
-            <Ship className="text-muted-foreground/50 h-16 w-16" />
-            <h2 className="text-foreground mt-4 text-xl font-semibold">No payment links yet</h2>
-            <p className="text-muted-foreground mt-2">
-              Create your first payment link to start receiving private payments
-            </p>
-            <Button onClick={() => setShowCreateModal(true)} className="mt-6">
-              Create Your First Payment Link
-            </Button>
-          </CardContent>
-        </Card>
-      ) : !isLoading && !error ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ports.map((port) => (
-            <PortCard key={port.id} port={port} />
-          ))}
-        </div>
-      ) : null}
+      {(() => {
+        // Filter out incomplete ports (no keys or no tx sent yet)
+        // Only show ports that have stealthMetaAddress AND (confirmed OR txHash exists)
+        const visiblePorts = ports.filter(
+          (port) => port.stealthMetaAddress && (port.status === 'confirmed' || port.txHash)
+        )
+
+        if (!isLoading && !error && visiblePorts.length === 0) {
+          return (
+            <Card className="py-16">
+              <CardContent className="flex flex-col items-center justify-center">
+                <Ship className="text-muted-foreground/50 h-16 w-16" />
+                <h2 className="text-foreground mt-4 text-xl font-semibold">No payment links yet</h2>
+                <p className="text-muted-foreground mt-2">
+                  Create your first payment link to start receiving private payments
+                </p>
+                <Button onClick={() => setShowCreateModal(true)} className="mt-6">
+                  Create Your First Payment Link
+                </Button>
+              </CardContent>
+            </Card>
+          )
+        }
+
+        if (!isLoading && !error) {
+          return (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visiblePorts.map((port) => (
+                <PortCard key={port.id} port={port} />
+              ))}
+            </div>
+          )
+        }
+
+        return null
+      })()}
 
       {/* Create Port Modal */}
       <CreatePortModal
@@ -121,6 +137,14 @@ function CreatePortModal({
   const [name, setName] = useState('')
   const { createPort, isPending, isConfirming, isSuccess, error, reset } = useCreatePort()
 
+  // Reset state when modal opens to clear previous success/error state
+  useEffect(() => {
+    if (open) {
+      reset()
+      setName('')
+    }
+  }, [open, reset])
+
   const handleCreate = async () => {
     if (!name.trim()) return
 
@@ -133,11 +157,10 @@ function CreatePortModal({
 
   // Close modal on success
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && open) {
       onSuccess()
-      setName('')
     }
-  }, [isSuccess, onSuccess])
+  }, [isSuccess, open, onSuccess])
 
   const handleClose = () => {
     reset()

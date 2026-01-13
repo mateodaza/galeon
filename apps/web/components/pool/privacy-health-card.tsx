@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { Shield, AlertTriangle, CheckCircle2, Info, RefreshCw } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useChainId } from 'wagmi'
 import { healthApi, type PoolPrivacyHealth, type PrivacyStrength } from '@/lib/api'
 import { getPoolContracts, DEFAULT_CHAIN_ID, type SupportedChainId } from '@/lib/contracts'
@@ -117,10 +118,19 @@ export function PrivacyHealthCard() {
 
       {/* Compact metrics */}
       <div className="text-muted-foreground flex items-center gap-3">
-        <span>
-          <span className="text-foreground font-mono font-medium">{health.anonymitySetSize}</span>{' '}
-          deposits
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-help">
+              <span className="text-foreground font-mono font-medium">
+                {health.anonymitySetSize}
+              </span>{' '}
+              <span className="underline decoration-dotted underline-offset-2">deposits</span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[250px]">
+            <p>Anonymity set size. More deposits = harder to trace your withdrawal.</p>
+          </TooltipContent>
+        </Tooltip>
         <span className="text-muted-foreground/50">·</span>
         <span>
           <span className="text-foreground font-mono font-medium">{health.uniqueDepositors}</span>{' '}

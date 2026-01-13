@@ -13,6 +13,7 @@ import { usePoolContext } from '@/contexts/pool-context'
 import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { WithdrawModal } from '@/components/pool/withdraw-modal'
 import { PrivacyHealthCard } from '@/components/pool/privacy-health-card'
 
@@ -107,7 +108,19 @@ export default function PoolContent() {
         <CardContent className="p-5">
           <div className="flex items-center gap-2">
             <Settings className="text-muted-foreground h-5 w-5" />
-            <h2 className="text-foreground font-semibold">Pool Keys</h2>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h2 className="text-foreground cursor-help font-semibold underline decoration-dotted underline-offset-2">
+                  Pool Keys
+                </h2>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px]">
+                <p>
+                  Keys that let you prove ownership of deposits and generate ZK proofs for private
+                  withdrawals.
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           {hasPoolKeys ? (
             <div className="mt-4 flex items-center justify-between">

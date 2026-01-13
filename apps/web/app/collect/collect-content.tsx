@@ -20,6 +20,7 @@ import {
 import { AppShell, PageHeader } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCollection, type CollectablePayment } from '@/hooks/use-collection'
 
 /**
@@ -40,13 +41,13 @@ interface PortGroup {
   payments: CollectablePayment[]
   totalBalance: bigint
   totalVerifiedBalance: bigint
+  availableAmount: string // Amount available after gas deduction
 }
 
 export default function CollectContent() {
   const {
     payments,
     dustPayments,
-    totalBalanceFormatted,
     totalVerifiedBalanceFormatted,
     totalDustBalanceFormatted,
     minimumCollectableFormatted,
@@ -54,11 +55,13 @@ export default function CollectContent() {
     scanError,
     scan,
     hasKeys,
+    hasPoolKeys,
+    calculatePoolDepositStats,
   } = useCollection()
 
   // Group payments by port
   const portGroups = useMemo(() => {
-    const groups = new Map<string, PortGroup>()
+    const groups = new Map<string, Omit<PortGroup, 'availableAmount'>>()
 
     for (const payment of payments) {
       const existing = groups.get(payment.portId)
@@ -77,8 +80,22 @@ export default function CollectContent() {
       }
     }
 
-    return Array.from(groups.values()).sort((a, b) => (b.totalBalance > a.totalBalance ? 1 : -1))
-  }, [payments])
+    // Calculate available amount for each group (after gas deduction)
+    const groupsWithAvailable: PortGroup[] = Array.from(groups.values()).map((group) => {
+      const stats = calculatePoolDepositStats(group.payments)
+      const availableAmount = hasPoolKeys
+        ? stats.totalMaxDepositFormatted
+        : formatMnt(group.totalBalance)
+      return { ...group, availableAmount }
+    })
+
+    return groupsWithAvailable.sort((a, b) => (b.totalBalance > a.totalBalance ? 1 : -1))
+  }, [payments, calculatePoolDepositStats, hasPoolKeys])
+
+  // Calculate total available across all ports
+  const totalAvailable = useMemo(() => {
+    return portGroups.reduce((sum, group) => sum + parseFloat(group.availableAmount || '0'), 0)
+  }, [portGroups])
 
   const [isDustExpanded, setIsDustExpanded] = useState(false)
   const hasScanned = useRef(false)
@@ -104,7 +121,24 @@ export default function CollectContent() {
     <AppShell>
       <PageHeader
         title="Collect Payments"
-        description="Sweep funds from your stealth addresses"
+        description={
+          <span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help underline decoration-dotted underline-offset-2">
+                  Sweep
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px]">
+                <p>
+                  Transfer funds from your one-time stealth addresses to your wallet or deposit
+                  directly to the privacy pool.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            {' funds from your stealth addresses'}
+          </span>
+        }
         actions={
           hasKeys && !isScanning && payments.length > 0 ? (
             <Button variant="outline" size="sm" onClick={scan}>
@@ -171,8 +205,8 @@ export default function CollectContent() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-muted-foreground text-sm">Total Balance</p>
-                  <p className="text-2xl font-bold">{totalBalanceFormatted}</p>
+                  <p className="text-muted-foreground text-sm">Available</p>
+                  <p className="text-2xl font-bold">{totalAvailable.toFixed(4)}</p>
                   <p className="text-muted-foreground text-xs">MNT</p>
                 </CardContent>
               </Card>
@@ -222,7 +256,7 @@ export default function CollectContent() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="font-medium">{formatMnt(group.totalBalance)} MNT</p>
+                          <p className="font-medium">{group.availableAmount} MNT</p>
                           <p className="text-muted-foreground text-xs">
                             {formatMnt(group.totalVerifiedBalance)} pool-eligible
                           </p>
