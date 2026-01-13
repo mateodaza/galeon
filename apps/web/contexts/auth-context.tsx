@@ -80,7 +80,7 @@ function buildSiweMessage(params: {
   return `${SIWE_DOMAIN} wants you to sign in with your Ethereum account:
 ${address}
 
-Sign in to Galeon. I understand Galeon stores my viewing keys (encrypted) to detect incoming payments and operates the ASP for pool withdrawals.
+Sign in to Galeon. I understand my viewing and spending keys are derived from this signature during the session. Galeon stores encrypted viewing keys server-side to detect incoming payments and can link them to my ports. Galeon operates the ASP for pool compliance. Pool withdrawals use ZK proofs - Galeon cannot see withdrawal destinations or link them to deposits. By signing, I accept the Galeon Covenant: galeon.finance/covenant
 
 URI: ${SIWE_URI}
 Version: 1

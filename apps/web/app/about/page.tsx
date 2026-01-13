@@ -318,7 +318,14 @@ export default function AboutPage() {
                   </a>
                   : measure success by{' '}
                   <strong className="text-white">trust reduced per transaction</strong>. We&apos;re
-                  progressively eliminating each trust assumption as we mature.
+                  progressively eliminating each trust assumption as we mature. Read our{' '}
+                  <Link
+                    href="/covenant"
+                    className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
+                  >
+                    Covenant
+                  </Link>{' '}
+                  for our full public commitment.
                 </p>
 
                 <div
@@ -403,6 +410,10 @@ export default function AboutPage() {
           <span className="mx-2">·</span>
           <Link href="/roadmap" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
             Roadmap
+          </Link>
+          <span className="mx-2">·</span>
+          <Link href="/covenant" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Covenant
           </Link>
           <span className="mx-2">·</span>
           Built for Mantle Global Hackathon 2025

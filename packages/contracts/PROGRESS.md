@@ -108,17 +108,63 @@ Explorer links:
 
 ### Privacy Pool Deployment (Mantle Mainnet - Current)
 
-| Contract                 | Address                                      | Type       |
-| ------------------------ | -------------------------------------------- | ---------- |
-| PoseidonT3               | `0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954` | Library    |
-| PoseidonT4               | `0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892` | Library    |
-| GaleonEntrypoint (proxy) | `0x8633518fbbf23E78586F1456530c3452885efb21` | UUPS Proxy |
-| GaleonPrivacyPoolSimple  | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` | UUPS Proxy |
-| WithdrawalVerifier       | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` | Verifier   |
-| RagequitVerifier         | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` | Verifier   |
-| MergeDepositVerifier     | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` | Verifier   |
+> **Last updated:** 2026-01-13
+> **Source of truth:** `packages/config/src/contracts.ts`
 
-**Source of truth:** `packages/config/src/contracts.ts`
+#### Core Contracts
+
+| Contract                 | Address                                      | Type       | Verified |
+| ------------------------ | -------------------------------------------- | ---------- | -------- |
+| GaleonEntrypoint (proxy) | `0x8633518fbbf23E78586F1456530c3452885efb21` | UUPS Proxy | ✓        |
+| GaleonPrivacyPoolSimple  | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` | UUPS Proxy | ✓        |
+
+Explorer links:
+
+- [GaleonEntrypoint](https://mantlescan.xyz/address/0x8633518fbbf23E78586F1456530c3452885efb21#code)
+- [GaleonPrivacyPoolSimple](https://mantlescan.xyz/address/0xE271335D1FCa02b6c219B9944f0a4921aFD559C0#code)
+
+#### Verifier Contracts (ZK Circuits)
+
+| Contract             | Address                                      | Circuit      | Verified |
+| -------------------- | -------------------------------------------- | ------------ | -------- |
+| WithdrawalVerifier   | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` | withdrawal   | ✓        |
+| RagequitVerifier     | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` | ragequit     | ✓        |
+| MergeDepositVerifier | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` | mergeDeposit | ✓        |
+
+Explorer links:
+
+- [WithdrawalVerifier](https://mantlescan.xyz/address/0x4894F811D370d987B55bE4e5eeA48588d6545a32#code)
+- [RagequitVerifier](https://mantlescan.xyz/address/0xAE1126645a26bC30B9A29D9c216e8F6B51B82803#code)
+- [MergeDepositVerifier](https://mantlescan.xyz/address/0x05DB69e37b8c7509E9d97826249385682CE9b29d#code)
+
+#### Libraries (Poseidon Hash)
+
+| Contract   | Address                                      | Verified |
+| ---------- | -------------------------------------------- | -------- |
+| PoseidonT3 | `0x462Ae54A52bF9219F7E85C7C87C520B14E5Ac954` | ✓        |
+| PoseidonT4 | `0x5805333A7E0A617cBeBb49D1D50aB0716b3dF892` | ✓        |
+
+#### Pool Configuration
+
+| Parameter     | Value                                         |
+| ------------- | --------------------------------------------- |
+| Asset         | Native MNT (0x0000...0000)                    |
+| Min Deposit   | 0.01 MNT                                      |
+| Vetting Fee   | 0 BPS                                         |
+| Max Relay Fee | 500 BPS (5%)                                  |
+| Tree Depth    | 32                                            |
+| Owner         | Deployer EOA (hackathon - should be multisig) |
+
+#### On-Chain State
+
+| State                    | Status                   |
+| ------------------------ | ------------------------ |
+| Pool registered          | ✓                        |
+| Pool authorized          | ✓                        |
+| ASP root set             | ✓                        |
+| MergeDepositVerifier set | ✓                        |
+| Relayer service          | ✓ Running                |
+| ASP auto-approve         | ✓ Running (30s interval) |
 
 ---
 

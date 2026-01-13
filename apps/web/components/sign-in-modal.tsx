@@ -43,7 +43,7 @@ const steps: StepConfig[] = [
   {
     id: 'siwe',
     title: 'Verify Ownership',
-    description: 'Sign to create a secure 7-day session',
+    description: 'Sign to accept the Covenant and create a 7-day session',
     icon: <Shield className="h-5 w-5" />,
   },
   {
@@ -431,6 +431,20 @@ export function SignInModal({ open, onOpenChange, onComplete }: SignInModalProps
               </Button>
 
               {/* Help text */}
+              {currentStep === 'siwe' && !stepError && (
+                <p className="text-muted-foreground mt-4 text-xs">
+                  Read our{' '}
+                  <a
+                    href="/covenant"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:opacity-80"
+                  >
+                    Covenant
+                  </a>{' '}
+                  to understand what you&apos;re accepting.
+                </p>
+              )}
               {currentStep === 'keys' && !stepError && (
                 <p className="text-muted-foreground mt-4 text-xs">
                   Your keys are stored locally and never leave your device.

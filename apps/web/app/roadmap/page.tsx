@@ -262,7 +262,7 @@ export default function RoadmapPage() {
                   asChild
                   className="border border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
-                  <Link href="/about">Read Our Story</Link>
+                  <Link href="/covenant">Our Covenant</Link>
                 </Button>
               </div>
             </section>
@@ -277,6 +277,10 @@ export default function RoadmapPage() {
           <span className="mx-2">·</span>
           <Link href="/about" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
             About
+          </Link>
+          <span className="mx-2">·</span>
+          <Link href="/covenant" className="text-cyan-100/70 transition-colors hover:text-cyan-300">
+            Covenant
           </Link>
           <span className="mx-2">·</span>
           Built for Mantle Global Hackathon 2025
