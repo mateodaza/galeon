@@ -259,8 +259,10 @@ export default class ReceiptsController {
 
   /**
    * POST /receipts/recalculate-totals
-   * Force recalculate port totals from receipts
-   * Call this if totals are out of sync
+   * Force recalculate port totals from receipts.
+   * Only counts confirmed receipts as received, collected receipts as collected.
+   * Does NOT auto-mark receipts - use markCollected for that.
+   * Call this if totals are out of sync.
    */
   async recalculateTotals({ auth, response }: HttpContext) {
     const user = auth.user!
@@ -269,18 +271,28 @@ export default class ReceiptsController {
     const ports = await Port.query().where('userId', user.id)
 
     let updatedPorts = 0
+
     for (const port of ports) {
-      // Get all receipts for this port
+      // Get all receipts for this port (exclude 0-value ghost registrations)
       const receipts = await Receipt.query()
         .where('portId', port.id)
         .whereIn('status', ['confirmed', 'collected'])
+        .whereNotNull('amount')
+        .whereNot('amount', '0')
 
       let totalReceived = BigInt(0)
       let totalCollected = BigInt(0)
 
+      console.log(
+        `[recalculateTotals] Port ${port.name} (${port.id}): found ${receipts.length} receipts`
+      )
       for (const receipt of receipts) {
         const amount = BigInt(receipt.amount ?? '0')
         totalReceived += amount
+
+        // Only count as collected if status is 'collected'
+        // Don't auto-mark confirmed as collected - that should only happen
+        // when the user actually collects/sweeps the funds
         if (receipt.status === 'collected') {
           totalCollected += amount
         }
@@ -304,7 +316,7 @@ export default class ReceiptsController {
     }
 
     return response.ok({
-      message: 'Port totals recalculated',
+      message: 'Port totals recalculated from receipts',
       portsChecked: ports.length,
       portsUpdated: updatedPorts,
     })

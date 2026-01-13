@@ -374,6 +374,33 @@ export const portsApi = {
     return api.get<PortsListResponse>(`/api/v1/ports${queryString ? `?${queryString}` : ''}`)
   },
 
+  /**
+   * Fetch ALL ports across all pages.
+   * Handles pagination automatically to ensure no ports are missed.
+   */
+  listAll: async (params?: { includeArchived?: boolean }): Promise<PortResponse[]> => {
+    const allPorts: PortResponse[] = []
+    let page = 1
+    const limit = 100
+
+    while (true) {
+      const response = await portsApi.list({
+        page,
+        limit,
+        includeArchived: params?.includeArchived,
+      })
+      allPorts.push(...response.data)
+
+      // Stop if we've fetched all pages
+      if (page >= response.meta.lastPage) {
+        break
+      }
+      page++
+    }
+
+    return allPorts
+  },
+
   get: (id: string) => api.get<PortResponse>(`/api/v1/ports/${id}`),
 
   create: (data: CreatePortRequest) => api.post<PortResponse>('/api/v1/ports', data),
@@ -418,6 +445,12 @@ export interface MarkCollectedResponse {
   updated: number
 }
 
+export interface RecalculateTotalsResponse {
+  message: string
+  portsChecked: number
+  portsUpdated: number
+}
+
 export const receiptsApi = {
   /**
    * Mark receipts as collected after pool deposit or wallet collect.
@@ -425,6 +458,14 @@ export const receiptsApi = {
    */
   markCollected: async (stealthAddresses: string[]): Promise<MarkCollectedResponse> => {
     return api.post<MarkCollectedResponse>('/api/v1/receipts/mark-collected', { stealthAddresses })
+  },
+
+  /**
+   * Force recalculate port totals from receipts.
+   * Call this if totals are out of sync.
+   */
+  recalculateTotals: async (): Promise<RecalculateTotalsResponse> => {
+    return api.post<RecalculateTotalsResponse>('/api/v1/receipts/recalculate-totals', {})
   },
 }
 

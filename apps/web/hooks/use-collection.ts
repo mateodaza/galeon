@@ -202,14 +202,20 @@ export function useCollection() {
       })
       console.log('[scan] Fetched', apiAnnouncements.length, 'announcements from API')
 
-      // Fetch user's Ports to get Port-specific keys
-      const portsResponse = await portsApi.list({ limit: 100 })
-      const userPorts = portsResponse.data
+      // Fetch ALL user's Ports to get Port-specific keys
+      // Include archived ports so we can scan for payments on all ports
+      // Use listAll to handle pagination - ensures no ports are missed even with >100 ports
+      const userPorts = await portsApi.listAll({ includeArchived: true })
       console.log(
         '[scan] Found',
         userPorts.length,
         'ports for user:',
-        userPorts.map((p) => ({ id: p.id, name: p.name }))
+        userPorts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          indexerPortId: p.indexerPortId,
+          hasStealthMeta: !!p.stealthMetaAddress,
+        }))
       )
 
       // Convert API response to Announcement format for scanning
@@ -253,7 +259,26 @@ export function useCollection() {
           )
           continue
         }
-        const portIndex = uuidToPortIndex(port.indexerPortId)
+
+        // CRITICAL: Normalize indexerPortId to lowercase hex for consistent key derivation
+        // The on-chain portId is always lowercase from keccak256, but database may store it differently
+        const normalizedPortId = port.indexerPortId.toLowerCase()
+
+        // Debug: Show the raw bytes that uuidToPortIndex will hash
+        const rawBytesHex = Array.from(stringToBytes(normalizedPortId))
+          .slice(0, 10)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join(' ')
+
+        console.log('[scan] Port', port.name, 'indexerPortId:', {
+          raw: port.indexerPortId,
+          normalized: normalizedPortId,
+          sameCase: port.indexerPortId === normalizedPortId,
+          first10Bytes: rawBytesHex,
+          length: port.indexerPortId.length,
+        })
+
+        const portIndex = uuidToPortIndex(normalizedPortId)
         const portKeys = derivePortKeys(masterSignature, portIndex)
 
         // CRITICAL: Verify derived keys match the on-chain stealth meta-address
@@ -266,19 +291,66 @@ export function useCollection() {
         const keysMatch =
           port.stealthMetaAddress?.toLowerCase() === derivedStealthMeta.toLowerCase()
 
+        console.log('[scan] Port', port.name, 'key verification:', {
+          portIndex,
+          indexerPortId: port.indexerPortId,
+          normalizedPortId,
+          onChainMeta: port.stealthMetaAddress?.slice(0, 50) + '...',
+          derivedMeta: derivedStealthMeta.slice(0, 50) + '...',
+          keysMatch,
+        })
+
+        // If keys don't match, try fallback: derive from backend UUID (legacy ports)
+        let finalPortKeys = portKeys
+        let usedFallback = false
+
         if (!keysMatch) {
-          // SKIP ports with mismatched keys - they were created with old key derivation
-          // User needs to create a new port with the updated system
-          // Silent skip - these are legacy ports that can't be recovered
-          continue
+          // Try legacy key derivation using backend UUID
+          console.log('[scan] Trying legacy key derivation for port', port.name)
+          const legacyPortIndex = uuidToPortIndex(port.id)
+          const legacyKeys = derivePortKeys(masterSignature, legacyPortIndex)
+          const legacyMeta = formatStealthMetaAddress(
+            legacyKeys.spendingPublicKey,
+            legacyKeys.viewingPublicKey,
+            'mnt'
+          )
+          const legacyMatch = port.stealthMetaAddress?.toLowerCase() === legacyMeta.toLowerCase()
+
+          console.log('[scan] Port', port.name, 'legacy key verification:', {
+            legacyPortIndex,
+            backendUUID: port.id,
+            storedMeta: port.stealthMetaAddress?.slice(0, 50) + '...',
+            legacyMeta: legacyMeta.slice(0, 50) + '...',
+            legacyMatch,
+          })
+
+          if (legacyMatch) {
+            console.log('[scan] Legacy keys matched for port', port.name, '✓')
+            finalPortKeys = legacyKeys
+            usedFallback = true
+          } else {
+            // Neither new nor legacy keys match - skip this port
+            console.warn('[scan] Skipping port', port.name, '- neither new nor legacy keys match')
+            console.warn(
+              '[scan] This port may have been created with a different wallet or is corrupted'
+            )
+            console.warn('[scan] Stored stealth meta:', port.stealthMetaAddress)
+            console.warn('[scan] Derived from indexerPortId:', derivedStealthMeta)
+            console.warn('[scan] Derived from backend UUID:', legacyMeta)
+            continue
+          }
         }
 
-        console.log('[scan] Scanning port:', port.name, '✓ keys verified')
+        console.log(
+          '[scan] Scanning port:',
+          port.name,
+          usedFallback ? '✓ (legacy keys)' : '✓ keys verified'
+        )
 
         const portPayments = scanAnnouncements(
           announcements,
-          portKeys.spendingPrivateKey,
-          portKeys.viewingPrivateKey
+          finalPortKeys.spendingPrivateKey,
+          finalPortKeys.viewingPrivateKey
         )
         console.log('[scan] Port', port.name, 'found', portPayments.length, 'payments')
         // Add port info to each payment

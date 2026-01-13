@@ -81,12 +81,22 @@ export function usePorts(options?: { enablePolling?: boolean; pollingInterval?: 
     queryClient.invalidateQueries({ queryKey: ['ports'] })
   }, [queryClient])
 
+  // Force recalculate port totals from receipts (fixes out-of-sync totals)
+  const recalculateTotals = useCallback(async () => {
+    const { receiptsApi } = await import('@/lib/api')
+    const result = await receiptsApi.recalculateTotals()
+    // Refetch ports to get updated totals
+    await refetch()
+    return result
+  }, [refetch])
+
   return {
     ports: portsData ?? [],
     isLoading,
     error,
     refetch,
     invalidate,
+    recalculateTotals,
   }
 }
 
@@ -162,8 +172,17 @@ export function useCreatePort() {
       const random = crypto.getRandomValues(new Uint8Array(16))
       const onChainPortId = keccak256(encodePacked(['string', 'bytes'], [name, toHex(random)]))
 
+      // CRITICAL: Always use lowercase for consistent key derivation
+      // keccak256 from viem already returns lowercase, but we normalize to be safe
+      const normalizedPortId = onChainPortId.toLowerCase() as `0x${string}`
+      console.log('[createPort] Generated portId:', {
+        raw: onChainPortId,
+        normalized: normalizedPortId,
+        sameCase: onChainPortId === normalizedPortId,
+      })
+
       // Step 2: Derive keys using on-chain portId (NOT backend UUID)
-      const portIndex = uuidToPortIndex(onChainPortId)
+      const portIndex = uuidToPortIndex(normalizedPortId)
       const portKeys = derivePortKeys(masterSignature, portIndex)
 
       // Format stealth meta-address as string for backend
@@ -181,10 +200,11 @@ export function useCreatePort() {
       backendPortId = backendPort.id
 
       // Step 4: Update port with stealth keys and on-chain portId
+      // Use normalized (lowercase) portId for consistent key derivation
       await portsApi.update(backendPort.id, {
         stealthMetaAddress,
         viewingKey,
-        indexerPortId: onChainPortId,
+        indexerPortId: normalizedPortId,
       })
 
       // Format stealth meta-address as bytes for chain (66 bytes = spending + viewing pubkeys)
@@ -197,7 +217,7 @@ export function useCreatePort() {
         address: contractAddress,
         abi: galeonRegistryAbi,
         functionName: 'registerPort',
-        args: [onChainPortId, name, metaAddressBytes],
+        args: [normalizedPortId, name, metaAddressBytes],
       })
 
       txWasSent = true
@@ -231,7 +251,7 @@ export function useCreatePort() {
         await portsApi.update(backendPort.id, {
           txHash,
           status: 'confirmed',
-          indexerPortId: onChainPortId,
+          indexerPortId: normalizedPortId,
         })
       } catch (updateErr) {
         console.error('First update attempt failed, retrying...', updateErr)
@@ -239,7 +259,7 @@ export function useCreatePort() {
         await portsApi.update(backendPort.id, {
           txHash,
           status: 'confirmed',
-          indexerPortId: onChainPortId,
+          indexerPortId: normalizedPortId,
         })
       }
 
