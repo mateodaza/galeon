@@ -5,7 +5,7 @@ import User from '#models/user'
 
 /**
  * Payment source indicates where the funds came from
- * - wallet: Direct payment from connected wallet (Quick Pay)
+ * - wallet: Direct payment from connected wallet (Direct Pay)
  * - port: Payment from collected stealth funds (Stealth Pay)
  * - pool: Payment from privacy pool with ZK proof (Private Send)
  */

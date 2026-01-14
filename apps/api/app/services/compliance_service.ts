@@ -314,7 +314,7 @@ export default class ComplianceService {
 
     // Map source to human-readable label
     const sourceLabels: Record<string, string> = {
-      wallet: 'Quick Pay',
+      wallet: 'Direct Pay',
       port: 'Stealth Pay',
       pool: 'Private Send',
     }

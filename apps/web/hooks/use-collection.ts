@@ -1110,6 +1110,7 @@ export function useCollection() {
             // Hoist these for use in immediate update after tx
             let existingDeposit: PoolDeposit | null = null
             let newSecrets: { nullifier: bigint; secret: bigint } | null = null
+            let usedChildIndex: bigint = 0n // Track the actual childIndex used for derivationDepth
             let firstDepositPrecommitment: {
               nullifier: bigint
               secret: bigint
@@ -1595,7 +1596,7 @@ export function useCollection() {
 
               // Generate new secrets for merged commitment
               // Use derivationDepth + 1 to ensure unique derivations
-              const childIndex = existingDeposit.derivationDepth + 1n
+              let childIndex = existingDeposit.derivationDepth + 1n
               console.log(
                 '[collectToPool] Computing new secrets with childIndex:',
                 childIndex.toString()
@@ -1611,6 +1612,47 @@ export function useCollection() {
                 newNullifier: newSecrets.nullifier.toString().slice(0, 20) + '...',
                 areEqual: existingDeposit.nullifier === newSecrets.nullifier,
               })
+
+              // SAFETY: If nullifiers match, derivationDepth is stale - find the correct childIndex
+              // TODO [DERIVATION_DEPTH_SYNC]: Fix root cause in pool-context.tsx traceDepositChain
+              if (existingDeposit.nullifier === newSecrets.nullifier) {
+                console.warn(
+                  '[collectToPool] Nullifiers match! derivationDepth is stale, searching for correct childIndex...'
+                )
+                let foundCorrectIndex = false
+                for (let tryIndex = 0n; tryIndex < 100n; tryIndex++) {
+                  const trySecrets = await createWithdrawalSecrets(
+                    masterNullifier,
+                    masterSecret,
+                    existingDeposit.label,
+                    tryIndex
+                  )
+                  if (trySecrets.nullifier === existingDeposit.nullifier) {
+                    // Found the childIndex that created the existing nullifier
+                    // Use tryIndex + 1 for the new secrets
+                    childIndex = tryIndex + 1n
+                    console.log(
+                      `[collectToPool] Found existing nullifier was created with childIndex ${tryIndex}, using ${childIndex} for new secrets`
+                    )
+                    newSecrets = await createWithdrawalSecrets(
+                      masterNullifier,
+                      masterSecret,
+                      existingDeposit.label,
+                      childIndex
+                    )
+                    foundCorrectIndex = true
+                    break
+                  }
+                }
+                if (!foundCorrectIndex) {
+                  throw new Error(
+                    'Could not find correct childIndex for merge deposit. Please refresh pool state.'
+                  )
+                }
+              }
+
+              // Store the actual childIndex used for later (when saving merged deposit)
+              usedChildIndex = childIndex
 
               // Compute context using stealth address as depositor
               // Context = keccak256(abi.encode(mergeData, SCOPE)) % SNARK_SCALAR_FIELD
@@ -2162,6 +2204,22 @@ export function useCollection() {
             })
             successfulHashes.push(hash)
 
+            // Record sent payment for history (pool deposit from port)
+            try {
+              await sentPaymentsApi.create({
+                txHash: hash,
+                chainId: chainId ?? 5000,
+                recipientAddress: contracts.pool,
+                recipientPortName: 'Privacy Pool',
+                amount: depositAmount.toString(),
+                currency: 'MNT',
+                source: 'port',
+              })
+              console.log('[collectToPool] Sent payment recorded:', hash)
+            } catch (err) {
+              console.warn('[collectToPool] Failed to record sent payment:', err)
+            }
+
             // Check remaining balance - update or remove payment
             try {
               const remainingBalance = await stealthPublicClient.getBalance({
@@ -2213,9 +2271,11 @@ export function useCollection() {
                 newSecrets.nullifier,
                 newSecrets.secret,
               ])
+              // Use the actual childIndex that was used to create newSecrets
+              // (may have been corrected by brute-force if derivationDepth was stale)
               const mergedDeposit: PoolDeposit = {
                 index: existingDeposit.index,
-                derivationDepth: existingDeposit.derivationDepth + 1n,
+                derivationDepth: usedChildIndex, // Use actual childIndex, not stale derivationDepth + 1
                 nullifier: newSecrets.nullifier,
                 secret: newSecrets.secret,
                 precommitmentHash: newPrecommitmentHash,

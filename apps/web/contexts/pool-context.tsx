@@ -1109,16 +1109,52 @@ export function PoolProvider({ children }: PoolProviderProps) {
         // 7. Generate new secrets for merged commitment
         // Use derivationDepth + 1 to ensure unique childIndex
         // This guarantees newNullifier != existingNullifier (circuit requirement)
-        const childIndex = existingDeposit.derivationDepth + 1n
+        let childIndex = existingDeposit.derivationDepth + 1n
         console.log(
           `[MergeDeposit] Using childIndex ${childIndex} for deposit with derivationDepth ${existingDeposit.derivationDepth}`
         )
-        const newSecrets = await createWithdrawalSecrets(
+        let newSecrets = await createWithdrawalSecrets(
           masterNullifier,
           masterSecret,
           existingDeposit.label,
           childIndex
         )
+
+        // SAFETY: If nullifiers match, derivationDepth is stale - find the correct childIndex
+        // TODO [DERIVATION_DEPTH_SYNC]: Fix root cause in traceDepositChain
+        if (existingDeposit.nullifier === newSecrets.nullifier) {
+          console.warn(
+            '[MergeDeposit] Nullifiers match! derivationDepth is stale, searching for correct childIndex...'
+          )
+          let foundCorrectIndex = false
+          for (let tryIndex = 0n; tryIndex < 100n; tryIndex++) {
+            const trySecrets = await createWithdrawalSecrets(
+              masterNullifier,
+              masterSecret,
+              existingDeposit.label,
+              tryIndex
+            )
+            if (trySecrets.nullifier === existingDeposit.nullifier) {
+              childIndex = tryIndex + 1n
+              console.log(
+                `[MergeDeposit] Found existing nullifier was created with childIndex ${tryIndex}, using ${childIndex} for new secrets`
+              )
+              newSecrets = await createWithdrawalSecrets(
+                masterNullifier,
+                masterSecret,
+                existingDeposit.label,
+                childIndex
+              )
+              foundCorrectIndex = true
+              break
+            }
+          }
+          if (!foundCorrectIndex) {
+            throw new Error(
+              'Could not find correct childIndex for merge. Please refresh pool state.'
+            )
+          }
+        }
 
         // 8. Encode mergeData and compute context
         // mergeData = abi.encode(depositor)

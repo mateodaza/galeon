@@ -500,6 +500,58 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
         childIndex
       )
 
+      // DEBUG: Check if nullifiers match (circuit requires they don't)
+      console.log('[Withdraw] Nullifier comparison:')
+      console.log('  existingNullifier:', deposit.nullifier.toString())
+      console.log('  newNullifier:', newSecrets.nullifier.toString())
+      console.log('  ARE EQUAL:', deposit.nullifier === newSecrets.nullifier)
+      console.log('  childIndex used:', childIndex.toString())
+      console.log('  deposit.derivationDepth:', deposit.derivationDepth.toString())
+
+      // SAFETY: If nullifiers match, derivationDepth is stale - find the correct childIndex
+      // TODO [DERIVATION_DEPTH_SYNC]: Fix the root cause where derivationDepth gets out of sync
+      // during recovery/tracing. This safety net catches and fixes it at withdrawal time by
+      // brute-forcing the correct childIndex, but the underlying issue in pool-context.tsx
+      // traceDepositChain/resolveActiveDeposits should be investigated.
+      if (deposit.nullifier === newSecrets.nullifier) {
+        console.warn(
+          '[Withdraw] Nullifiers match! derivationDepth is stale, searching for correct childIndex...'
+        )
+        let foundCorrectIndex = false
+        for (let tryIndex = 0n; tryIndex < 100n; tryIndex++) {
+          const trySecrets = await createWithdrawalSecrets(
+            masterNullifier,
+            masterSecret,
+            deposit.label,
+            tryIndex
+          )
+          if (trySecrets.nullifier === deposit.nullifier) {
+            // Found the childIndex that created the existing nullifier
+            // Use tryIndex + 1 for the new secrets
+            const correctChildIndex = tryIndex + 1n
+            console.log(
+              `[Withdraw] Found existing nullifier was created with childIndex ${tryIndex}, using ${correctChildIndex} for new secrets`
+            )
+            const correctSecrets = await createWithdrawalSecrets(
+              masterNullifier,
+              masterSecret,
+              deposit.label,
+              correctChildIndex
+            )
+            // Replace newSecrets with the correct ones
+            newSecrets.nullifier = correctSecrets.nullifier
+            newSecrets.secret = correctSecrets.secret
+            foundCorrectIndex = true
+            break
+          }
+        }
+        if (!foundCorrectIndex) {
+          throw new Error(
+            'Could not find correct childIndex for withdrawal. Please refresh pool state.'
+          )
+        }
+      }
+
       // 8. Compute new commitment for remaining balance (used internally by proof generation)
       const newPrecommitment = await poseidonHash([newSecrets.nullifier, newSecrets.secret])
       const newValue = deposit.value - amount

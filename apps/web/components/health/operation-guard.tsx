@@ -33,7 +33,7 @@ interface OperationGuardProps {
 function getOperationName(operation: Operation): string {
   switch (operation) {
     case 'quickPay':
-      return 'Quick Pay'
+      return 'Direct Pay'
     case 'stealthPay':
       return 'Stealth Pay'
     case 'privateSend':

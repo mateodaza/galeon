@@ -201,7 +201,7 @@ export default function HistoryPage() {
   const getSourceLabel = (source: PaymentSource) => {
     switch (source) {
       case 'wallet':
-        return 'Quick Pay'
+        return 'Direct Pay'
       case 'port':
         return 'Stealth Pay'
       case 'pool':
@@ -273,7 +273,7 @@ export default function HistoryPage() {
       {stats && (
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <StatCard
-            label="Quick Pay"
+            label="Direct Pay"
             icon={<Wallet className="h-5 w-5 text-cyan-500" />}
             value={`${formatAmount(stats.wallet.total)} MNT`}
             count={stats.wallet.count}
