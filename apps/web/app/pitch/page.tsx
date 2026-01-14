@@ -199,13 +199,15 @@ function TitleSlide() {
         height={120}
         className="mb-6 drop-shadow-2xl"
       />
-      <h1 className="text-6xl font-bold tracking-wide text-white sm:text-7xl lg:text-8xl">
+      <h1 className="text-6xl font-bold tracking-wide text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)] sm:text-7xl lg:text-8xl">
         Galeon
       </h1>
-      <p className="mt-6 text-2xl text-cyan-100/80 sm:text-3xl">
-        Private payments for the public blockchain
-      </p>
-      <p className="mt-12 text-sm text-cyan-100/50">Mantle Global Hackathon 2025</p>
+      <div className="mt-8 rounded-2xl border border-white/15 bg-slate-900/40 px-6 py-4 shadow-lg shadow-black/10 backdrop-blur-md">
+        <p className="text-2xl text-cyan-100/80 sm:text-3xl">
+          Private payments for the public blockchain
+        </p>
+        <p className="mt-4 text-sm text-cyan-100/50">Mantle Global Hackathon 2025</p>
+      </div>
     </div>
   )
 }
