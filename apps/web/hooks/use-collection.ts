@@ -675,6 +675,30 @@ export function useCollection() {
             throw new Error(`Transaction reverted: ${hash}`)
           }
           console.log('[collectAll] Tx confirmed:', hash, 'Block:', receipt.blockNumber)
+
+          // Record sent payment for this specific transaction (only if sending to external recipient)
+          if (toAddress && toAddress !== address) {
+            try {
+              await sentPaymentsApi.create({
+                txHash: hash,
+                chainId: chainId ?? 5000,
+                recipientAddress: toAddress,
+                amount: properAmountToSend.toString(),
+                currency: 'MNT',
+                source: 'port',
+                memo: undefined,
+              })
+              console.log(
+                '[collectAll] Sent payment recorded:',
+                hash,
+                'Amount:',
+                formatEther(properAmountToSend),
+                'MNT'
+              )
+            } catch (err) {
+              console.warn('[collectAll] Failed to record sent payment (non-blocking):', err)
+            }
+          }
         }
 
         // Mark confirmation complete
@@ -743,34 +767,6 @@ export function useCollection() {
             await queryClient.invalidateQueries({ queryKey: ['ports'] })
           } catch (err) {
             console.warn('[collectAll] Failed to mark receipts as collected (non-blocking):', err)
-          }
-
-          // Record sent payment for payment history (only if sending to external recipient)
-          // This is a "stealth pay" - paying from collected stealth funds
-          if (toAddress && toAddress !== address) {
-            try {
-              // Calculate total amount ACTUALLY sent (not original balance - gas deducted)
-              const totalSent = actualAmountsSent.reduce((sum, amt) => sum + amt, 0n)
-
-              await sentPaymentsApi.create({
-                txHash: collectedHashes[0], // Use first tx hash as reference
-                chainId: chainId ?? 5000,
-                recipientAddress: toAddress,
-                amount: totalSent.toString(),
-                currency: 'MNT',
-                source: 'port',
-                memo: undefined,
-              })
-              console.log(
-                '[collectAll] Sent payment recorded:',
-                collectedHashes[0],
-                'Amount:',
-                formatEther(totalSent),
-                'MNT'
-              )
-            } catch (err) {
-              console.warn('[collectAll] Failed to record sent payment (non-blocking):', err)
-            }
           }
         }
       } catch (error) {
