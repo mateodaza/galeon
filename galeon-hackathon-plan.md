@@ -423,7 +423,7 @@ export function getTokenByAddress(
 
 ```solidity
 // packages/contracts/contracts/ERC5564Announcer.sol
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier:MIT
 pragma solidity ^0.8.20;
 
 /// @title ERC-5564 Announcer
