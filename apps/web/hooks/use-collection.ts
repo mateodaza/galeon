@@ -1111,6 +1111,7 @@ export function useCollection() {
             let existingDeposit: PoolDeposit | null = null
             let newSecrets: { nullifier: bigint; secret: bigint } | null = null
             let usedChildIndex: bigint = 0n // Track the actual childIndex used for derivationDepth
+            let actualDepositAmount: bigint = 0n // Track the actual amount deposited for recording
             let firstDepositPrecommitment: {
               nullifier: bigint
               secret: bigint
@@ -1404,6 +1405,9 @@ export function useCollection() {
                 formatEther(depositAmount),
                 'MNT'
               )
+
+              // Store the actual deposit amount for recording later
+              actualDepositAmount = depositAmount
 
               // Fetch all merkle leaves for state tree
               console.log('[collectToPool] Fetching merkle leaves for state tree...')
@@ -2160,6 +2164,10 @@ export function useCollection() {
                 formatEther(depositAmount),
                 'MNT'
               )
+
+              // Store the actual deposit amount for recording later
+              actualDepositAmount = depositAmount
+
               console.log('[collectToPool] Sending deposit transaction...')
 
               // Call entrypoint.deposit(precommitment) from stealth address
@@ -2193,14 +2201,12 @@ export function useCollection() {
             }
             console.log('[collectToPool] Transaction confirmed! Block:', receipt.blockNumber)
 
-            // Record success
-            const depositAmount =
-              payment.verifiedBalance > payment.balance ? payment.balance : payment.verifiedBalance
+            // Record success using actualDepositAmount (set earlier before transaction)
             results.push({
               address: payment.stealthAddress,
               hash,
               success: true,
-              amount: depositAmount,
+              amount: actualDepositAmount,
             })
             successfulHashes.push(hash)
 
@@ -2211,7 +2217,7 @@ export function useCollection() {
                 chainId: chainId ?? 5000,
                 recipientAddress: contracts.pool,
                 recipientPortName: 'Privacy Pool',
-                amount: depositAmount.toString(),
+                amount: actualDepositAmount.toString(),
                 currency: 'MNT',
                 source: 'port',
               })
@@ -2279,14 +2285,14 @@ export function useCollection() {
                 nullifier: newSecrets.nullifier,
                 secret: newSecrets.secret,
                 precommitmentHash: newPrecommitmentHash,
-                value: existingDeposit.value + depositAmount, // Mirrors circuit: newValue = existingValue + depositValue
+                value: existingDeposit.value + actualDepositAmount, // Mirrors circuit: newValue = existingValue + depositValue
                 label: existingDeposit.label,
                 blockNumber: receipt.blockNumber,
                 txHash: hash,
               }
               console.log('[collectToPool] Immediately adding merged deposit to context:', {
                 oldValue: formatEther(existingDeposit.value),
-                addedValue: formatEther(depositAmount),
+                addedValue: formatEther(actualDepositAmount),
                 newValue: formatEther(mergedDeposit.value),
                 derivationDepth: mergedDeposit.derivationDepth.toString(),
                 blockNumber: receipt.blockNumber.toString(),
@@ -2302,7 +2308,7 @@ export function useCollection() {
                 nullifier: firstDepositPrecommitment.nullifier,
                 secret: firstDepositPrecommitment.secret,
                 precommitmentHash: firstDepositPrecommitment.hash,
-                value: depositAmount,
+                value: actualDepositAmount,
                 label: poolScope, // Label is scope for first deposit
                 blockNumber: receipt.blockNumber,
                 txHash: hash,
