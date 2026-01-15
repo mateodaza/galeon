@@ -295,3 +295,45 @@ All components are licensed for commercial use. See individual package LICENSE f
 ---
 
 Built for the Mantle Global Hackathon 2025
+
+## Pitch
+
+**Problem**: Public blockchains expose every transaction. Businesses and individuals can't use crypto for real-world payments without revealing their entire financial history to competitors, stalkers, and bad actors.
+
+**Solution**: Galeon provides compliance-ready privacy for payments. Hide who sends, who receives, and prove fund sources when needed with ZK proofs. Full privacy without sacrificing regulatory compliance.
+
+**Business Model**:
+
+- Relayer fees: Small percentage on private withdrawals (users can self-custody for free)
+- Premium compliance reports for enterprises
+- White-label API for businesses integrating privacy payments
+
+**Roadmap**:
+
+1. Multi-token support (USDC, USDT, WMNT)
+2. Optimized ZK circuits with larger Merkle trees for better scalability
+3. Mobile app with biometric key derivation
+4. Enterprise API with batch payments
+5. Cross-chain privacy via LayerZero/Wormhole
+
+## Compliance Declaration
+
+Galeon does not handle regulated assets (securities, tokenized RWAs, or derivatives). It is privacy infrastructure for native token payments on Mantle L2. Users can generate compliance reports (Shipwreck) to prove fund sources for tax or audit purposes. The Privacy Pool architecture is based on 0xBow's design, which was developed with regulatory compatibility in mind.
+
+## Team
+
+**Mateo Daza** — Full Stack & Web3 Engineer
+
+- 7+ years experience
+- Lead Frontend at Asymmetry Finance (DeFi)
+- 4+ years at Giveth (decentralized donations)
+- Co-founder of Ethereum Colombia
+- [GitHub](https://github.com/mateodaza) · [LinkedIn](https://linkedin.com/in/mateo-daza-448469170)
+
+**Carlos Quintero** — Backend Engineer
+
+- 8+ years experience
+- Lead Backend at Giveth
+- Previously at Koombea (fintech, e-commerce)
+- Co-founder of Ethereum Colombia
+- [GitHub](https://github.com/CarlosQ96) · [LinkedIn](https://linkedin.com/in/carlos-quintero-076a36153)
