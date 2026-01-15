@@ -54,7 +54,7 @@ galeon/
 
 ```bash
 # Clone and install
-git clone https://github.com/your-org/galeon.git
+git clone https://github.com/mateodaza/galeon.git
 cd galeon
 pnpm install
 
@@ -138,16 +138,16 @@ Centralized chain and contract configuration:
 
 ## Smart Contracts (Mantle Mainnet)
 
-| Contract                | Address                                      |
-| ----------------------- | -------------------------------------------- |
-| GaleonRegistry          | `0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D` |
-| ERC5564Announcer        | `0x8C04238c49e22EB687ad706bEe645698ccF41153` |
-| ERC6538Registry         | `0xE6586103756082bf3E43D3BB73f9fE479f0BDc22` |
-| GaleonEntrypoint        | `0x8633518fbbf23E78586F1456530c3452885efb21` |
-| GaleonPrivacyPoolSimple | `0xE271335D1FCa02b6c219B9944f0a4921aFD559C0` |
-| WithdrawalVerifier      | `0x4894F811D370d987B55bE4e5eeA48588d6545a32` |
-| RagequitVerifier        | `0xAE1126645a26bC30B9A29D9c216e8F6B51B82803` |
-| MergeDepositVerifier    | `0x05DB69e37b8c7509E9d97826249385682CE9b29d` |
+| Contract                | Address                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| GaleonRegistry          | [`0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D`](https://mantlescan.xyz/address/0x9bcDb96a9Ff9b492e07f9E4909DF143266271e9D) |
+| ERC5564Announcer        | [`0x8C04238c49e22EB687ad706bEe645698ccF41153`](https://mantlescan.xyz/address/0x8C04238c49e22EB687ad706bEe645698ccF41153) |
+| ERC6538Registry         | [`0xE6586103756082bf3E43D3BB73f9fE479f0BDc22`](https://mantlescan.xyz/address/0xE6586103756082bf3E43D3BB73f9fE479f0BDc22) |
+| GaleonEntrypoint        | [`0x8633518fbbf23E78586F1456530c3452885efb21`](https://mantlescan.xyz/address/0x8633518fbbf23E78586F1456530c3452885efb21) |
+| GaleonPrivacyPoolSimple | [`0xE271335D1FCa02b6c219B9944f0a4921aFD559C0`](https://mantlescan.xyz/address/0xE271335D1FCa02b6c219B9944f0a4921aFD559C0) |
+| WithdrawalVerifier      | [`0x4894F811D370d987B55bE4e5eeA48588d6545a32`](https://mantlescan.xyz/address/0x4894F811D370d987B55bE4e5eeA48588d6545a32) |
+| RagequitVerifier        | [`0xAE1126645a26bC30B9A29D9c216e8F6B51B82803`](https://mantlescan.xyz/address/0xAE1126645a26bC30B9A29D9c216e8F6B51B82803) |
+| MergeDepositVerifier    | [`0x05DB69e37b8c7509E9d97826249385682CE9b29d`](https://mantlescan.xyz/address/0x05DB69e37b8c7509E9d97826249385682CE9b29d) |
 
 ## How It Works
 
