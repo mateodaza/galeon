@@ -238,7 +238,7 @@ function SolutionSlide() {
     <SlideContainer className="mx-auto max-w-4xl">
       <div className="flex items-center gap-3">
         <Badge className="bg-cyan-500/20 text-cyan-400">The Solution</Badge>
-        <Badge className="bg-emerald-500/20 text-emerald-400">EIP-5564</Badge>
+        <Badge className="bg-emerald-500/20 text-emerald-400">EIP-5564/6538</Badge>
         <Badge className="bg-purple-500/20 text-purple-400">Privacy Pools</Badge>
       </div>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
@@ -293,7 +293,7 @@ function SolutionSlide() {
 
       <div className="mt-8 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5">
         <p className="text-center text-lg font-medium text-emerald-400">
-          Confidential operations. Regulatory compliance. The missing layer for on-chain finance.
+          The missing privacy layer for on-chain finance.
         </p>
       </div>
     </SlideContainer>
@@ -304,11 +304,11 @@ function SolutionSlide() {
 function BuiltSlide() {
   const capabilities = [
     { label: 'Stealth Addresses', detail: 'EIP-5564/6538 standard' },
-    { label: 'Privacy Pool', detail: 'ZK proofs via 0xbow' },
+    { label: 'Privacy Pool', detail: 'Built on 0xbow' },
     { label: 'Client-Side Proofs', detail: 'Secrets never leave your device' },
     { label: 'Relayer Network', detail: 'Sender address hidden on-chain' },
     { label: 'Compliance Reports', detail: 'Shipwreck tax exports' },
-    { label: 'Mainnet Deployed', detail: 'Live on Mantle today' },
+    { label: 'Mainnet Deployed', detail: 'Live on Mantle mainnet' },
   ]
 
   return (
@@ -380,8 +380,7 @@ function DifferentiatorSlide() {
               <h3 className="text-lg font-semibold text-white">Ethereum Standards</h3>
             </div>
             <p className="mt-3 text-base text-cyan-100/80">
-              EIP-5564/6538. Ethereum Foundation supported. Not a privacy coin. No regulatory
-              stigma.
+              EIP-5564/6538. Ethereum standard. Not a privacy coin. No regulatory stigma.
             </p>
           </div>
         </div>
@@ -444,7 +443,7 @@ function DemoSlide() {
       num: 3,
       action: 'Deposit to Pool',
       detail: 'Move funds into privacy pool',
-      privacy: 'Source mixed',
+      privacy: 'Link broken',
     },
     {
       num: 4,
@@ -473,6 +472,7 @@ function DemoSlide() {
       <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
         Watch: Complete privacy flow in 4 steps
       </h2>
+      <p className="mt-2 text-sm text-cyan-100/60">Each step live on Mantle mainnet</p>
 
       {/* 2x2 Grid flow diagram */}
       <div className="mt-6 grid grid-cols-2 gap-4">
