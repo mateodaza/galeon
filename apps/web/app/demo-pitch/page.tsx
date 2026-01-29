@@ -115,7 +115,7 @@ export default function DemoPitchPage() {
             {currentSlide + 1} / {slides.length}
           </span>
           <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
-            Demo Day
+            Mantle Demo Day
           </Badge>
           <Button variant="ghost" size="sm" asChild className="text-cyan-100/70 hover:text-white">
             <Link href="/">Exit</Link>
@@ -238,7 +238,8 @@ function SolutionSlide() {
     <SlideContainer className="mx-auto max-w-4xl">
       <div className="flex items-center gap-3">
         <Badge className="bg-cyan-500/20 text-cyan-400">The Solution</Badge>
-        <Badge className="bg-emerald-500/20 text-emerald-400">EIP-5564 Standard</Badge>
+        <Badge className="bg-emerald-500/20 text-emerald-400">EIP-5564</Badge>
+        <Badge className="bg-purple-500/20 text-purple-400">Privacy Pools</Badge>
       </div>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
         Confidential transactions. Full compliance.
@@ -496,11 +497,10 @@ function DemoSlide() {
       {/* Key insight */}
       <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
         <p className="text-center text-lg font-medium text-white">
-          <span className="text-emerald-400">Result:</span> No on-chain link between sender and
-          receiver.
+          No on-chain link between sender and receiver.
           <br />
           <span className="text-base text-cyan-100/70">
-            Blockchain explorers see nothing. Compliance proofs available on demand.
+            Untraceable publicly. Provable privately.
           </span>
         </p>
       </div>
