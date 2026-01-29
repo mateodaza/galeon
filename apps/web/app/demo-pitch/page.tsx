@@ -30,7 +30,7 @@ function SlideContainer({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/10 bg-slate-950/70 p-8 shadow-2xl backdrop-blur-xl sm:p-12 ${className}`}
+      className={`rounded-3xl border border-white/10 bg-slate-950/70 p-10 shadow-2xl backdrop-blur-xl sm:p-14 ${className}`}
     >
       {children}
     </div>
@@ -124,7 +124,7 @@ export default function DemoPitchPage() {
       </header>
 
       {/* Slide content */}
-      <div className="relative flex flex-1 items-center justify-center px-6 pb-24 pt-16">
+      <div className="relative flex flex-1 items-center justify-center px-6 pb-24 pt-24">
         <AnimatePresence mode="wait" custom={direction}>
           <m.div
             key={currentSlide}
@@ -189,28 +189,43 @@ export default function DemoPitchPage() {
 // SLIDE 1: Hook + Problem (30 seconds)
 function HookSlide() {
   return (
-    <SlideContainer className="mx-auto max-w-3xl text-center">
+    <SlideContainer className="mx-auto max-w-4xl text-center">
       <Image
         src="/galeon-logo.png"
         alt="Galeon"
-        width={140}
-        height={140}
-        className="mx-auto mb-6 drop-shadow-2xl"
+        width={120}
+        height={120}
+        className="mx-auto mb-4 drop-shadow-2xl"
       />
-      <h1 className="text-5xl font-bold tracking-wide text-white sm:text-6xl lg:text-7xl">
-        Galeon
-      </h1>
-      <p className="mt-6 text-2xl text-cyan-100/90 sm:text-3xl">
-        Private payments for the public blockchain
+      <h1 className="text-5xl font-bold tracking-wide text-white sm:text-6xl">Galeon</h1>
+      <p className="mt-4 text-xl text-cyan-100/90 sm:text-2xl">
+        Private payments for public blockchains
       </p>
 
-      <div className="mt-10 border-t border-white/10 pt-8">
-        <p className="text-xl leading-relaxed text-cyan-100/80">
-          Every on-chain payment is <span className="font-semibold text-red-400">public</span>. Your
-          salary, your business deals — anyone can trace it all.
+      <div className="mt-8 border-t border-white/10 pt-8">
+        <p className="mt-4 text-xl leading-relaxed text-cyan-100/80">
+          Every transaction on a public blockchain is visible.
+          <br />
+          Payroll, invoices, treasury operations. All public record.
         </p>
-        <p className="mt-4 text-lg font-medium text-white">
-          Your financial history is an open book.
+
+        <div className="mt-8 grid gap-5 sm:grid-cols-3">
+          <div className="rounded-lg border border-red-500/40 bg-red-950/30 p-5">
+            <p className="text-lg font-medium text-red-400">Payroll exposed</p>
+            <p className="mt-2 text-base text-white/70">Every salary on-chain</p>
+          </div>
+          <div className="rounded-lg border border-red-500/40 bg-red-950/30 p-5">
+            <p className="text-lg font-medium text-red-400">B2B deals visible</p>
+            <p className="mt-2 text-base text-white/70">Suppliers know your margins</p>
+          </div>
+          <div className="rounded-lg border border-red-500/40 bg-red-950/30 p-5">
+            <p className="text-lg font-medium text-red-400">Treasury tracked</p>
+            <p className="mt-2 text-base text-white/70">Competitors watch your moves</p>
+          </div>
+        </div>
+
+        <p className="mt-8 text-2xl font-semibold text-white">
+          Real businesses need privacy. They also need compliance.
         </p>
       </div>
     </SlideContainer>
@@ -221,21 +236,28 @@ function HookSlide() {
 function SolutionSlide() {
   return (
     <SlideContainer className="mx-auto max-w-4xl">
-      <Badge className="bg-cyan-500/20 text-cyan-400">The Solution</Badge>
-      <h2 className="mt-4 text-4xl font-bold text-white sm:text-5xl">
-        Your treasure, hidden in plain sight.
+      <div className="flex items-center gap-3">
+        <Badge className="bg-cyan-500/20 text-cyan-400">The Solution</Badge>
+        <Badge className="bg-emerald-500/20 text-emerald-400">EIP-5564 Standard</Badge>
+      </div>
+      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+        Confidential transactions. Full compliance.
       </h2>
+      <p className="mt-2 text-lg text-cyan-100/70">
+        Privacy infrastructure for real-world finance. Built on Ethereum standards.
+      </p>
 
-      <div className="mt-10 grid gap-6 sm:grid-cols-3">
+      <div className="mt-8 grid gap-6 sm:grid-cols-3">
         <Card className="border-cyan-500/30 bg-slate-800/60">
           <CardContent className="p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/20">
               <Anchor className="h-6 w-6 text-cyan-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Ports</h3>
+            <p className="text-sm font-medium text-cyan-400">Receiver Privacy</p>
             <p className="mt-2 text-base text-cyan-100/80">
-              Stealth addresses hide <strong className="text-cyan-300">receivers</strong>. Every
-              payment goes to a unique address only you can access.
+              Stealth addresses generate unique payment destinations. One public link, infinite
+              private addresses.
             </p>
           </CardContent>
         </Card>
@@ -246,66 +268,71 @@ function SolutionSlide() {
               <Shield className="h-6 w-6 text-cyan-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Privacy Pool</h3>
+            <p className="text-sm font-medium text-cyan-400">Sender Privacy</p>
             <p className="mt-2 text-base text-cyan-100/80">
-              ZK proofs hide <strong className="text-cyan-300">senders</strong>. Deposit to the
-              pool, withdraw anywhere — the on-chain link is broken.
+              ZK proofs break on-chain links. Deposit and withdraw without traceable connection.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-cyan-500/30 bg-slate-800/60">
+        <Card className="border-emerald-500/30 bg-slate-800/60">
           <CardContent className="p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/20">
-              <FileText className="h-6 w-6 text-cyan-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20">
+              <FileText className="h-6 w-6 text-emerald-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Shipwreck</h3>
+            <p className="text-sm font-medium text-emerald-400">Compliance Layer</p>
             <p className="mt-2 text-base text-cyan-100/80">
-              Compliance proofs when you need them. Taxes, audits —{' '}
-              <strong className="text-cyan-300">reveal only what you choose</strong>.
+              Tax-ready reports with cryptographic proof. Selective disclosure for auditors, KYC,
+              and regulatory requirements.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <p className="mt-8 text-center text-xl font-medium text-cyan-400">
-        Privacy when you receive. Privacy when you send. Compliance when you need it.
-      </p>
+      <div className="mt-8 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5">
+        <p className="text-center text-lg font-medium text-emerald-400">
+          Confidential operations. Regulatory compliance. The missing layer for on-chain finance.
+        </p>
+      </div>
     </SlideContainer>
   )
 }
 
-// SLIDE 3: What We Built (30 seconds)
+// SLIDE 3: What's Live
 function BuiltSlide() {
-  const features = [
-    'Stealth Payments (EIP-5564/6538)',
-    'Privacy Pool with ZK Proofs',
-    'Client-Side Proof Generation',
-    'Private Withdrawals via Relayer',
-    'Shareable Payment Receipts',
-    'Shipwreck Compliance Reports',
+  const capabilities = [
+    { label: 'Stealth Addresses', detail: 'EIP-5564/6538 standard' },
+    { label: 'Privacy Pool', detail: 'ZK proofs via 0xbow' },
+    { label: 'Client-Side Proofs', detail: 'Secrets never leave your device' },
+    { label: 'Relayer Network', detail: 'Sender address hidden on-chain' },
+    { label: 'Compliance Reports', detail: 'Shipwreck tax exports' },
+    { label: 'Mainnet Deployed', detail: 'Live on Mantle today' },
   ]
 
   return (
     <SlideContainer className="mx-auto max-w-4xl">
-      <Badge className="bg-emerald-500/20 text-emerald-400">Live on Mantle</Badge>
-      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Live product features</h2>
+      <Badge className="bg-emerald-500/20 text-emerald-400">Live</Badge>
+      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Ready to use.</h2>
+      <p className="mt-2 text-lg text-cyan-100/70">
+        Full privacy stack deployed on Mantle Mainnet.
+      </p>
 
-      {/* Features grid */}
+      {/* Capabilities grid */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {features.map((feature) => (
+        {capabilities.map((cap) => (
           <div
-            key={feature}
-            className="flex items-center gap-4 rounded-lg border border-white/10 bg-slate-800/40 px-5 py-4"
+            key={cap.label}
+            className="flex items-center gap-4 rounded-xl border border-cyan-500/20 bg-slate-800/40 px-6 py-5"
           >
             <Check className="h-6 w-6 flex-shrink-0 text-emerald-400" />
-            <span className="text-lg text-cyan-100/90">{feature}</span>
+            <div>
+              <p className="text-lg font-medium text-white">{cap.label}</p>
+              <p className="text-base text-cyan-100/60">{cap.detail}</p>
+            </div>
           </div>
         ))}
       </div>
-
-      <p className="mt-8 text-center text-sm text-cyan-100/60">
-        Built on the proven 0xbow Privacy Pools protocol, extended for real-world compliance.
-      </p>
     </SlideContainer>
   )
 }
@@ -313,49 +340,83 @@ function BuiltSlide() {
 // SLIDE 4: Differentiator (30 seconds)
 function DifferentiatorSlide() {
   return (
-    <SlideContainer className="mx-auto max-w-3xl">
-      <Badge className="bg-purple-500/20 text-purple-400">Why Galeon?</Badge>
+    <SlideContainer className="mx-auto max-w-4xl">
+      <Badge className="bg-purple-500/20 text-purple-400">Why Galeon</Badge>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-        Full privacy + compliance in one protocol
+        Complete privacy. Full compliance.
+        <br />
+        <span className="text-cyan-400">No tradeoffs.</span>
       </h2>
 
-      <div className="mt-8 grid gap-4">
-        <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-slate-800/40 p-5">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/20">
-            <Zap className="h-5 w-5 text-cyan-400" />
+      <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        {/* Left column - What makes us different */}
+        <div className="space-y-4">
+          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5">
+            <div className="flex items-center gap-3">
+              <Zap className="h-6 w-6 text-cyan-400" />
+              <h3 className="text-lg font-semibold text-white">Both Sides Protected</h3>
+            </div>
+            <p className="mt-3 text-base text-cyan-100/80">
+              Stealth addresses + Privacy Pool = complete transaction privacy. Most protocols only
+              protect one side.
+            </p>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Both Sides Protected</h3>
-            <p className="mt-1 text-base text-cyan-100/80">
-              Stealth addresses hide receivers. Privacy Pool hides senders. You need both for
-              complete privacy, most protocols only do one.
+
+          <div className="rounded-xl border border-emerald-500/30 bg-slate-800/50 p-5">
+            <div className="flex items-center gap-3">
+              <FileText className="h-6 w-6 text-emerald-400" />
+              <h3 className="text-lg font-semibold text-white">Compliance Built-In</h3>
+            </div>
+            <p className="mt-3 text-base text-cyan-100/80">
+              Shipwreck generates tax-ready reports with cryptographic proof. Businesses stay
+              private and compliant.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5">
+            <div className="flex items-center gap-3">
+              <Code className="h-6 w-6 text-cyan-400" />
+              <h3 className="text-lg font-semibold text-white">Ethereum Standards</h3>
+            </div>
+            <p className="mt-3 text-base text-cyan-100/80">
+              EIP-5564/6538. Ethereum Foundation supported. Not a privacy coin. No regulatory
+              stigma.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-slate-800/40 p-5">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/20">
-            <FileText className="h-5 w-5 text-cyan-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Compliance-Ready</h3>
-            <p className="mt-1 text-base text-cyan-100/80">
-              Shipwreck generates cryptographic proofs for audits. Keeping privacy and compliance
-              aligned.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-slate-800/40 p-5">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/20">
-            <Code className="h-5 w-5 text-cyan-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Permissionless</h3>
-            <p className="mt-1 text-base text-cyan-100/80">
-              ZK proofs generated client-side in your browser. Verified on-chain by smart contracts.
-              Your secrets never leave your device.
-            </p>
+        {/* Right column - Why it matters */}
+        <div className="h-fit rounded-xl border border-white/10 bg-slate-800/30 p-6">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-cyan-100/60">
+            Why It Matters
+          </h3>
+          <div className="mt-6 space-y-5">
+            <div className="flex items-start gap-3">
+              <span className="text-lg text-emerald-400">→</span>
+              <p className="text-base text-cyan-100/80">
+                <span className="font-medium text-white">Businesses</span> can operate on-chain
+                without exposing operations
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-lg text-emerald-400">→</span>
+              <p className="text-base text-cyan-100/80">
+                <span className="font-medium text-white">Payroll</span> stays confidential while
+                remaining tax-compliant
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-lg text-emerald-400">→</span>
+              <p className="text-base text-cyan-100/80">
+                <span className="font-medium text-white">Treasury</span> movements invisible to
+                competitors
+              </p>
+            </div>
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <p className="text-base font-medium text-emerald-400">
+                Privacy that regulators can work with.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -366,21 +427,41 @@ function DifferentiatorSlide() {
 // SLIDE 5: Live Demo (2 minutes)
 function DemoSlide() {
   const steps = [
-    { num: 1, action: 'Create a Port', detail: 'Reusable payment link with stealth addresses' },
-    { num: 2, action: 'Receive Payment', detail: 'Funds go to unique stealth address' },
-    { num: 3, action: 'Collect to Pool', detail: 'Deposit into the shared privacy pool' },
-    { num: 4, action: 'Private Send', detail: 'ZK proof breaks the on-chain link' },
+    {
+      num: 1,
+      action: 'Create Port',
+      detail: 'Generate stealth-enabled payment link',
+      privacy: 'Receiver hidden',
+    },
+    {
+      num: 2,
+      action: 'Receive Payment',
+      detail: 'Funds arrive at unique stealth address',
+      privacy: 'Destination unlinkable',
+    },
+    {
+      num: 3,
+      action: 'Deposit to Pool',
+      detail: 'Move funds into privacy pool',
+      privacy: 'Source mixed',
+    },
+    {
+      num: 4,
+      action: 'Private Send',
+      detail: 'ZK proof + relayer',
+      privacy: 'Sender hidden',
+    },
   ]
 
   return (
-    <SlideContainer className="mx-auto max-w-4xl">
+    <SlideContainer className="mx-auto max-w-5xl !p-8 sm:!p-10">
       <div className="flex items-center justify-between">
-        <Badge className="bg-green-500/20 text-green-400">Live Demo</Badge>
+        <Badge className="animate-pulse bg-green-500/30 text-green-400">Live Demo</Badge>
         <a
           href="https://galeon.finance"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300"
+          className="flex items-center gap-2 rounded-lg bg-cyan-500/20 px-4 py-2 text-sm font-medium text-cyan-400 transition-colors hover:bg-cyan-500/30"
         >
           <Play className="h-4 w-4" />
           galeon.finance
@@ -388,38 +469,41 @@ function DemoSlide() {
         </a>
       </div>
 
-      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Steps</h2>
+      <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+        Watch: Complete privacy flow in 4 steps
+      </h2>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+      {/* 2x2 Grid flow diagram */}
+      <div className="mt-6 grid grid-cols-2 gap-4">
         {steps.map((step) => (
-          <div
-            key={step.num}
-            className="flex items-start gap-4 rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5"
-          >
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-cyan-500/30 text-lg font-bold text-cyan-400">
-              {step.num}
+          <div key={step.num} className="rounded-xl border border-cyan-500/30 bg-slate-800/50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-cyan-500/30 text-base font-bold text-cyan-400">
+                {step.num}
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white">{step.action}</p>
+                <p className="text-sm text-cyan-100/60">{step.detail}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white">{step.action}</h3>
-              <p className="mt-1 text-base text-cyan-100/70">{step.detail}</p>
-            </div>
+            <Badge className="mt-3 bg-emerald-500/20 text-sm text-emerald-400">
+              {step.privacy}
+            </Badge>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-950/30 p-4">
-        <p className="text-center text-amber-400">
-          No direct on-chain link between deposit and withdrawal.
+      {/* Key insight */}
+      <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+        <p className="text-center text-lg font-medium text-white">
+          <span className="text-emerald-400">Result:</span> No on-chain link between sender and
+          receiver.
+          <br />
+          <span className="text-base text-cyan-100/70">
+            Blockchain explorers see nothing. Compliance proofs available on demand.
+          </span>
         </p>
       </div>
-
-      <p className="mt-6 text-center text-lg text-cyan-100/80">
-        Ports protect receivers. Privacy Pool protects senders.
-        <br />
-        <span className="font-medium text-white">
-          You need both for complete financial privacy.
-        </span>
-      </p>
     </SlideContainer>
   )
 }
@@ -427,38 +511,40 @@ function DemoSlide() {
 // SLIDE 6: Closing (15 seconds)
 function ClosingSlide() {
   return (
-    <SlideContainer className="mx-auto max-w-2xl text-center">
+    <SlideContainer className="mx-auto max-w-4xl text-center">
       <Image
         src="/galeon-logo.png"
         alt="Galeon"
-        width={80}
-        height={80}
-        className="mx-auto mb-4 drop-shadow-2xl"
+        width={72}
+        height={72}
+        className="mx-auto mb-3 drop-shadow-2xl"
       />
-      <h1 className="text-5xl font-bold tracking-wide text-white sm:text-6xl">Galeon</h1>
+      <h1 className="text-4xl font-bold tracking-wide text-white sm:text-5xl">Galeon</h1>
+      <p className="mt-2 text-lg text-cyan-100/80">Private payments for public blockchains</p>
 
-      <p className="mt-8 text-xl text-cyan-100/90">
-        Privacy when you receive. Privacy when you send.
-        <br />
-        Compliance when you need it.
-      </p>
+      {/* One-liner value prop */}
+      <div className="mt-8 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-6">
+        <p className="text-2xl font-semibold text-white">
+          Confidential when you need it. Compliant when you need it.
+        </p>
+        <p className="mt-2 text-2xl font-bold text-cyan-400">
+          The privacy layer for real-world finance.
+        </p>
+      </div>
 
-      <p className="mt-6 text-3xl font-bold text-cyan-400">Your money, your business.</p>
-
+      {/* CTA */}
       <a
         href="https://galeon.finance"
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-8 inline-flex items-center gap-2 text-2xl font-bold text-white hover:text-cyan-400"
+        className="mt-8 inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-8 py-4 text-xl font-bold text-slate-950 transition-colors hover:bg-cyan-400"
       >
-        galeon.finance
+        Try it live: galeon.finance
         <ExternalLink className="h-5 w-5" />
       </a>
 
-      <div className="mt-8 flex items-center justify-center gap-2 text-cyan-100/70">
-        <span className="text-xl">🇨🇴</span>
-        <span>Built with Colombian pride for Mantle Global Hackathon 2025</span>
-      </div>
+      {/* Footer */}
+      <p className="mt-8 text-base text-cyan-100/50">Mantle Global Hackathon 2025</p>
     </SlideContainer>
   )
 }

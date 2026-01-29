@@ -315,6 +315,11 @@ Built for the Mantle Global Hackathon 2025
 3. Mobile app with biometric key derivation
 4. Enterprise API with batch payments
 5. Cross-chain privacy via LayerZero/Wormhole
+6. Native ZK-EVM integration as Ethereum's L1 ZK infrastructure matures (2027+)
+   - Cheaper on-chain proof verification via native precompiles
+   - Larger Merkle trees = bigger anonymity sets = more privacy
+   - Faster client-side proof generation (seconds instead of 30-60s)
+   - More complex compliance proofs (ranges, multiple conditions)
 
 ## Compliance Declaration
 
