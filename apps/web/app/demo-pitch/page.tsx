@@ -242,7 +242,9 @@ function SolutionSlide() {
         <Badge className="bg-purple-500/20 text-purple-400">Privacy Pools</Badge>
       </div>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-        Confidential transactions. Full compliance.
+        Confidential transactions.
+        <br />
+        Full compliance.
       </h2>
       <p className="mt-2 text-lg text-cyan-100/70">
         Privacy infrastructure for real-world finance. Built on Ethereum standards.
@@ -304,7 +306,7 @@ function SolutionSlide() {
 function BuiltSlide() {
   const capabilities = [
     { label: 'Stealth Addresses', detail: 'EIP-5564/6538 standard' },
-    { label: 'Privacy Pool', detail: 'Built on 0xbow' },
+    { label: 'Privacy Pool', detail: 'Unlinkable sends via ZK' },
     { label: 'Client-Side Proofs', detail: 'Secrets never leave your device' },
     { label: 'Relayer Network', detail: 'Sender address hidden on-chain' },
     { label: 'Compliance Reports', detail: 'Shipwreck tax exports' },
