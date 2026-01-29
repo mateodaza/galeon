@@ -287,8 +287,8 @@ function SolutionSlide() {
             <h3 className="mt-4 text-xl font-semibold text-white">Shipwreck</h3>
             <p className="text-sm font-medium text-emerald-400">Compliance Layer</p>
             <ul className="mt-2 space-y-1 text-base text-cyan-100/80">
-              <li>• Tax-ready reports with cryptographic proof</li>
-              <li>• Selective disclosure for auditors & KYC</li>
+              <li>• Tax-ready reports with receipt proof</li>
+              <li>• Audit trail for regulators</li>
             </ul>
           </CardContent>
         </Card>
@@ -372,8 +372,8 @@ function DifferentiatorSlide() {
               <h3 className="text-lg font-semibold text-white">Compliance Built-In</h3>
             </div>
             <p className="mt-3 text-base text-cyan-100/80">
-              Shipwreck generates tax-ready reports with cryptographic proof. Businesses stay
-              private and compliant.
+              Shipwreck generates tax-ready reports with on-chain receipts. Businesses stay private
+              and compliant.
             </p>
           </div>
         </div>
