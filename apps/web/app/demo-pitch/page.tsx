@@ -13,7 +13,6 @@ import {
   Shield,
   FileText,
   Zap,
-  Code,
   Play,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -250,45 +249,47 @@ function SolutionSlide() {
         Privacy infrastructure for real-world finance. Built on Ethereum standards.
       </p>
 
-      <div className="mt-8 grid gap-6 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <Card className="border-cyan-500/30 bg-slate-800/60">
-          <CardContent className="p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/20">
-              <Anchor className="h-6 w-6 text-cyan-400" />
+          <CardContent className="p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/20">
+              <Anchor className="h-5 w-5 text-cyan-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Ports</h3>
             <p className="text-sm font-medium text-cyan-400">Receiver Privacy</p>
-            <p className="mt-2 text-base text-cyan-100/80">
-              Stealth addresses generate unique payment destinations. One public link, infinite
-              private addresses.
-            </p>
+            <ul className="mt-2 space-y-1 text-base text-cyan-100/80">
+              <li>• Stealth addresses for unique destinations</li>
+              <li>• One public link → infinite private addresses</li>
+            </ul>
           </CardContent>
         </Card>
 
         <Card className="border-cyan-500/30 bg-slate-800/60">
-          <CardContent className="p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/20">
-              <Shield className="h-6 w-6 text-cyan-400" />
+          <CardContent className="p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/20">
+              <Shield className="h-5 w-5 text-cyan-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Privacy Pool</h3>
             <p className="text-sm font-medium text-cyan-400">Sender Privacy</p>
-            <p className="mt-2 text-base text-cyan-100/80">
-              ZK proofs break on-chain links. Deposit and withdraw without traceable connection.
-            </p>
+            <ul className="mt-2 space-y-1 text-base text-cyan-100/80">
+              <li>• ZK proofs break on-chain links</li>
+              <li>• Only verified stealth funds can enter</li>
+              <li>• Unlimited deposits → single proof withdrawal</li>
+            </ul>
           </CardContent>
         </Card>
 
         <Card className="border-emerald-500/30 bg-slate-800/60">
-          <CardContent className="p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20">
-              <FileText className="h-6 w-6 text-emerald-400" />
+          <CardContent className="p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+              <FileText className="h-5 w-5 text-emerald-400" />
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">Shipwreck</h3>
             <p className="text-sm font-medium text-emerald-400">Compliance Layer</p>
-            <p className="mt-2 text-base text-cyan-100/80">
-              Tax-ready reports with cryptographic proof. Selective disclosure for auditors, KYC,
-              and regulatory requirements.
-            </p>
+            <ul className="mt-2 space-y-1 text-base text-cyan-100/80">
+              <li>• Tax-ready reports with cryptographic proof</li>
+              <li>• Selective disclosure for auditors & KYC</li>
+            </ul>
           </CardContent>
         </Card>
       </div>
@@ -353,8 +354,8 @@ function DifferentiatorSlide() {
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {/* Left column - What makes us different */}
-        <div className="space-y-4">
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5">
+        <div className="grid grid-rows-2 gap-4">
+          <div className="flex flex-col rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5">
             <div className="flex items-center gap-3">
               <Zap className="h-6 w-6 text-cyan-400" />
               <h3 className="text-lg font-semibold text-white">Both Sides Protected</h3>
@@ -365,7 +366,7 @@ function DifferentiatorSlide() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-emerald-500/30 bg-slate-800/50 p-5">
+          <div className="flex flex-col rounded-xl border border-emerald-500/30 bg-slate-800/50 p-5">
             <div className="flex items-center gap-3">
               <FileText className="h-6 w-6 text-emerald-400" />
               <h3 className="text-lg font-semibold text-white">Compliance Built-In</h3>
@@ -373,16 +374,6 @@ function DifferentiatorSlide() {
             <p className="mt-3 text-base text-cyan-100/80">
               Shipwreck generates tax-ready reports with cryptographic proof. Businesses stay
               private and compliant.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/50 p-5">
-            <div className="flex items-center gap-3">
-              <Code className="h-6 w-6 text-cyan-400" />
-              <h3 className="text-lg font-semibold text-white">Ethereum Standards</h3>
-            </div>
-            <p className="mt-3 text-base text-cyan-100/80">
-              EIP-5564/6538. Ethereum standard. Not a privacy coin. No regulatory stigma.
             </p>
           </div>
         </div>
