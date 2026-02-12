@@ -42,6 +42,8 @@ pnpm-debug.log*
 CLAUDE.local.md
 .mcp.json
 .claude/settings.local.json
+apps/web/.agents/
+apps/web/.claude/
 
 # Hardhat
 cache/
