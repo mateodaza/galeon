@@ -61,7 +61,8 @@ That track record matters because Galeon requires someone who can work across th
 I'm building Galeon because financial privacy should be infrastructure, not a feature. That's a decade-long commitment and I'm here for it.
 
 **Video content or long form writing links** (optional, 2000 chars)
-[TODO: record a 2-min demo and link here. Also link GitHub repo: https://github.com/mateodaza/galeon]
+https://www.youtube.com/watch?v=hQtixMfDP1M
+https://github.com/mateodaza/galeon
 
 ### Founder 2
 
@@ -92,11 +93,11 @@ We are committed to building Galeon. Privacy and compliance are a constant chall
 
 **How did founders meet and duration working together full-time?** (3000 chars)
 
-Mateo and Carlos met at Universidad del Norte in Barranquilla around 2014 and have been close friends since. The working relationship started at Giveth, where Mateo referred Carlos and they spent about two years together building open-source donation infrastructure. Giveth wasn't a side project — it was a zero-fee donation platform that processed $4M+ in crypto donations from 6,000+ unique donors across 2,600+ projects. Mateo led engineering and shipped multi-chain donation infrastructure across Ethereum, Gnosis Chain, Optimism, and Polygon, plus a token rewards system that distributed $900K+ to donors. Carlos worked alongside him through that entire build. That's where we learned to ship real crypto products with real users and real money flowing through them.
+Mateo and Carlos met at Universidad del Norte in Barranquilla around 2014 and have been close friends since. The working relationship started at Giveth, where Mateo referred Carlos and they spent about four years together building open-source donation infrastructure. Giveth wasn't a side project — it was a zero-fee donation platform that processed $4M+ in crypto donations from 6,000+ unique donors across 2,600+ projects. Mateo led engineering and shipped multi-chain donation infrastructure across Ethereum, Gnosis Chain, Optimism, and Polygon, plus a token rewards system that distributed $900K+ to donors. Carlos worked alongside him through that entire build. That's where we learned to ship real crypto products with real users and real money flowing through them.
 
 After Giveth, 2025 and 2026 became our entrepreneurship years. We started competing in hackathons together, and the pattern held: we build fast, we ship, we iterate. We won the Mantle Global Hackathon 2025, RWA Track, with Galeon. That was the moment the idea clicked into something worth committing to full-time. We decided to go independent.
 
-The friendship matters because we trust each other's judgment under pressure. We've proven we can build together for extended periods without burning out. Two years at Giveth shipping to thousands of real users, then a hackathon season, now Galeon. We know how each other works.
+The friendship matters because we trust each other's judgment under pressure. We've proven we can build together for extended periods without burning out. Four years at Giveth shipping to thousands of real users, then a hackathon season, now Galeon. We know how each other works.
 
 What we've shipped together on Galeon:
 
@@ -197,10 +198,10 @@ Third, the market pressure materialized. Tokenized RWAs crossed $24B. Institutio
 Two years ago, you couldn't build Galeon — the standards didn't exist, the research wasn't proven, and the market wasn't ready. One year from now, the window for first-movers who assemble these primitives into working infrastructure starts closing. We're building at the right time.
 
 **Dune Dashboard link** (optional)
-[TODO: create a Dune dashboard showing on-chain contract activity before submitting]
+_(leave blank)_
 
 **Analytics dashboard link** (optional)
-[TODO: set up a public analytics page if possible before submission]
+_(leave blank)_
 
 ---
 
@@ -347,7 +348,7 @@ Finalized and submitted this Nitro application.
 
 ## Final Checklist Before Submitting
 
-- [ ] Record 2-min demo video and add link
+- [x] Paste demo video link into Founder 1 video/writing field
 - [x] Carlos writes his own "why are you the right founder" answer
 - [x] Fill in the "how founders met" story
 - [x] Decide on target migration chain (Base primary, Mantle current)
