@@ -27,21 +27,19 @@ Authors: Mateo Daza, Carlos Quintero
 
 ## 1. The Privacy Problem in On-Chain Finance
 
-Every transaction on a public blockchain is visible to anyone with a block explorer. This transparency is a feature for auditability, but it creates serious problems for legitimate financial activity.
+Every on-chain transaction is public. Payroll, vendor payments, and treasury moves are all visible to competitors, employees, and anyone with a block explorer. This transparency is a feature for auditability, but it makes it impossible for businesses and individuals to operate with basic financial privacy.
 
-A freelancer who shares a payment address with a client exposes their entire income history. A business paying a supplier reveals its pricing to competitors. A DAO treasury's movements can be front-run by traders watching the mempool. Payroll payments tell every employee what every other employee earns.
+A freelancer who shares a payment address with a client exposes their entire income history. A business paying a supplier reveals its pricing to competitors. A DAO treasury's movements can be front-run by traders watching the mempool. These are not hypothetical scenarios. They are the default experience of using public blockchains for finance today.
 
-These are not hypothetical scenarios. They are the default experience of using public blockchains for finance today.
+Existing privacy tools solved this by making everything anonymous, which made them unusable for legitimate use and got them sanctioned. Tornado Cash proved that demand for on-chain privacy is real (over $700M in deposits at peak), but offered no mechanism for compliance. There was no way to distinguish legitimate users from illicit ones, and the protocol was sanctioned by OFAC in August 2022. Privacy without accountability is a dead end.
 
-The market has tried to solve this before. Tornado Cash proved that demand for on-chain privacy is real: at its peak, the protocol held over $700M in deposits. But Tornado Cash offered privacy without any mechanism for compliance. There was no way to distinguish legitimate users from illicit ones, and the entire protocol was sanctioned by OFAC in August 2022. The lesson was clear: privacy without accountability is a dead end for legitimate use.
-
-Since then, the design space has split into two camps. On one side, projects like Railgun offer privacy through shielded pools with a blocklist model, where users prove they are not on a sanctions list. On the other, the Privacy Pools paper (Buterin, Illum, et al., 2023) proposed an allowlist model, where users prove membership in a set of approved participants maintained by an Association Set Provider. Each approach makes different trade-offs between openness and compliance strictness.
+Privacy Pools, based on the 2023 paper co-authored by Vitalik Buterin and Chainalysis's Jacob Illum, proved you can have both: users deposit into a pool and prove their funds come from a compliant set (an Association Set Provider tree) without revealing which specific deposit is theirs, giving the user privacy while keeping the system auditable. Since then, the design space has split between blocklist models (prove you are not on a sanctions list) and allowlist models (prove membership in a set of approved participants). Each makes different trade-offs between openness and compliance strictness.
 
 What has been missing is a system that combines receiver privacy (so payers cannot trace recipients), sender privacy (so withdrawals cannot be linked to deposits), and compliance tooling (so users can prove the legitimacy of their funds when needed). Galeon is that system.
 
 ## 2. Three-Layer Architecture
 
-Galeon's privacy model is built in three layers, each addressing a distinct privacy gap. The layers are designed to work together, but each provides value independently.
+Galeon is privacy infrastructure for on-chain finance. The protocol combines stealth addresses (EIP-5564/6538) with Privacy Pools and a compliance layer into three distinct layers, each addressing a different privacy gap. The layers work together, but each provides value independently.
 
 ```mermaid
 graph TD
