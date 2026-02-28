@@ -39,7 +39,7 @@ Mateo Daza — Co-founder
 X: @mateodazab | Telegram: @mateodaza | GitHub: mateodaza | Email: mateodaza@gmail.com
 
 Carlos Quintero — Co-founder
-X: @CarlosQ096 | Telegram: @cquinterom096 | GitHub: CarlosQ96
+X: @CarlosQ096 | Telegram: @cquinterom096 | GitHub: CarlosQ96 | Email: carlos.quintero096@gmail.com
 
 **Please enter the URL of a ~1-minute unlisted video introducing the founder(s) & what you're building**
 
@@ -55,7 +55,7 @@ _(Note: this is our full demo video from the Mantle Hackathon. We should record 
 
 No external users yet. The protocol is live on Mantle mainnet with the full flow working end-to-end: stealth address payments, pool deposits, private withdrawals, and tax report generation. We're pre-launch — we built the protocol first because in privacy infrastructure you can't fake the cryptography. Now that it works, we're migrating to Base and preparing for user onboarding.
 
-Demand is validated externally: 0xbow shipped Privacy Pools on Ethereum in March 2025, has ~$6M in volume and 1,500+ users, and raised $3.5M from Coinbase Ventures. Railgun processes significant volume. The category is proven — we're building the product layer on top of it.
+Demand is validated externally: 0xbow shipped Privacy Pools on Ethereum in March 2025, has ~$6M in volume and 1,500+ users, and raised $3.5M from Coinbase Ventures. Railgun processes significant volume. The category is proven, we're building the product layer on top of it.
 
 **Please include any Dune analytics dashboards and/or public smart contract addresses you've deployed as part of your project**
 
@@ -142,11 +142,7 @@ Base Batches maps to exactly where we are:
 
 2. We need structured support for go-to-market. Privacy products historically have terrible UX and cold-start problems (anonymity sets improve with more users, but early users get the weakest privacy). We need mentorship and peer feedback to nail the first user experience.
 
-3. Demo Day in SF is more valuable than months of cold outreach. Privacy is a long-term infrastructure bet that needs investors who think in 5-10 year timescales.
-
-4. The cohort itself is a growth channel. 15 teams building on Base, many of which pay contributors on-chain — we'd offer to be the privacy layer for the cohort's own payments.
-
-We've been shipping without funding, without a token, and without hype. We want to be around builders who work the same way.
+We've been shipping without funding, without a token, and without hype.
 
 **Revenue (if any): monthly / last few months / sources**
 
