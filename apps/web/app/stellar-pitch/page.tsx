@@ -4,7 +4,15 @@ import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { m, AnimatePresence } from 'motion/react'
-import { ChevronLeft, ChevronRight, ExternalLink, Anchor, Shield, FileText } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Anchor,
+  Shield,
+  FileText,
+  Check,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,12 +33,13 @@ function SlideContainer({
   )
 }
 
-// 1-minute Stellar pitch: Hook → Team → Solution → Why Stellar → Close
+// 1-minute Stellar pitch: Hook → Solution → Traction → Why Stellar → Team → Close
 const slides = [
   { id: 'hook', component: HookSlide },
-  { id: 'team', component: TeamSlide },
   { id: 'solution', component: SolutionSlide },
+  { id: 'traction', component: TractionSlide },
   { id: 'stellar', component: StellarSlide },
+  { id: 'team', component: TeamSlide },
   { id: 'closing', component: ClosingSlide },
 ]
 
@@ -224,7 +233,7 @@ function SolutionSlide() {
         Full compliance.
       </h2>
       <p className="mt-2 text-lg text-cyan-100/70">
-        Privacy infrastructure for real-world finance. Built on Ethereum standards, now migrating to
+        Privacy infrastructure for real-world finance. Built on Ethereum standards, now bringing to
         Stellar.
       </p>
 
@@ -283,7 +292,46 @@ function SolutionSlide() {
   )
 }
 
-// SLIDE 3: Why Stellar — Protocol 25 (20 seconds)
+// SLIDE 3: Traction — What's already built
+function TractionSlide() {
+  const capabilities = [
+    { label: 'Stealth Addresses', detail: 'EIP-5564/6538 standard' },
+    { label: 'Privacy Pool', detail: 'Unlinkable sends via ZK' },
+    { label: 'Client-Side Proofs', detail: 'Secrets never leave your device' },
+    { label: 'Relayer Network', detail: 'Sender address hidden on-chain' },
+    { label: 'Compliance Reports', detail: 'Shipwreck tax exports' },
+    { label: 'Mainnet Deployed', detail: 'Live on Mantle mainnet' },
+  ]
+
+  return (
+    <SlideContainer className="mx-auto max-w-4xl">
+      <Badge className="bg-emerald-500/20 text-emerald-400">Shipped</Badge>
+      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+        Already built and deployed.
+      </h2>
+      <p className="mt-2 text-lg text-cyan-100/70">
+        Full privacy stack live on EVM. Now bringing it to Stellar.
+      </p>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        {capabilities.map((cap) => (
+          <div
+            key={cap.label}
+            className="flex items-center gap-4 rounded-xl border border-cyan-500/20 bg-slate-800/40 px-6 py-5"
+          >
+            <Check className="h-6 w-6 flex-shrink-0 text-emerald-400" />
+            <div>
+              <p className="text-lg font-medium text-white">{cap.label}</p>
+              <p className="text-base text-cyan-100/60">{cap.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </SlideContainer>
+  )
+}
+
+// SLIDE 4: Why Stellar — Protocol 25 (20 seconds)
 function StellarSlide() {
   return (
     <SlideContainer className="mx-auto max-w-4xl">
@@ -335,12 +383,12 @@ function StellarSlide() {
   )
 }
 
-// SLIDE 2: Team — Founders
+// SLIDE 5: Team — Founders
 function TeamSlide() {
   const team = [
-    { name: 'Mateo Daza', role: 'Founder — Full Stack Engineer', image: '/mateo.jpeg' },
-    { name: 'Carlos Quintero', role: 'Founder — Full Stack Engineer', image: '/carlos.jpeg' },
-    { name: 'Fabio Anaya', role: 'Co-Founder — Ecosystem Integration Lead', image: '/fabio.jpeg' },
+    { name: 'Mateo Daza', role: 'Full Stack Engineer', image: '/mateo.jpeg' },
+    { name: 'Carlos Quintero', role: 'Backend & Cryptography Engineer', image: '/carlos.jpeg' },
+    { name: 'Fabio Anaya', role: 'Ecosystem Integration Lead', image: '/fabio.jpeg' },
   ]
 
   return (
@@ -348,7 +396,7 @@ function TeamSlide() {
       <div className="text-center">
         <Badge className="bg-cyan-500/20 text-cyan-400">Founders</Badge>
         <h2 className="mt-4 text-4xl font-bold text-white sm:text-5xl">Team</h2>
-        <p className="mt-2 text-lg text-cyan-100/60">Engineers building on Stellar</p>
+        <p className="mt-2 text-lg text-cyan-100/60">Engineers and Founders building on Stellar</p>
       </div>
 
       <div className="mt-10 grid grid-cols-3 gap-6">
@@ -368,7 +416,7 @@ function TeamSlide() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-white">{member.name}</p>
-              <p className="mt-1 text-base text-cyan-400">{member.role}</p>
+              <p className="mt-1 text-sm text-cyan-400">{member.role}</p>
             </div>
           </div>
         ))}
@@ -377,7 +425,7 @@ function TeamSlide() {
   )
 }
 
-// SLIDE 5: Closing (10 seconds)
+// SLIDE 6: Closing (10 seconds)
 function ClosingSlide() {
   return (
     <SlideContainer className="mx-auto max-w-4xl text-center">
@@ -393,9 +441,11 @@ function ClosingSlide() {
 
       <div className="mt-8 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-6">
         <p className="text-2xl font-semibold text-white">
-          Confidential when you need it. Compliant when you must.
+          Confidential when you need it. Compliant when you need it.
         </p>
-        <p className="mt-2 text-xl font-bold text-cyan-400">Made possible by Protocol 25.</p>
+        <p className="mt-2 text-xl font-bold text-cyan-400">
+          The privacy layer for real-world finance.
+        </p>
       </div>
 
       <a
