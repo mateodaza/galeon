@@ -8,7 +8,7 @@
 
 **Round:** SCF #42
 
-**Build Award Track:** Open Track (net-new protocol primitives and infrastructure)
+**Build Award Track:** Open Track
 
 **Submission Title:** Stealth Addresses, Privacy Pools, and Compliance Reporting for Stellar
 
@@ -28,27 +28,30 @@ Supplementary (full protocol litepaper): https://github.com/mateodaza/galeon/blo
 
 ## Products & Services
 
-1. **Stealth Address Module** — One-time receiving addresses so no payment can be linked to the recipient. Stellar: Soroban contract with event-based scanning via RPC `getEvents`. Impact: Receiver privacy for Stellar payments — no address reuse, no public payment history.
+Galeon is a production privacy stack deployed on EVM (Mantle mainnet). This project brings it to Stellar using Protocol 25 primitives — BN254 host functions (CAP-0074), Poseidon permutations (CAP-0075), and Stellar Asset Contracts.
+
+1. **Stealth Address Module** — One-time receiving addresses so no payment can be linked to the recipient. Stellar: ed25519 key derivation, contract-held balance model, event-based scanning via RPC `getEvents`. Impact: Receiver privacy for Stellar payments — no address reuse, no public payment history.
 
 2. **Privacy Pool** — ZK-proven withdrawals that break the on-chain link between deposit and withdrawal. Stellar: Groth16 verification via BN254 host functions (CAP-0074), Poseidon commitments via CAP-0075. Impact: Sender privacy with compliance — users prove funds are clean without revealing which deposit is theirs.
 
 3. **Shipwreck Compliance Layer** — On-demand tax/audit reports from on-chain activity. Stellar: Reads Soroban events + Horizon data to reconstruct transaction history. Impact: Makes privacy compatible with regulation — selective disclosure without exposing full history.
 
-4. **Relayer** — Submits withdrawals on behalf of users so their address never appears on-chain. Stellar: Adapted for Stellar transaction signing. Impact: Eliminates the metadata leak that would otherwise deanonymize private withdrawals.
+4. **Relayer** — Submits withdrawals on behalf of users so their address never appears on-chain. Stellar: Adapted for Stellar transaction construction and fee model. Impact: Eliminates the metadata leak that would otherwise deanonymize private withdrawals.
 
-5. **Web App** — Full user flow: connect wallet, receive stealth payments, private send, export compliance reports. Stellar: Built for Stellar wallets and Soroban interaction. Impact: Accessible interface for non-technical users to use privacy infrastructure on Stellar.
+5. **Web App** — Full user flow: connect wallet, receive stealth payments, private send, export compliance reports. Stellar: Built for Stellar wallets (Freighter, Lobstr) and Soroban interaction. Impact: Accessible interface for non-technical users to use privacy infrastructure on Stellar.
 
 ---
 
 ## Traction Evidence
 
-- Mantle Global Hackathon 2025 — 2nd place, RWA Track (Top 30 of 500+ submissions)
 - Full-stack production deployment on Mantle mainnet: stealth payments, Privacy Pool with ZK verification, relayer-assisted withdrawals, Shipwreck compliance reports
+- Mantle Global Hackathon 2025 — 2nd place, RWA Track (Top 30 of 500+ submissions)
 - Test coverage: @galeon/stealth 34 tests passing, @galeon/contracts 289 tests passing, @galeon/api 265 tests passing
-- Open-source repository: https://github.com/mateodaza/galeon
 - Working features on EVM: stealth address derivation + scanning, Privacy Pool deposit/withdraw with Groth16 proofs, Merkle tree ASP membership proofs, nullifier tracking (no double-spend), relayer service for private withdrawals, Shipwreck tax report generation with PDF export
+- Stellar-specific architecture document mapping every component to Protocol 25 primitives: https://github.com/mateodaza/galeon/blob/main/STELLAR-ARCHITECTURE.md
+- Open-source repository: https://github.com/mateodaza/galeon
 - Published litepaper: https://github.com/mateodaza/galeon/blob/main/LITEPAPER.md
-- Pre-product stage (no external users or TVL yet — this is infrastructure seeking its first ecosystem deployment)
+- Pre-product stage on Stellar (no external users or TVL yet — the protocol works on EVM and is ready to port)
 
 ---
 
@@ -72,7 +75,7 @@ _(Attach 16:9 image)_
 - **Carlos Quintero** — Backend & cryptography engineer. Relayer, indexing, crypto primitives. Telegram: @cquinterom096
 - **Fabio Anaya** — Ecosystem integration lead. Wallet integration testing (Freighter, Lobstr), developer documentation, user testing coordination, ASP operator setup. Telegram: @CryptoRhinoo
 
-The team previously shipped the full Galeon stack on Mantle (stealth payments, Privacy Pool circuits/contracts, relayer, compliance layer) in hackathon timelines. 3-person technical team submitting as a team of individuals.
+The team shipped the full Galeon stack on Mantle (stealth payments, Privacy Pool circuits/contracts, relayer, compliance layer) in hackathon timelines. All core protocol logic exists and is tested — this is a port to Stellar, not a build from scratch. 3-person technical team submitting as a team of individuals.
 
 ---
 
