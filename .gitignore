@@ -42,6 +42,7 @@ pnpm-debug.log*
 CLAUDE.local.md
 .mcp.json
 .claude/settings.local.json
+.claude/worktrees/
 apps/web/.agents/
 apps/web/.claude/
 

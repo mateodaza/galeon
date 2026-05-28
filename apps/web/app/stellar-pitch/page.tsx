@@ -40,6 +40,7 @@ const slides = [
   { id: 'traction', component: TractionSlide },
   { id: 'stellar', component: StellarSlide },
   { id: 'team', component: TeamSlide },
+  { id: 'team-structure', component: TeamStructureSlide },
   { id: 'closing', component: ClosingSlide },
 ]
 
@@ -425,7 +426,70 @@ function TeamSlide() {
   )
 }
 
-// SLIDE 6: Closing (10 seconds)
+// SLIDE 6: Team Structure — Full org with roles & responsibilities
+function TeamStructureSlide() {
+  const members = [
+    {
+      name: 'Mateo Daza',
+      title: 'Senior Front-end Engineer',
+      description:
+        "Leads the development of Galeon's enterprise-facing web interface. Responsible for translating complex onchain privacy mechanisms (stealth addresses, ZK proofs) into an intuitive, Web2-style business dashboard. Ensures a frictionless UX/UI for non-technical corporate users and accounting teams.",
+    },
+    {
+      name: 'Carlos Quintero',
+      title: 'Full Stack — Backend Engineer',
+      description:
+        'Architect of the core protocol infrastructure. Manages the integration of smart contracts on the Mantle and Stellar networks, oversees the Zero-Knowledge (ZK) proof generation infrastructure, and ensures secure, non-custodial data flows between the blockchain and the application layer.',
+    },
+    {
+      name: 'Fabio Anaya',
+      title: 'Lead of Growth',
+      description:
+        'Drives the strategic expansion and institutional adoption of the protocol. Responsible for securing B2B partnerships with Web3 startups, DAOs, and SMEs in LATAM. Focuses on user acquisition, scaling the Total Value Locked (TVL) in privacy pools, and identifying new market opportunities for the "Shipwreck Reports" feature.',
+    },
+    {
+      name: 'Juan David Correa',
+      title: 'Lead of Logistics (Project Manager)',
+      description:
+        'Oversees internal operations, resource allocation, and project milestones. Acts as the primary operational bridge ensuring that the technical and growth teams meet the strict deliverables and compliance reporting required by the UNICEF Innovation Fund during the 12-month investment period.',
+    },
+    {
+      name: 'Juan José Sanfeliú',
+      title: 'Lead of Marketing',
+      description:
+        'Manages the protocol\'s public presence, brand identity, and ecosystem engagement. Responsible for simplifying the narrative around "Compliant Privacy" through educational content, community building, and managing Galeon\'s presence at key industry events, hackathons, and developer conferences.',
+    },
+  ]
+
+  return (
+    <SlideContainer className="mx-auto max-w-5xl">
+      <div className="text-center">
+        <Badge className="bg-cyan-500/20 text-cyan-400">Team Structure</Badge>
+        <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">Roles & Responsibilities</h2>
+      </div>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        {members.map((member, idx) => (
+          <div
+            key={member.name}
+            className={`rounded-xl border border-cyan-500/20 bg-slate-800/40 p-4 ${
+              idx === members.length - 1 ? 'sm:col-span-2' : ''
+            }`}
+          >
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <p className="text-lg font-semibold text-white">{member.name}</p>
+              <span className="text-cyan-100/40">|</span>
+              <p className="text-sm font-medium text-cyan-400">{member.title}</p>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-cyan-100/75">{member.description}</p>
+          </div>
+        ))}
+      </div>
+    </SlideContainer>
+  )
+}
+
+// SLIDE 7: Closing (10 seconds)
 function ClosingSlide() {
   return (
     <SlideContainer className="mx-auto max-w-4xl text-center">
