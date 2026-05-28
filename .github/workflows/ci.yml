@@ -119,3 +119,37 @@ jobs:
       - run: pnpm --filter @galeon/config build
       - run: pnpm --filter @galeon/stealth build
       - run: pnpm --filter @galeon/api test
+
+  test-contracts:
+    name: Test Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter contracts test
+
+  test-indexer:
+    name: Test Indexer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @galeon/config build
+      - run: pnpm --filter @galeon/stealth build
+      - run: pnpm --filter @galeon/indexer test

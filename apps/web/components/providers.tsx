@@ -75,7 +75,7 @@ if (isWalletConfigured) {
     defaultNetwork: mantle,
     metadata,
     features: {
-      analytics: true,
+      analytics: false,
       email: false,
       socials: false,
       emailShowWallets: false,

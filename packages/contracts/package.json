@@ -2,9 +2,10 @@
   "name": "@galeon/contracts",
   "version": "0.0.1",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
-    "build": "hardhat compile || true",
-    "test": "hardhat test || true",
+    "build": "hardhat compile",
+    "test": "hardhat test",
     "lint": "eslint .",
     "typecheck": "echo 'Typecheck handled by Hardhat'",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network mantleSepolia",

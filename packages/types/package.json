@@ -2,6 +2,7 @@
   "name": "@galeon/types",
   "version": "0.0.1",
   "description": "Shared domain types for Galeon",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

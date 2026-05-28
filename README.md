@@ -14,7 +14,7 @@ On-chain payments are public by default. Galeon makes them private.
 
 **Need compliance?** Generate Shipwreck reports to prove specific transactions without exposing your full history.
 
-Whether you're a freelancer, business, DAO, or individual - Galeon gives you financial privacy without sacrificing compliance.
+Galeon gives users financial privacy without sacrificing compliance — whether for humanitarian cash transfers, personal payments, or organisational disbursements.
 
 ### Key Features
 
@@ -115,7 +115,7 @@ Solidity smart contracts deployed on Mantle:
 - `GaleonPrivacyPoolComplex`: ERC-20 token mixing pool
 - Port-only deposits, verifiedBalance gating, UUPS upgradeable
 
-**Tests**: 421 passing (205 base + 216 privacy pool)
+**Tests**: 194 passing (GaleonRegistry 46, PoolSimple 46, Entrypoint 41, PoolComplex 32, Announcer 17, ERC6538Registry 12)
 
 ### [@galeon/pool](./packages/pool)
 
@@ -203,7 +203,7 @@ AdonisJS 6 backend with PostgreSQL:
 - Announcement listing from Ponder indexer
 - Real-time updates via Transmit SSE
 
-**Tests**: 145+ passing
+**Tests**: 215 passing
 
 ### Indexer (`apps/indexer`)
 
@@ -296,34 +296,21 @@ All components are licensed for commercial use. See individual package LICENSE f
 
 Built for the Mantle Global Hackathon 2025
 
-## Pitch
+## What Galeon Is
 
-**Problem**: Public blockchains expose every transaction. Businesses and individuals can't use crypto for real-world payments without revealing their entire financial history to competitors, stalkers, and bad actors.
+Open-source, privacy-preserving payment infrastructure. Users receive at stealth addresses, withdraw through a ZK Privacy Pool, and generate compliance reports (Shipwreck) when needed. The Privacy Pool architecture is inherited from [0xbow](https://github.com/0xbow-io) (Apache-2.0, Oxorio-audited).
 
-**Solution**: Galeon provides compliance-ready privacy for payments. Hide who sends, who receives, and prove fund sources when needed with ZK proofs. Full privacy without sacrificing regulatory compliance.
+**Use cases:** private payments, cash transfers, organisational disbursements.
 
-**Business Model**:
+**Sustainability model:** relayer fees (1-2% on private withdrawals, paid by programme sponsors — never deducted from beneficiary entitlements), paid ASP attestation tiers, Shipwreck compliance reporting.
 
-- Relayer fees: Small percentage on private withdrawals (users can self-custody for free)
-- Premium compliance reports for enterprises
-- White-label API for businesses integrating privacy payments
+**Roadmap:**
 
-**Roadmap**:
-
-1. Multi-token support (USDC, USDT, WMNT)
-2. Optimized ZK circuits with larger Merkle trees for better scalability
-3. Mobile app with biometric key derivation
-4. Enterprise API with batch payments
-5. Cross-chain privacy via LayerZero/Wormhole
-6. Native ZK-EVM integration as Ethereum's L1 ZK infrastructure matures (2027+)
-   - Cheaper on-chain proof verification via native precompiles
-   - Larger Merkle trees = bigger anonymity sets = more privacy
-   - Faster client-side proof generation (seconds instead of 30-60s)
-   - More complex compliance proofs (ranges, multiple conditions)
-
-## Compliance Declaration
-
-Galeon does not handle regulated assets (securities, tokenized RWAs, or derivatives). It is privacy infrastructure for native token payments on Mantle L2. Users can generate compliance reports (Shipwreck) to prove fund sources for tax or audit purposes. The Privacy Pool architecture is based on 0xBow's design, which was developed with regulatory compatibility in mind.
+1. ERC-20 stablecoin pool deployment (USDC, USDT)
+2. Real ASP sanctions screening (replacing hackathon auto-approve)
+3. Embedded email-based wallet onboarding (Privy)
+4. Client-side viewing-key custody
+5. Multi-chain deployment (chain selection based on pilot partner needs)
 
 ## Team
 
