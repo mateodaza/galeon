@@ -302,7 +302,7 @@ Open-source, privacy-preserving payment infrastructure. Users receive at stealth
 
 **Use cases:** private payments, cash transfers, organisational disbursements.
 
-**Sustainability model:** relayer fees (1-2% on private withdrawals, paid by programme sponsors — never deducted from beneficiary entitlements), paid ASP attestation tiers, Shipwreck compliance reporting.
+**Sustainability:** partner-supported infrastructure arrangements (any fees paid by programme sponsors, never deducted from beneficiary entitlements), attestation services for organisations needing compliance-grade privacy infrastructure, Shipwreck compliance reporting.
 
 **Roadmap:**
 
