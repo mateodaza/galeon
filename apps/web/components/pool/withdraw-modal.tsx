@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { parseEther, formatEther, isAddress, encodeAbiParameters, type Address } from 'viem'
+import { formatEther, isAddress, encodeAbiParameters, type Address } from 'viem'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import {
   Loader2,
@@ -43,6 +43,7 @@ import {
   type PreflightResult,
   type PoolPrivacyHealth,
 } from '@/lib/api'
+import { safeParseEther } from '@/lib/utils'
 import {
   computeCommitmentHash,
   createWithdrawalSecrets,
@@ -239,7 +240,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   // Privacy health state (for informational display)
   const [privacyHealth, setPrivacyHealth] = useState<PoolPrivacyHealth | null>(null)
 
-  const parsedAmount = withdrawAmount ? parseEther(withdrawAmount) : 0n
+  const parsedAmount = safeParseEther(withdrawAmount) ?? 0n
   const isValidAmount = parsedAmount > 0n && parsedAmount <= totalBalance
   const isValidRecipient = isAddress(recipient)
 
@@ -615,6 +616,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
       }
 
       // 11. Generate ZK proof
+      // Yield to the event loop so the loading spinner paints before snarkjs
+      // locks the main thread. (The off-main-thread ProverClient isn't wired
+      // up: no bundled /prover.worker.js is served from public/.)
+      await new Promise((resolve) => setTimeout(resolve, 0))
       const proof = await generateWithdrawalProof(proofInput, undefined, (status) => {
         if (status.stage === 'computing' && status.message) {
           setProofProgress(status.message)

@@ -1199,6 +1199,11 @@ export function PoolProvider({ children }: PoolProviderProps) {
         onProgress?.('Generating ZK proof (this may take 30-60 seconds)...')
 
         // 10. Generate merge deposit proof
+        // Yield to the event loop so the progress UI paints before snarkjs
+        // locks the main thread. (The off-main-thread ProverClient isn't
+        // usable here: no bundled worker is served and it only supports
+        // withdrawal proofs, not merge deposits.)
+        await new Promise((resolve) => setTimeout(resolve, 0))
         const proof = await generateMergeDepositProof(proofInput, undefined, (status) => {
           if (status.stage === 'computing' && status.message) {
             onProgress?.(status.message)

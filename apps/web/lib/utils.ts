@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { parseEther } from 'viem'
 
 /**
  * Merge Tailwind classes with conflict resolution.
@@ -38,6 +39,22 @@ export function formatBalance(balance: bigint, decimals = 18, displayDecimals = 
     return `${whole}.${trimmedFraction}`
   }
   return whole.toString()
+}
+
+/**
+ * Safely parse an ether-denominated string to wei.
+ *
+ * Returns null for empty or invalid input (e.g. "5e-3", "abc") instead of
+ * throwing, so it can be called in a render body without white-screening the app.
+ * Callers should treat null as "no amount" (disable the action / show validation).
+ */
+export function safeParseEther(value: string): bigint | null {
+  if (!value) return null
+  try {
+    return parseEther(value)
+  } catch {
+    return null
+  }
 }
 
 /**

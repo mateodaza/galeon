@@ -34,6 +34,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
 import { healthApi, type PreflightResult } from '@/lib/api'
+import { safeParseEther } from '@/lib/utils'
 import { POOL_CONTRACTS } from '@galeon/pool'
 
 interface DepositModalProps {
@@ -74,7 +75,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
   const [preflightError, setPreflightError] = useState<string | null>(null)
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
 
-  const parsedAmount = amount ? parseEther(amount) : BigInt(0)
+  const parsedAmount = safeParseEther(amount) ?? BigInt(0)
   const hasExistingDeposits = deposits.length > 0
   // Reserve more gas for merge deposits (ZK proof generation uses more gas)
   // New deposits: ~0.02 MNT, Merge deposits: ~0.08 MNT

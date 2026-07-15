@@ -62,6 +62,7 @@ import {
   type PreflightResult,
 } from '@/lib/api'
 import { poseidonHash, recoverMergeDeposit, type MergeDepositEvent } from '@galeon/pool'
+import { safeParseEther } from '@/lib/utils'
 import { isSupportedChain, getStealthContracts, galeonRegistryAbi } from '@/lib/contracts'
 import { encodeAbiParameters } from 'viem'
 
@@ -718,7 +719,7 @@ export function useCollection() {
               const remainingBalance = await balanceCheckClient.getBalance({
                 address: stealthAddr as `0x${string}`,
               })
-              const minCollectable = parseEther('0.01') // Same as MINIMUM_COLLECTABLE_BALANCE
+              const minCollectable = MINIMUM_COLLECTABLE_BALANCE
 
               if (remainingBalance < minCollectable) {
                 // Balance too low, remove from list
@@ -1754,6 +1755,11 @@ export function useCollection() {
               console.log('[collectToPool] Generating ZK proof (this may take 30-60 seconds)...')
 
               // Generate merge deposit proof
+              // Yield to the event loop so the progress UI paints before snarkjs
+              // locks the main thread. (The off-main-thread ProverClient isn't
+              // usable here: no bundled worker is served and it only supports
+              // withdrawal proofs, not merge deposits.)
+              await new Promise((resolve) => setTimeout(resolve, 0))
               const proof = await generateMergeDepositProof(proofInput, undefined, (status) => {
                 if (status.stage === 'computing' && status.message) {
                   console.log('[collectToPool] Proof progress:', status.message)
@@ -2227,7 +2233,7 @@ export function useCollection() {
               const remainingBalance = await stealthPublicClient.getBalance({
                 address: payment.stealthAddress,
               })
-              const minCollectable = parseEther('0.01') // Same as MINIMUM_COLLECTABLE_BALANCE
+              const minCollectable = MINIMUM_COLLECTABLE_BALANCE
 
               if (remainingBalance < minCollectable) {
                 // Fully spent, remove from list
@@ -2624,8 +2630,17 @@ export function useCollection() {
         }
       }
 
-      // Parse amount
-      const amountWei = parseEther(amountInput)
+      // Parse amount (invalid input like "5e-3" must not throw during render)
+      const amountWei = safeParseEther(amountInput)
+      if (amountWei === null) {
+        return {
+          mode: 'none',
+          selectedPayment: null,
+          canSend: false,
+          message: 'Enter a valid amount',
+          availableAddresses,
+        }
+      }
 
       // Update which addresses can cover the amount
       availableAddresses.forEach((addr, i) => {

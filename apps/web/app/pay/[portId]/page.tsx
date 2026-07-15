@@ -56,6 +56,10 @@ export default function PayPage({ params }: PayPageProps) {
   const portName = 'Port'
   const isProcessing = isPending || isConfirming
 
+  // Synchronous re-entrancy guard: prevents a rapid double-click from firing
+  // two payNative calls (each generating a fresh stealth address) before the
+  // button's disabled state (driven by async isPending) repaints.
+  const isSubmittingRef = useRef<boolean>(false)
   // Track if we've recorded this payment to avoid duplicates
   const recordedTxRef = useRef<string | null>(null)
   // Store payment data at send time (before inputs can change)
@@ -98,6 +102,11 @@ export default function PayPage({ params }: PayPageProps) {
 
   const handlePay = async () => {
     if (!amount || !isConnected || !metaAddress) return
+    // Re-entrancy guard: bail synchronously if a submit is already in flight.
+    // Set before any await so a fast double-click is blocked even before the
+    // disabled prop repaints. The `disabled` prop stays as a second layer.
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
 
     setPaymentError(null)
 
@@ -109,6 +118,9 @@ export default function PayPage({ params }: PayPageProps) {
     } catch (error) {
       console.error('Payment failed:', error)
       setPaymentError(error instanceof Error ? error.message : 'Payment failed')
+    } finally {
+      // Reset on both success and failure so legitimate retries work
+      isSubmittingRef.current = false
     }
   }
 
