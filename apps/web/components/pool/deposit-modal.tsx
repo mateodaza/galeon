@@ -300,7 +300,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
             {step === 'review' && 'Checking sync status before merge deposit.'}
             {step === 'confirm' && 'Review and confirm your deposit.'}
             {step === 'pending' && 'Processing your deposit...'}
-            {step === 'success' && 'Deposit successful!'}
+            {step === 'success' && 'Deposit successful.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -556,7 +556,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
               <div className="bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-full">
                 <Check className="h-6 w-6" />
               </div>
-              <p className="mt-4 font-medium">Deposit Successful!</p>
+              <p className="mt-4 font-medium">Deposit successful</p>
               <p className="text-muted-foreground mt-2 text-center text-sm">
                 Your {amount} MNT has been deposited to the privacy pool.
               </p>

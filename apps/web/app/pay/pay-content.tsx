@@ -154,7 +154,7 @@ export default function PayContent() {
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20">
               <CheckCircle2 className="h-7 w-7 text-amber-500" />
             </div>
-            <h1 className="text-foreground mt-3 text-xl font-bold">Payment Sent!</h1>
+            <h1 className="text-foreground mt-3 text-xl font-bold">Payment sent</h1>
             <p className="text-muted-foreground mt-1 text-sm">
               Sent{' '}
               <span className="font-semibold text-amber-600 dark:text-amber-400">
@@ -446,7 +446,7 @@ export default function PayContent() {
                 {/* Show success only after confirmation complete */}
                 {!isCollecting && !isConfirmingCollect && collectTxHashes.length > 0 && (
                   <div className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
-                    Payment sent successfully!{' '}
+                    Payment sent.{' '}
                     <a
                       href={`https://mantlescan.xyz/tx/${collectTxHashes[0]}`}
                       target="_blank"
@@ -648,8 +648,8 @@ export default function PayContent() {
                     <Lock className="mt-0.5 h-4 w-4 text-emerald-500" />
                     <p className="text-muted-foreground text-xs">
                       <strong className="text-foreground">Privacy level: Maximum.</strong> Uses ZK
-                      proofs to completely break the link between deposits and withdrawals. No one
-                      can trace where the funds came from.
+                      proofs to break the on-chain link between deposits and withdrawals, so the
+                      withdrawal can&apos;t be traced back to your deposit.
                     </p>
                   </div>
                 </div>

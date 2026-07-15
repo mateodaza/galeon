@@ -144,7 +144,7 @@ export default function SetupPage() {
                       <Check className="h-6 w-6" />
                     </m.div>
                     <div>
-                      <h1 className="text-foreground text-2xl font-bold">You&apos;re Ready!</h1>
+                      <h1 className="text-foreground text-2xl font-bold">You&apos;re ready</h1>
                       <p className="text-muted-foreground text-sm">
                         Your wallet is connected and keys are unlocked
                       </p>

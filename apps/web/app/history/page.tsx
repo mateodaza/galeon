@@ -241,8 +241,8 @@ export default function HistoryPage() {
         <div className="text-sm">
           <p className="text-foreground font-medium">Privacy-First History</p>
           <p className="text-muted-foreground mt-1">
-            <strong>Private Send</strong> payments are so private that even we can't track them.
-            They're reconstructed client-side using your keys.{' '}
+            <strong>Private Send</strong> payments aren't stored on our servers. They're
+            reconstructed client-side using your keys.{' '}
             {!hasPoolKeys && (
               <Link href="/pool" className="text-emerald-500 hover:underline">
                 Unlock your pool keys

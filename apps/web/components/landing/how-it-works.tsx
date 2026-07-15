@@ -10,8 +10,7 @@ const steps = [
     number: '01',
     icon: Ship,
     title: 'Create a Port',
-    description:
-      'Set up a named payment endpoint. Share a simple link with anyone who needs to pay you.',
+    description: 'Set up a named payment endpoint. Share a link with anyone who needs to pay you.',
     detail: 'Your stealth meta-address is registered on-chain.',
   },
   {

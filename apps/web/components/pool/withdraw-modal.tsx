@@ -900,7 +900,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
             {step === 'recipient' && 'Enter the recipient address.'}
             {step === 'review' && 'Review your private send plan.'}
             {step === 'executing' && 'Processing private sends...'}
-            {step === 'success' && 'All private sends completed!'}
+            {step === 'success' && 'All private sends completed.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -1296,7 +1296,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
               <div className="bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-full">
                 <Check className="h-6 w-6" />
               </div>
-              <p className="mt-4 font-medium">Private Sends Complete!</p>
+              <p className="mt-4 font-medium">Private sends complete</p>
               <p className="text-muted-foreground mt-2 text-center text-sm">
                 {withdrawAmount} MNT has been privately sent to the recipient in {txHashes.length}{' '}
                 transaction{txHashes.length > 1 ? 's' : ''}.

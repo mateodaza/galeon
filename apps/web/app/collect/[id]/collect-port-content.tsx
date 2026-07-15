@@ -205,7 +205,7 @@ export default function CollectPortContent() {
               <CheckCircle2 className="text-primary h-7 w-7" />
             </div>
             <h1 className="text-foreground mt-3 text-xl font-bold">
-              {destination === 'pool' ? 'Deposited to Pool!' : 'Sent Successfully!'}
+              {destination === 'pool' ? 'Deposited to pool' : 'Payment sent'}
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
               {collectTxHashes.length} tx sent to{' '}
@@ -426,7 +426,7 @@ export default function CollectPortContent() {
                       connectedAddress &&
                       externalAddress.toLowerCase() === connectedAddress.toLowerCase() && (
                         <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-                          ⚠️ Sending to your wallet creates a traceable link.
+                          Sending to your wallet creates a traceable link.
                         </p>
                       )}
                   </div>

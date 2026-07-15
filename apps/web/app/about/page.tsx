@@ -92,7 +92,7 @@ export default function AboutPage() {
                 <FeatureBlock
                   number="02"
                   title="Privacy Pool (Sender Privacy)"
-                  description="Pay suppliers, contractors, or vendors without revealing your full treasury. Deposit to the pool, withdraw to any address with a ZK proof. No one can link your payments."
+                  description="Pay suppliers, contractors, or vendors without revealing your full treasury. Deposit to the pool, withdraw to any address with a ZK proof, so the withdrawal can't be linked on-chain back to your deposit."
                 />
                 <FeatureBlock
                   number="03"
@@ -139,8 +139,8 @@ export default function AboutPage() {
               <h2 className="text-2xl font-bold text-white">Built on Standards</h2>
               <div className="mt-6 space-y-4 leading-relaxed text-cyan-100/70">
                 <p>
-                  We didn&apos;t invent new cryptography. We assembled battle-tested standards into
-                  a complete privacy solution.
+                  We didn&apos;t invent new cryptography. We assembled established standards into
+                  one privacy system.
                 </p>
               </div>
 
