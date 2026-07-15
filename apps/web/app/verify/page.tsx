@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react'
-import { Search, CheckCircle2, XCircle, ExternalLink, Loader2 } from 'lucide-react'
+import { Search, CheckCircle2, XCircle, ExternalLink } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,33 +30,19 @@ interface VerificationResult {
 
 export default function VerifyPage() {
   const [receiptId, setReceiptId] = useState('')
-  const [isVerifying, setIsVerifying] = useState(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleVerify = async () => {
+  const handleVerify = () => {
     if (!receiptId.trim()) return
 
-    setIsVerifying(true)
-    setError(null)
     setResult(null)
-
-    try {
-      // TODO: Implement verification
-      // 1. Fetch receipt from backend by ID
-      // 2. Compute expected receiptHash
-      // 3. Query on-chain ReceiptAnchored event
-      // 4. Compare values
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Feature not yet implemented
-      setError('Verification is coming soon! This feature is under development.')
-    } catch {
-      setError('Verification failed. Please try again.')
-    } finally {
-      setIsVerifying(false)
-    }
+    // Verification UI ships with the upcoming hardening work. Receipts are
+    // already anchored on-chain (ReceiptAnchored events) and can be checked
+    // manually on the block explorer in the meantime.
+    setError(
+      'Self-serve verification is coming soon. Receipts are already anchored on-chain and can be verified via the block explorer.'
+    )
   }
 
   return (
@@ -92,18 +78,11 @@ export default function VerifyPage() {
 
               <Button
                 onClick={handleVerify}
-                disabled={!receiptId.trim() || isVerifying}
+                disabled={!receiptId.trim()}
                 size="lg"
                 className="mt-4 w-full"
               >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify Receipt'
-                )}
+                Verify Receipt
               </Button>
             </CardContent>
           </Card>
