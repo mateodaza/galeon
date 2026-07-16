@@ -728,8 +728,16 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
 
         hash = result.txHash as `0x${string}`
         console.log('[Withdraw] Relayer tx hash:', hash)
+      } else if (useRelayer && !relayerQuote) {
+        // Private mode is ON but there is no relayer quote (relayer/API down or
+        // still loading). Do NOT silently fall through to the public direct send:
+        // that would put the user's address on-chain while the UI promised privacy.
+        throw new Error(
+          'Relayer unavailable — cannot send privately right now. Please retry in a moment, or turn off private mode to send publicly on purpose.'
+        )
       } else {
-        // Direct contract call (not private - user's address visible)
+        // Direct contract call (not private - user's address visible).
+        // Reached only when the user explicitly turned private mode off.
         console.log('[Withdraw] Direct contract call...')
 
         hash = await walletClient.writeContract({
@@ -1158,7 +1166,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                 </div>
                 <p className="text-muted-foreground mt-2 text-xs">
                   {useRelayer
-                    ? 'Your address will NOT appear on-chain. The relayer broadcasts the transaction.'
+                    ? relayerQuote
+                      ? 'Your address will NOT appear on-chain. The relayer broadcasts the transaction.'
+                      : 'Relayer unavailable right now — cannot send privately. Retry, or turn off private mode to send publicly on purpose.'
                     : 'Your address WILL appear on-chain. You broadcast the transaction directly.'}
                 </p>
                 {useRelayer && relayerQuote && (
@@ -1354,6 +1364,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                   (step === 'amount' && !isValidAmount) ||
                   (step === 'recipient' && !isValidRecipient) ||
                   (step === 'review' && (isLoadingPreflight || !preflight?.canProceed)) ||
+                  // Private mode on but no relayer quote → block send so it can't
+                  // silently go out as a public (linkable) transaction.
+                  (step === 'review' && useRelayer && !relayerQuote) ||
                   isExecuting
                 }
               >

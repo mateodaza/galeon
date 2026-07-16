@@ -2054,8 +2054,11 @@ export function useCollection() {
                 }),
                 value: depositAmount,
               })
-              // Add 2x buffer to estimated gas for safety
-              const mergeGasLimit = (estimatedGas * 200n) / 100n
+              // Add 2x buffer to estimated gas for safety, capped under Mantle's
+              // 60M block gas limit (mirrors the first-deposit path; an uncapped
+              // 2x could exceed the block limit and get the tx rejected outright).
+              let mergeGasLimit = (estimatedGas * 200n) / 100n
+              if (mergeGasLimit > 50_000_000n) mergeGasLimit = 50_000_000n
               const actualGasCost = mergeGasLimit * gasPrice
 
               // Verify we have enough for gas (proof is already built with depositAmount, can't change it)
