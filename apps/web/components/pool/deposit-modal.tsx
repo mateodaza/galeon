@@ -562,7 +562,7 @@ export function DepositModal({ open, onOpenChange, onSuccess }: DepositModalProp
               </p>
               {txHash && (
                 <a
-                  href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
+                  href={`https://mantlescan.xyz/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary mt-2 text-sm hover:underline"

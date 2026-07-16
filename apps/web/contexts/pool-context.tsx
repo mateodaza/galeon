@@ -1195,17 +1195,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
           [address as Address]
         )
 
-        console.error('🔴🔴🔴 MERGE DEPOSIT: About to compute context with:', {
-          mergeData,
-          poolScope: poolScope.toString(),
-        })
-
         const context = await computeMergeDepositContext(mergeData, poolScope)
-
-        console.error('🔴🔴🔴 MERGE DEPOSIT: Context computed:', context.toString())
-        console.error(
-          '🔴🔴🔴 Expected: 11307924830650364530159500708242273320723539315232360156436850524595874837064'
-        )
 
         // 9. Build merge deposit proof input
         const proofInput: MergeDepositProofInput = {
