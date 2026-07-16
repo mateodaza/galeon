@@ -62,6 +62,7 @@ export default function CollectPortContent() {
     collectToPool,
     hasKeys,
     hasPoolKeys,
+    poolReady,
     willMergeDeposit,
     preflight,
     isLoadingPreflight,
@@ -481,6 +482,9 @@ export default function CollectPortContent() {
                     !isValidAmount ||
                     (destination === 'external' && !externalAddress) ||
                     (destination === 'pool' && poolStats.paymentsCanDeposit === 0) ||
+                    // Block deposit until pool keys AND on-chain scope are ready,
+                    // so the click can't hit the misleading "not derived" gate.
+                    (destination === 'pool' && hasPoolKeys && !poolReady) ||
                     (destination === 'pool' &&
                       willMergeDeposit &&
                       (isLoadingPreflight || !preflight?.canProceed))
@@ -565,6 +569,12 @@ export default function CollectPortContent() {
                       Derive pool keys
                     </Link>{' '}
                     first.
+                  </p>
+                )}
+
+                {hasPoolKeys && !poolReady && (
+                  <p className="text-muted-foreground mt-3 text-center text-xs">
+                    Loading pool configuration…
                   </p>
                 )}
 

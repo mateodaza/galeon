@@ -169,6 +169,14 @@ interface PoolContextValue {
   masterSecret: bigint | null
   /** Whether pool keys have been derived */
   hasPoolKeys: boolean
+  /**
+   * Whether the pool is fully ready to build a deposit: keys derived AND the
+   * on-chain scope loaded AND not mid-restore. `hasPoolKeys` alone is NOT
+   * sufficient — poolScope loads async via an RPC read, so gating deposit
+   * actions on hasPoolKeys enables them before scope is ready and produces a
+   * misleading "Pool keys not derived" failure.
+   */
+  poolReady: boolean
   /** Whether key derivation is in progress */
   isDerivingKeys: boolean
   /** Whether we're restoring from storage */
@@ -1484,6 +1492,8 @@ export function PoolProvider({ children }: PoolProviderProps) {
         masterNullifier,
         masterSecret,
         hasPoolKeys: masterNullifier !== null && masterSecret !== null,
+        poolReady:
+          masterNullifier !== null && masterSecret !== null && poolScope !== null && !isRestoring,
         isDerivingKeys,
         isRestoring,
         deposits,

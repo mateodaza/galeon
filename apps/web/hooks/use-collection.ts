@@ -142,8 +142,16 @@ export function useCollection() {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const { keys, masterSignature } = useStealthContext()
-  const { masterNullifier, masterSecret, poolScope, hasPoolKeys, deposits, forceSync, addDeposit } =
-    usePoolContext()
+  const {
+    masterNullifier,
+    masterSecret,
+    poolScope,
+    hasPoolKeys,
+    poolReady,
+    deposits,
+    forceSync,
+    addDeposit,
+  } = usePoolContext()
 
   const [payments, setPayments] = useState<CollectablePayment[]>([])
   const [dustPayments, setDustPayments] = useState<CollectablePayment[]>([])
@@ -807,8 +815,15 @@ export function useCollection() {
         console.warn('[collectToPool] Force sync failed (continuing anyway):', syncError)
       }
 
-      if (!masterNullifier || !masterSecret || !poolScope) {
+      if (!masterNullifier || !masterSecret) {
         setCollectError('Pool keys not derived. Please sign in to the pool first.')
+        return
+      }
+      if (!poolScope) {
+        // Keys are present but the on-chain pool scope hasn't loaded yet — do NOT
+        // mislabel this as a key/sign-in problem (the old code did, sending users
+        // down a dead end). It resolves on its own once the RPC read returns.
+        setCollectError('Pool configuration is still loading. Please wait a moment and try again.')
         return
       }
       // Filter payments by portId if specified
@@ -2749,6 +2764,7 @@ export function useCollection() {
     collectToPool,
     hasKeys: !!keys && !!masterSignature,
     hasPoolKeys,
+    poolReady,
     willMergeDeposit,
     existingPoolBalance: deposits.reduce((sum, d) => sum + d.value, 0n),
     // Preflight for pool deposits (sync check)
