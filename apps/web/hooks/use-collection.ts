@@ -616,10 +616,11 @@ export function useCollection() {
           // Get gas price for legacy transaction
           const gasPrice = await stealthPublicClient.getGasPrice()
 
-          // Send as legacy transaction with high gas limit for Mantle L2
-          // Mantle requires ~58.5M gas for L1 data costs (verified from successful tx)
+          // Mantle migrated to standard EVM gas metering (60M block gas limit, ~50 gwei).
+          // A native value transfer is ~21k gas; the old 85M constant now EXCEEDS the
+          // block limit (tx rejected) and reserves absurd gas. Use a modest limit + margin.
           // IMPORTANT: Blockchain reserves gasLimit * gasPrice upfront, refunds unused after
-          const gasLimit = 85000000n // 85M gas limit
+          const gasLimit = 100000n // ~21k for a native transfer + margin
 
           // Calculate max gas cost based on gasLimit (what blockchain reserves)
           const maxGasCost = gasLimit * gasPrice
@@ -1050,15 +1051,18 @@ export function useCollection() {
               paymentIdx,
             })
 
-            // Calculate gas reserve based on CURRENT gas price for accurate estimation
-            // From real tx data on Mantle:
-            // - First deposits use ~1.45B gas (tx 0x0aec41a90dfa32aba950973100a6c983592110c576e9514a2565723950e84051)
-            // - Merge deposits use ~2.07B gas
-            // We use upper bounds and 3x margin because Mantle's gas estimator is unreliable
-            const MERGE_GAS_UNITS = 2_500_000_000n // Upper bound for merge (~2.07B actual)
-            const DEPOSIT_GAS_UNITS = 2_000_000_000n // Upper bound for first deposit (~1.45B actual)
+            // Gas reserve for the deposit/merge tx (sent FROM the stealth address).
+            // Mantle migrated to standard EVM gas metering during 2026: the block gas
+            // limit is now 60M and gas price ~50 gwei, so the old billions-of-units
+            // constants reserved ~300 MNT and blocked EVERY deposit. Use realistic upper
+            // bounds (well under the 60M block limit) with a 2x margin. This is only a
+            // conservative pre-filter — the submission paths below run a precise
+            // estimateGas balance check before actually sending, so under-reserving here
+            // cannot cause an out-of-gas failure.
+            const MERGE_GAS_UNITS = 6_000_000n // realistic upper bound for a merge deposit
+            const DEPOSIT_GAS_UNITS = 4_000_000n // realistic upper bound for a first deposit
             const baseGasUnits = shouldMerge ? MERGE_GAS_UNITS : DEPOSIT_GAS_UNITS
-            const gasMarginMultiplier = 300n // 3x margin required for Mantle gas estimation
+            const gasMarginMultiplier = 200n // 2x margin
             const minGasReserve = (baseGasUnits * gasPrice * gasMarginMultiplier) / 100n
             const availableForDeposit = currentBalance - minGasReserve
 
@@ -2156,10 +2160,28 @@ export function useCollection() {
                 continue
               }
 
-              // Use fixed gas limit instead of estimation
-              // Mantle's gas estimator is unreliable and reverts when balance is near the edge
-              // First deposits use ~1.45B gas on Mantle, we use 2B with buffer
-              const gasLimit = 2_000_000_000n
+              // Estimate gas for the deposit tx. Mantle now uses standard EVM metering
+              // (60M block limit), so the old fixed 2B constant exceeds the block limit
+              // and gets the tx rejected. Estimate and add a 2x buffer, capped safely
+              // below the block gas limit (mirrors the merge path above).
+              let gasLimit: bigint
+              try {
+                const estimatedGas = await readClient.estimateGas({
+                  account: payment.stealthAddress as Address,
+                  to: contracts.entrypoint as Address,
+                  data: encodeFunctionData({
+                    abi: entrypointAbi,
+                    functionName: 'deposit',
+                    args: [precommitment.hash],
+                  }),
+                  value: depositAmount,
+                })
+                gasLimit = (estimatedGas * 200n) / 100n // 2x buffer
+              } catch (estErr) {
+                console.warn('[collectToPool] deposit estimateGas failed, using fallback', estErr)
+                gasLimit = 5_000_000n // conservative fallback, under the 60M block limit
+              }
+              if (gasLimit > 50_000_000n) gasLimit = 50_000_000n // stay under block limit
 
               console.log(
                 '[collectToPool] Final deposit amount:',
