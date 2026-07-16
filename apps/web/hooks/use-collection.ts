@@ -64,7 +64,7 @@ import {
 import { poseidonHash, recoverMergeDeposit, type MergeDepositEvent } from '@galeon/pool'
 import { safeParseEther } from '@/lib/utils'
 import { isSupportedChain, getStealthContracts, galeonRegistryAbi } from '@/lib/contracts'
-import { encodeAbiParameters } from 'viem'
+import { encodeAbiParameters, parseEventLogs } from 'viem'
 
 /**
  * Convert UUID to a deterministic 32-bit number for key derivation.
@@ -2328,7 +2328,32 @@ export function useCollection() {
               // Track locally for next iteration (bypasses indexer lag)
               localLatestDeposit = mergedDeposit
             } else if (firstDepositPrecommitment) {
-              // First deposit (non-merge)
+              // First deposit (non-merge).
+              // Decode the real on-chain label from the pool's Deposited event so
+              // the next iteration's merge targets the correct commitment. The old
+              // code used poolScope as the label, which is wrong (the real label is
+              // keccak256(SCOPE, ++nonce)) and breaks multi-payment collects into a
+              // fresh pool. Fall back to poolScope on decode failure (no regression).
+              let firstDepositLabel = poolScope
+              try {
+                const poolDeposited = parseEventLogs({
+                  abi: poolAbi,
+                  eventName: 'Deposited',
+                  logs: receipt.logs,
+                }).find(
+                  (log) =>
+                    (log.args as { _precommitmentHash?: bigint })._precommitmentHash ===
+                    firstDepositPrecommitment.hash
+                )
+                if (poolDeposited) {
+                  firstDepositLabel = (poolDeposited.args as { _label: bigint })._label
+                }
+              } catch (decodeErr) {
+                console.warn(
+                  '[collectToPool] could not decode first-deposit label; using scope fallback',
+                  decodeErr
+                )
+              }
               const newDeposit: PoolDeposit = {
                 index: firstDepositIndex,
                 derivationDepth: 0n,
@@ -2336,7 +2361,7 @@ export function useCollection() {
                 secret: firstDepositPrecommitment.secret,
                 precommitmentHash: firstDepositPrecommitment.hash,
                 value: actualDepositAmount,
-                label: poolScope, // Label is scope for first deposit
+                label: firstDepositLabel,
                 blockNumber: receipt.blockNumber,
                 txHash: hash,
               }

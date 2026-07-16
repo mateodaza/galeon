@@ -41,7 +41,7 @@ import {
   type MergeDepositEvent,
   type WithdrawalEvent,
 } from '@galeon/pool'
-import { encodeAbiParameters, type Address } from 'viem'
+import { encodeAbiParameters, parseEventLogs, type Address } from 'viem'
 import { poolDepositsApi, mergeDepositsApi, nullifierApi, merkleLeavesApi } from '@/lib/api'
 
 /** Storage key prefix */
@@ -913,7 +913,38 @@ export function PoolProvider({ children }: PoolProviderProps) {
           throw new Error('Deposit transaction reverted')
         }
 
-        // Add to local deposits (label will be set from event, using 0 as placeholder)
+        // Decode the real label from the pool's Deposited event so this deposit
+        // is immediately usable for withdraw/merge in the same session. The
+        // receipt carries TWO Deposited events: the Entrypoint's (no label) and
+        // the pool's (has _label); parseEventLogs with poolAbi selects the pool
+        // one by signature. If decode fails we fall back to the indexer recovery
+        // path, so this can only improve on the old label:0 placeholder.
+        let depositLabel = BigInt(0)
+        try {
+          const poolDeposited = parseEventLogs({
+            abi: poolAbi,
+            eventName: 'Deposited',
+            logs: receipt.logs,
+          }).find(
+            (log) =>
+              (log.args as { _precommitmentHash?: bigint })._precommitmentHash ===
+              precommitment.hash
+          )
+          if (poolDeposited) {
+            depositLabel = (poolDeposited.args as { _label: bigint })._label
+          }
+        } catch (decodeErr) {
+          console.warn(
+            '[Pool deposit] could not decode label from receipt; will recover from indexer',
+            decodeErr
+          )
+        }
+        if (depositLabel === BigInt(0)) {
+          // No usable label yet — let indexer recovery repair it.
+          setNeedsRecovery(true)
+        }
+
+        // Add to local deposits
         const newDeposit: PoolDeposit = {
           index: nextIndex,
           derivationDepth: 0n, // Original deposit, not derived from withdrawal/merge
@@ -921,7 +952,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
           secret: precommitment.secret,
           precommitmentHash: precommitment.hash,
           value: amount,
-          label: BigInt(0), // Will be updated on recovery
+          label: depositLabel,
           blockNumber: receipt.blockNumber,
           txHash: hash,
         }
