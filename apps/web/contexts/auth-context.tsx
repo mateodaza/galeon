@@ -91,7 +91,7 @@ Expiration Time: ${expirationTime}`
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, isDisconnected } = useAccount()
   const chainId = useChainId()
   const { signMessageAsync } = useSignMessage()
   const queryClient = useQueryClient()
@@ -168,14 +168,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (isConnected) {
       // Mark that wallet has been connected at least once
       wasConnectedRef.current = true
-    } else if (wasConnectedRef.current) {
-      // Only clear if wallet was previously connected (active disconnect)
+    } else if (wasConnectedRef.current && isDisconnected) {
+      // Only clear on a SETTLED disconnect. During a transient reconnect/connect
+      // blip (wagmi status 'reconnecting'/'connecting') isConnected is also false;
+      // clearing here would wipe a valid session and force a full re-sign on every
+      // reload/new-tab — and, via shared localStorage, sign out every open tab.
       console.log('[Auth] Wallet disconnected, clearing session')
       setUser(null)
       tokenStorage.clearTokens()
       authenticatedAddressRef.current = null
     }
-  }, [isConnected])
+  }, [isConnected, isDisconnected])
 
   /**
    * Auto-logout when wallet address changes (user switches accounts)

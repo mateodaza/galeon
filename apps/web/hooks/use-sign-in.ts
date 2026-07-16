@@ -39,7 +39,7 @@ interface UseSignInResult {
  * Use SignInModal for the actual sign-in flow.
  */
 export function useSignIn(): UseSignInResult {
-  const { isConnected } = useAccount()
+  const { isConnected, isReconnecting, isConnecting } = useAccount()
 
   const {
     isAuthenticated,
@@ -79,8 +79,10 @@ export function useSignIn(): UseSignInResult {
   // Combine errors from all sources
   const error = authError || stealthError
 
-  // Combine loading states
-  const isLoading = isAuthLoading || isRestoring
+  // Combine loading states. Include wagmi's reconnecting/connecting so guards
+  // (AuthGuard, AppShell) don't treat the mount-time reconnect window as
+  // "signed out" and redirect before the wallet finishes reconnecting.
+  const isLoading = isReconnecting || isConnecting || isAuthLoading || isRestoring
   const isSigningIn = isAuthenticating || isDerivingKeys
 
   // Fully signed in = authenticated with backend + have stealth keys
