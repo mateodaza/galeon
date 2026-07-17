@@ -230,6 +230,11 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   const [useRelayer, setUseRelayer] = useState(true) // Default to private
   const [relayerQuote, setRelayerQuote] = useState<RelayerQuote | null>(null)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+  // On-chain relay-fee cap (maxRelayFeeBPS from the entrypoint's assetConfig).
+  // The relayer fee is ~flat (its gas cost), so on small withdrawals the fee %
+  // exceeds this cap and the tx reverts with RelayFeeGreaterThanMax. We read the
+  // cap to block the send before it reverts and tell the user the minimum amount.
+  const [maxRelayFeeBPS, setMaxRelayFeeBPS] = useState<number | null>(null)
 
   // Pre-flight state
   const [preflight, setPreflight] = useState<PreflightResult | null>(null)
@@ -243,6 +248,18 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
   const parsedAmount = safeParseEther(withdrawAmount) ?? 0n
   const isValidAmount = parsedAmount > 0n && parsedAmount <= totalBalance
   const isValidRecipient = isAddress(recipient)
+
+  // Fee-cap guard: the relayer fee (~flat gas cost) as a % of a small withdrawal
+  // can exceed the entrypoint's maxRelayFeeBPS and revert. Block those sends and
+  // compute the minimum amount that keeps the fee under the cap.
+  const feeExceedsCap =
+    useRelayer &&
+    relayerQuote != null &&
+    maxRelayFeeBPS != null &&
+    relayerQuote.feeBPS >= maxRelayFeeBPS
+  const relayerFeeAmount = relayerQuote ? (parsedAmount * BigInt(relayerQuote.feeBPS)) / 10000n : 0n
+  const minPrivateAmount =
+    feeExceedsCap && maxRelayFeeBPS ? (relayerFeeAmount * 10000n) / BigInt(maxRelayFeeBPS) : 0n
 
   // Compute withdrawal plan based on amount
   const withdrawalPlan = useMemo(() => {
@@ -277,6 +294,25 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
       .then(setPrivacyHealth)
       .catch(() => setPrivacyHealth(null))
   }, [open, contracts?.pool])
+
+  // Read the on-chain max relay-fee cap when the modal opens.
+  useEffect(() => {
+    if (!open || !publicClient || !contracts?.entrypoint) return
+    const NATIVE_ASSET = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Address
+    publicClient
+      .readContract({
+        address: contracts.entrypoint as Address,
+        abi: entrypointAbi,
+        functionName: 'assetConfig',
+        args: [NATIVE_ASSET],
+      })
+      .then((cfg) => {
+        // assetConfig -> [pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS]
+        const maxFee = (cfg as readonly [Address, bigint, bigint, bigint])[3]
+        setMaxRelayFeeBPS(Number(maxFee))
+      })
+      .catch(() => setMaxRelayFeeBPS(null))
+  }, [open, publicClient, contracts?.entrypoint])
 
   // Fetch relayer quote when amount changes and relayer is enabled
   useEffect(() => {
@@ -841,6 +877,18 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
 
       // Translate error to user-friendly message
       const rawMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+
+      // Backstop for the relay-fee cap (RelayFeeGreaterThanMax / 0xdfa294c6): the
+      // pre-send guard should catch this, but if the fee lands on the cap at send
+      // time, give the actionable "amount too small" message instead of a raw revert.
+      if (rawMessage.includes('RelayFeeGreaterThanMax') || rawMessage.includes('0xdfa294c6')) {
+        setError(
+          'Amount too small for a private send: the relayer fee exceeds the on-chain cap. Try a larger amount, or turn off private mode to send publicly.'
+        )
+        setStep('review')
+        return
+      }
+
       const translated = translateError(rawMessage)
 
       console.error('[Withdraw] Error:', rawMessage)
@@ -1186,6 +1234,15 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                     Loading fee quote...
                   </div>
                 )}
+                {feeExceedsCap && maxRelayFeeBPS != null && (
+                  <p className="text-destructive mt-2 text-xs">
+                    This amount is too small for a private send — the relayer fee (
+                    {(relayerQuote!.feeBPS / 100).toFixed(1)}%) exceeds the{' '}
+                    {(maxRelayFeeBPS / 100).toFixed(1)}% cap. Try at least ~
+                    {Number(formatEther(minPrivateAmount)).toFixed(2)} MNT, or turn off private mode
+                    to send publicly.
+                  </p>
+                )}
               </div>
 
               <div className="bg-muted rounded-lg p-4">
@@ -1367,6 +1424,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                   // Private mode on but no relayer quote → block send so it can't
                   // silently go out as a public (linkable) transaction.
                   (step === 'review' && useRelayer && !relayerQuote) ||
+                  // Relayer fee would exceed the on-chain cap → the tx would revert
+                  // (RelayFeeGreaterThanMax). Block it; the amount is too small.
+                  feeExceedsCap ||
                   isExecuting
                 }
               >
