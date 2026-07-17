@@ -989,6 +989,15 @@ export function WithdrawModal({ open, onOpenChange, onSuccess }: WithdrawModalPr
                 <p className="text-muted-foreground text-sm">
                   Available: {formatEther(totalBalance)} MNT ({deposits.length} deposits)
                 </p>
+                {feeExceedsCap && maxRelayFeeBPS != null && (
+                  <p className="text-destructive text-xs">
+                    This amount is too small for a private send — the relayer fee (
+                    {(relayerQuote!.feeBPS / 100).toFixed(1)}%) exceeds the{' '}
+                    {(maxRelayFeeBPS / 100).toFixed(1)}% cap. Try at least ~
+                    {Number(formatEther(minPrivateAmount)).toFixed(2)} MNT, or turn off private mode
+                    to send publicly.
+                  </p>
+                )}
               </div>
 
               {isValidAmount && withdrawalPlan.length > 1 && (
