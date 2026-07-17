@@ -509,7 +509,7 @@ interface PoolProviderProps {
 }
 
 export function PoolProvider({ children }: PoolProviderProps) {
-  const { address, isConnected, chainId } = useAccount()
+  const { address, isDisconnected, chainId } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
@@ -636,16 +636,20 @@ export function PoolProvider({ children }: PoolProviderProps) {
   }, [address, deriveKeysFromSignature])
 
   /**
-   * Clear state on disconnect
+   * Clear state on a SETTLED disconnect only.
+   * Gating on isDisconnected (not !isConnected) avoids wiping pool keys/deposits/
+   * scope during a transient reconnect blip (status 'reconnecting'/'connecting'),
+   * which would force a full key re-derive AND a from-scratch pool recovery on
+   * every reload/nav. (Twin of the auth-context C2 fix.)
    */
   useEffect(() => {
-    if (!isConnected) {
+    if (isDisconnected) {
       setMasterNullifier(null)
       setMasterSecret(null)
       setDeposits([])
       setPoolScope(null)
     }
-  }, [isConnected])
+  }, [isDisconnected])
 
   /**
    * Listen for storage changes from other tabs or manual clearing
