@@ -64,6 +64,13 @@ interface PoolSession {
 interface StoredDeposit {
   index: number
   derivationDepth: number
+  // Recovery-computed secrets, cached so a fresh load can rebuild spendable notes
+  // WITHOUT the slow on-chain merge re-trace. Optional so pre-cache entries (which
+  // lacked them) fall back to full recovery. NOT re-derived on load — a note's
+  // derivation depends on its type/history (createDepositSecrets vs
+  // createWithdrawalSecrets), so we trust the values recovery already computed.
+  nullifier?: string
+  secret?: string
   precommitmentHash: string
   value: string
   label: string
@@ -161,6 +168,58 @@ function _loadStoredDeposits(address: string, chainId: number): StoredDeposit[] 
 function saveStoredDeposits(address: string, chainId: number, deposits: StoredDeposit[]): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(getDepositsStorageKey(address, chainId), JSON.stringify(deposits))
+}
+
+/** Serialize a spendable note for localStorage (single source of truth). */
+function toStoredDeposit(d: PoolDeposit): StoredDeposit {
+  return {
+    index: Number(d.index),
+    derivationDepth: Number(d.derivationDepth),
+    nullifier: d.nullifier.toString(),
+    secret: d.secret.toString(),
+    precommitmentHash: d.precommitmentHash.toString(),
+    value: d.value.toString(),
+    label: d.label.toString(),
+    blockNumber: d.blockNumber.toString(),
+    txHash: d.txHash,
+    createdAt: Date.now(),
+  }
+}
+
+/**
+ * Rebuild spendable notes from the cache using the STORED secrets (not re-derived).
+ * Verifies each entry's stored secrets reproduce its stored precommitment as a
+ * corruption check. Returns [] (→ full recovery) if the cache is empty, pre-dates
+ * secret caching, or any entry fails the check — so it can only speed things up,
+ * never surface an unspendable note.
+ */
+async function loadStoredPoolDeposits(address: string, chainId: number): Promise<PoolDeposit[]> {
+  const stored = _loadStoredDeposits(address, chainId)
+  if (stored.length === 0) return []
+  const notes: PoolDeposit[] = []
+  for (const s of stored) {
+    if (s.nullifier === undefined || s.secret === undefined) return []
+    try {
+      const nullifier = BigInt(s.nullifier)
+      const secret = BigInt(s.secret)
+      const precommitment = await poseidonHash([nullifier, secret])
+      if (precommitment.toString() !== s.precommitmentHash) return []
+      notes.push({
+        index: BigInt(s.index),
+        derivationDepth: BigInt(s.derivationDepth),
+        nullifier,
+        secret,
+        precommitmentHash: BigInt(s.precommitmentHash),
+        value: BigInt(s.value),
+        label: BigInt(s.label),
+        blockNumber: BigInt(s.blockNumber),
+        txHash: s.txHash,
+      })
+    } catch {
+      return []
+    }
+  }
+  return notes
 }
 
 interface PoolContextValue {
@@ -727,6 +786,22 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
     const doRecover = async () => {
       try {
+        // Fast path: rebuild notes from cached (recovery-computed) secrets, skipping
+        // the slow on-chain merge re-trace (the 40s+ "Loading" gate). Uses the STORED
+        // secrets directly with a corruption check — never re-derived — so it can't
+        // surface an unspendable note; a stale/pre-cache miss falls through to full
+        // recovery below.
+        if (address && chainId) {
+          const cached = await loadStoredPoolDeposits(address, chainId)
+          if (cancelled) return
+          if (cached.length > 0) {
+            console.log('[Pool] Fast recovery from cache:', cached.length, 'notes')
+            setDeposits(cached)
+            setNeedsRecovery(false)
+            return
+          }
+        }
+
         // Use backend API (much faster than direct RPC getLogs)
         const apiDeposits = await poolDepositsApi.list({
           pool: contracts.pool,
@@ -809,16 +884,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
         // Save to localStorage (only active deposits)
         if (address && chainId) {
-          const stored: StoredDeposit[] = activeDeposits.map((d) => ({
-            index: Number(d.index),
-            derivationDepth: Number(d.derivationDepth),
-            precommitmentHash: d.precommitmentHash.toString(),
-            value: d.value.toString(),
-            label: d.label.toString(),
-            blockNumber: d.blockNumber.toString(),
-            txHash: d.txHash,
-            createdAt: Date.now(),
-          }))
+          const stored: StoredDeposit[] = activeDeposits.map(toStoredDeposit)
           saveStoredDeposits(address, chainId, stored)
         }
       } catch (err) {
@@ -974,16 +1040,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
         // Save to localStorage
         if (address && chainId) {
-          const stored: StoredDeposit[] = updatedDeposits.map((d) => ({
-            index: Number(d.index),
-            derivationDepth: Number(d.derivationDepth),
-            precommitmentHash: d.precommitmentHash.toString(),
-            value: d.value.toString(),
-            label: d.label.toString(),
-            blockNumber: d.blockNumber.toString(),
-            txHash: d.txHash,
-            createdAt: Date.now(),
-          }))
+          const stored: StoredDeposit[] = updatedDeposits.map(toStoredDeposit)
           saveStoredDeposits(address, chainId, stored)
         }
 
@@ -1371,16 +1428,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
 
       // Save to localStorage (only active deposits)
       if (address && chainId) {
-        const stored: StoredDeposit[] = activeDeposits.map((d) => ({
-          index: Number(d.index),
-          derivationDepth: Number(d.derivationDepth),
-          precommitmentHash: d.precommitmentHash.toString(),
-          value: d.value.toString(),
-          label: d.label.toString(),
-          blockNumber: d.blockNumber.toString(),
-          txHash: d.txHash,
-          createdAt: Date.now(),
-        }))
+        const stored: StoredDeposit[] = activeDeposits.map(toStoredDeposit)
         saveStoredDeposits(address, chainId, stored)
       }
     } catch (err) {
@@ -1458,16 +1506,7 @@ export function PoolProvider({ children }: PoolProviderProps) {
       // Also save to localStorage
       if (address && chainId) {
         setDeposits((current) => {
-          const stored: StoredDeposit[] = current.map((d) => ({
-            index: Number(d.index),
-            derivationDepth: Number(d.derivationDepth),
-            precommitmentHash: d.precommitmentHash.toString(),
-            value: d.value.toString(),
-            label: d.label.toString(),
-            blockNumber: d.blockNumber.toString(),
-            txHash: d.txHash,
-            createdAt: Date.now(),
-          }))
+          const stored: StoredDeposit[] = current.map(toStoredDeposit)
           saveStoredDeposits(address, chainId, stored)
           return current
         })
