@@ -224,3 +224,156 @@ For future browser operators: `javascript_tool` in Chrome MCP returns `{}` for a
 3. Read fields off `window.__<name>` via primitive coercion (`String((window.__x||{}).status)`, `((window.__x||{}).ok===true)?'ok':'not_ok'`) rather than `JSON.stringify()` (which sometimes hits the redactor whole-object).
 
 Reliable and readable, once you have the pattern.
+
+---
+
+# PR5 addendum — Confirm-card UI, hydration, telemetry (2026-07-01)
+
+**Operator:** Claude (Cowork) driving Chrome MCP + in-page fetch
+**Coordinator:** repo owner (SQL + Vercel log pull + guide authorship)
+**Staging URL:** `https://staging-hivemind.myosin.xyz`
+**Test user + project:** same as PR1-4 (`e976c51f-2d88-46ed-80c7-d3a983905e37` / LinkedIn QA (Coinbase))
+**Scope:** `ToolConfirmationCard` render/hydration, `applying...` transition, resume append vs replace, expiry semantics on both API and hydration sides, `gen_ai.*` telemetry emission + redaction.
+
+## Scorecard
+
+| Test       | Path                                                                              | Result                                                                                           |
+| ---------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| C1         | Happy confirm → `applying...` → resume streams → row settles                      | PASS                                                                                             |
+| C2-replace | Preamble prose present → resume replaces (replace branch)                         | PASS                                                                                             |
+| C2-strict  | Contentless preamble → resume appends (Mitch fix #4 append branch)                | PASS                                                                                             |
+| C3         | `buildEditSummary` renders merged edit                                            | PASS                                                                                             |
+| D          | Decline → plain JSON, no SSE, prose stops                                         | PASS                                                                                             |
+| H          | Hydration on chat reload — pending card comes back with "needs your confirmation" | PASS (observed via user-initiated refresh + sidebar restore)                                     |
+| P          | `social_handles.twitter=null` merge → keeps linkedin, drops twitter               | PASS (F2 fix live under merge-null, not just replace)                                            |
+| J          | `retrigger_intelligence_report` happy enqueue + block                             | PASS (happy=`queued`, block=`cooldown`; `already_queued` code-reachable but not live-timed here) |
+| E          | Expired row → API 409 + hydration filter excludes                                 | PASS (double-corroborated: live 409 on `ec5d3b40` + telemetry `outcome=failed, error_code=409`)  |
+| T          | `gen_ai.*` telemetry — verbs emitted, payloads redacted                           | PASS (5/5 real verbs, 0/11 payload tokens across 20 lines, cache-prefix stability observed)      |
+| A          | Cancel mid-resume via UI                                                          | N/A — no UI affordance; abort wiring correct but unreachable                                     |
+
+**Net: 10 PASS, 1 N/A. Zero FAILs.**
+
+## Per-test evidence
+
+### C1 / C2-replace / C2-strict / C3 / D / H / P (pre-compaction rounds)
+
+- **C1**: happy confirm → `applying...` on the confirm button → SSE resume streamed → row settled `confirmed` with `resolved_at` set.
+- **C2-replace**: 5-word preamble emitted → resume replaced the preamble (`replace` branch).
+- **C2-strict**: contentless preamble → resume appended after `Done.` — validates the append branch. Previous behavior would have wiped the intro; new behavior preserves it.
+- **C3**: `buildEditSummary` output matched the effective mutation, not the raw `input` payload. Closes PR1-4 finding #2.
+- **D**: `applying...` on decline button, `HTTP 200 application/json {"status":"declined"}`, no SSE, prose stopped cleanly, row settled `declined`.
+- **H**: user-initiated tab refresh mid-round restored the pending card with `needs your confirmation` label (not a stale "confirm again" render). Sidebar chat navigation retained pending state on the other chat.
+- **P**: twitter-clear (`social_handles: {twitter: null}`) via `mergeSocialHandles`. DB post-write: `{linkedin: ..., twitter absent}`, description unchanged. Card summary rendered the merged result (`{linkedin, twitter:@optest} -> {linkedin}`) — F2 confirmed under the merge-null case.
+
+### J — retrigger happy + block
+
+Two rounds in LinkedIn QA (Coinbase), fresh chats each time.
+
+**J-happy** (no active job, cooldown expired from morning F run):
+
+- Prompt: `please retrigger the attention landscape intelligence report for this project`
+- Card summary: `queue regeneration of the attention landscape report for LinkedIn QA (Coinbase).`
+- Pending row `12669056`, `input = {"report_type":"attention_landscape"}` — clean, no bleed.
+- Confirm → resume: `Queued. The Attention Landscape regeneration is running now, job ID 027c43e4.`
+- DB: pending `12669056` settled `confirmed` at 20:46:32.158Z. New job `027c43e4-b3f7-4636-8bcd-f92caa387f32`, `queued_at=20:46:32.120Z`, `status=in_progress`. ~38ms between enqueue and settle — atomic.
+
+**J-block** (new chat, ~3 minutes later):
+
+- Same prompt. Card rendered, pending row `53cb5630`.
+- Confirm → resume: `That regeneration didn't go through. The Attention Landscape report is on cooldown, roughly 4 hours left before it can run again (about 14,369 seconds). Nothing was queued.`
+- DB: `53cb5630` settled `confirmed` at 20:49:45; no third job; total attention_landscape jobs still 2.
+
+**Guard order** (`tool.ts` L191 duplicate, L202 cooldown): duplicate-first, cooldown-second. J-happy's job completed 20:49:14 — 7 seconds before J-block created its pending row — so the duplicate guard passed. The just-completed job armed a fresh 4h cooldown (`queued_at + 4h = 00:46:32Z`), which is what J-block hit (`00:46:32 - 20:49:45 ≈ 14,369s` matches the countdown exactly). `already_queued` is reachable only inside the in_progress window (~90–160s here); this test race missed it by 7s. Not re-runnable this session (project now in cooldown until 00:49Z tomorrow). G already exercised the block-refusal envelope; only the `reason` string differs.
+
+### E — expired pending row (double-corroborated)
+
+Row `ec5d3b40-514d-456e-a511-62d04dcc1f9a` created 20:21:53Z with 10-min TTL (`expires_at=20:31:53Z`). Confirm fired 20:34:42Z — 2m 49s past expiry due to compaction gap + operator latency.
+
+**API side (live 409):**
+
+- `POST /api/chat/tool-confirmation` → `HTTP 409 {"error":"no_longer_pending","message":"this action was already resolved or has expired"}` — same envelope as the K replay guard.
+- DB row: `status='pending'` unchanged, `resolved_at=null`, `expires_at=20:31:53Z`. Expiry is enforced lazily by the atomic `UPDATE ... WHERE status='pending' AND expires_at > now()` — expired rows match zero and surface as `no_longer_pending`. There is no sweeper; the row's `status` column is never mutated.
+
+**Hydration side:**
+
+- Reload dropped to `/agent` landing (welcome screen). Expired row did not rehydrate as a clickable card. `hydrate-pending-confirmations.ts` filters `status='pending' AND expires_at > now()`, so expired rows are excluded.
+- Correction to earlier framing: an expired row does NOT render as an "expired-copy" card on reload — it is dropped entirely. Rendering expired-copy requires a re-render timer on `ToolConfirmationCard`, which does not yet exist (follow-up 3).
+
+**Telemetry side (second corroboration):**
+
+- Vercel logs showed a `confirm-resume` line with `outcome:"failed", error_code:"409"`, payload-free. Same expired-confirm attempt visible through telemetry — matches the API rejection envelope.
+
+### T — `gen_ai.*` telemetry
+
+20 lines pulled from Vercel logs in the 20:21Z–20:50Z window.
+
+**Verbs (5/5 real verbs present, no missing):**
+
+| Verb                | Count | Note                                              |
+| ------------------- | ----- | ------------------------------------------------- |
+| `tool-start`        | 3     | 3 tools executed post-confirm                     |
+| `tool-end`          | 3     | all `ok: true`                                    |
+| `agent tool failed` | 0     | healthy zero (no tool-level errors)               |
+| `confirm-suspend`   | 3     |                                                   |
+| `confirm-resume`    | 5     | 3 confirmed + 2 failed (the 409 expired attempts) |
+| `loop-terminal`     | 6     | 3 completed + 3 suspended                         |
+
+`gen_ai.confirm.outcome` on `confirm-resume` distinguishes `confirm|decline|fail` — not separate verbs.
+
+**Redaction (0/11 payload tokens across 20 lines):**
+Grepped: `cancel test`, `coinbase`, `linkedin`, `social_handles`, `report_type`, `attention_landscape`, `description`, project ID `6458efb2`, `summary`, `input`, `ux walkthrough`. **Zero hits.** Both write tools carry only `name` + `kind` (`update_project_profile/write`, `retrigger_intelligence_report/job`). The two `error_code:"409"` values are HTTP status codes, not data — the expired-row rejections. `logToolStart`/`logToolEnd` signatures (`{tool, kind, iteration}`) accept nothing that could leak; locked by `tool-telemetry.test.ts` test 5.
+
+**Bonus — 5d cache-prefix stability observed live:**
+One `loop-terminal` showed `cache_read_tokens:11152, cache_write_tokens:0` — the second-hop tool-result request hit the cached prefix. Suspended loops showed `null/null` (no second hop). Confirms the cache-prefix-stability assertion from `agent-tool-loop.test.ts` under production traffic.
+
+**Caveat:** no read tools (`get_projects`, `web_search`) ran in this window — session was all writes/jobs. Live redaction on read-tool query text is structurally guaranteed by param shape but not live-observed here.
+
+### A — cancel mid-resume
+
+**N/A — not reachable via UI.** Wiring trace:
+
+- Stop button, Esc handler, and any cancel affordance are gated on `isSubmitting` from `use-message-handling.ts`.
+- Resume runs through `resolveConfirmation → resolveToolConfirmation`, which never sets `isSubmitting`.
+- So during a confirm-resume the composer shows the normal send button — no stop button, no Esc handler.
+- Abort wiring itself IS correct: Mitch's fix #4 registers the resume fetch on the shared `abortControllerRef` (`use-message-streaming.ts:398`), and `cancelStream()` cleanly aborts leaving the card pending with no toast (`use-message-streaming.ts:487`). But nothing calls `cancelStream()` during a resume because the trigger only renders while `isSubmitting=true`.
+
+Verdict: correct defensively, unreachable from the UI. Follow-up 2.
+
+## Findings
+
+**F1 — Declined-value context bleed (retained from PR1-4 finding #1, tested live in PR5).**
+Same behavior as PR1-4: model resurrected a prior declined value into a subsequent tool call `input` within the same chat. Fresh chat clears it. Retained as documented v1 limitation — defense-in-depth holds (confirm card summary is honest), fix is model-prompt tuning rather than a hard guard. No PR5 regression.
+
+**F2 — Merge-card render fix confirmed live.**
+`buildEditSummary` now renders the merged result rather than `input` verbatim. Proven live under P (twitter-clear via `null`) and J-happy (single-field description update): cards showed the effective mutation without under-representing what would be preserved. Closes PR1-4 finding #2.
+
+## Follow-ups
+
+1. **`applying...` transition on the append path** — confirmed working in C2-strict and J-happy. Keep as-is; noted for handover.
+
+2. **Resume-abort UI gap (A)** — abort path is code-correct but unreachable. Two options:
+   - Drive existing loading state from `resolveConfirmation` so the stop button + Esc light up during a resume, making fix #4 reachable, OR
+   - Accept resumes as non-cancellable in v1 and keep fix #4 as pure defense.
+
+3. **Expiry re-render timer** — `ToolConfirmationCard` should flip to expired copy at TTL via `setTimeout(expiresAt - now)`. Currently a stale card sits actionable-looking until the user clicks and gets a generic "action failed" toast.
+
+4. **409-to-expired-copy mapping** — client should read the `no_longer_pending` message and, if `expiresAt < now`, render "this request expired" copy instead of a generic failure toast. Complements #3.
+
+## Guide addenda (PR5 additions)
+
+**C) Composer focus workaround.** Chrome MCP `computer.left_click` on the "reply to Hivemind..." textarea occasionally leaves focus on BODY. Reliable fallback:
+
+```js
+const ta = document.querySelector('textarea[placeholder="reply to Hivemind..."]')
+if (ta) ta.focus()
+```
+
+Then use `computer.type` and `computer.key("Return")` normally.
+
+**D) Fresh-chat pre-flight.** The "new chat" button clears the project selection. Any test that requires a specific project must reselect it before typing the prompt, otherwise the composer stays disabled with placeholder `"select a project to start chatting..."`.
+
+## Teardown (PR5)
+
+- [x] `DELETE FROM user_usage_overrides WHERE user_id = 'e976c51f-2d88-46ed-80c7-d3a983905e37';` — restores test user to normal free-tier limits.
+- [ ] Optional: clear the attention_landscape cooldown row if immediate follow-up QA is needed (natural expiry at 00:49Z tomorrow).
+- [ ] Optional revert of project state — `description="QA test project to visually verify LinkedIn report rendering on staging."`, `social_handles={"linkedin":"https://www.linkedin.com/company/coinbase"}`. Current: `description="ux walkthrough test"`, twitter cleared in P.

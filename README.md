@@ -186,7 +186,6 @@ Next.js 16 frontend with React 19 and Tailwind v4:
 - `/setup` - Onboarding with stealth key derivation
 - `/dashboard` - Main dashboard with mode switching
 - `/receive` - Port management (create/manage payment endpoints)
-- `/send` - Payment initiation page
 - `/pay/[portId]` - Payment flow with stealth addresses
 - `/collect` - Scan blockchain and collect payments
 - `/pool` - Privacy Pool interface

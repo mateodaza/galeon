@@ -55,3 +55,7 @@ typechain-types/
 *.tsbuildinfo
 .vercel
 .railway
+
+# Sensitive budget drafts (kept local, not tracked)
+docs/BUDGET.md
+_archive/SCF-BUDGET-DRAFT.md

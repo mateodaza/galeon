@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Galeon',
     description: 'Your payments. Your treasure. Hidden in plain sight.',
-    url: 'https://galeon.xyz',
+    url: 'https://www.galeon.finance',
     siteName: 'Galeon',
     images: [
       {

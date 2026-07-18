@@ -59,7 +59,7 @@ const queryClient = new QueryClient({
 const metadata = {
   name: 'Galeon',
   description: 'Private payments using stealth addresses',
-  url: 'https://galeon.xyz',
+  url: 'https://www.galeon.finance',
   icons: ['/icon.png'],
 }
 
