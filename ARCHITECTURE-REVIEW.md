@@ -1,7 +1,7 @@
 # Galeon — Framework & Architecture Review
 
 > Generated 2026-07-21 from a full read of the codebase (apps/web, apps/api, apps/indexer, packages/\*).
-> Galeon is a private-payments platform on Mantle: **receive** at EIP-5564 stealth addresses, **send** through a ZK Privacy Pool (adapted from 0xbow), and **prove** specific transactions via Shipwreck compliance reports.
+> Galeon is a private-payments platform on Mantle: **receive** at EIP-5564 stealth addresses, **send** through a ZK Privacy Pool (adapted from 0xbow), and **export** payment and tax-oriented Shipwreck reports.
 
 ---
 
@@ -432,33 +432,56 @@ Things worth knowing (or fixing) that the docs don't tell you:
 
 ### 10.1 Positioning (the one-liner)
 
-> **Umbra hides receivers. Railgun hides senders. Galeon hides both — with compliance built in.**
+> **Galeon is open-source, partner-operated privacy infrastructure for humanitarian programs that choose public EVM settlement. It integrates per-payment receive addresses, association-set private settlement, and program reconciliation without putting beneficiary identity on-chain.**
 
-| Capability                                      | Umbra | Railgun | Tornado-style mixer | **Galeon**                           |
-| ----------------------------------------------- | ----- | ------- | ------------------- | ------------------------------------ |
-| Receiver privacy (stealth addrs)                | ✅    | ❌      | ❌                  | ✅ EIP-5564 + per-port key isolation |
-| Sender privacy (ZK pool)                        | ❌    | ✅      | ✅                  | ✅ 0xbow-based Privacy Pool          |
-| Selective disclosure / compliance               | ❌    | Partial | ❌                  | ✅ ASP gating + Shipwreck reports    |
-| Nothing to back up (keys from wallet signature) | ❌    | ❌      | ❌ (notes!)         | ✅ deterministic HKDF recovery       |
+Supporting line:
+
+> Operational screening and humanitarian reporting templates are funded work, not current production claims. Keep competitors out of the one-minute pitch — the comparisons below are Q&A material only. Honest status: a differentiated deployment thesis, not yet a defensible moat; the partner, functioning ASP governance, liquidity, and field evidence are what would create one.
+
+The previous competitor one-liner is too broad for July 2026, but the systems are not equivalent. The defensible distinction is the receive-to-private-settlement architecture:
+
+| Dimension                | ScopeLift Umbra (EVM)                                                                                                       | RAILGUN                                                                                                                                                                                                                              | Galeon                                                                                                                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public receive model     | A normal wallet or ENS name resolves to fresh stealth addresses. Sender and amount remain public.                           | A public wallet shields assets to a protocol-specific `0zk` private balance. The shield sender and amount are public; the receiving private account is not.                                                                          | A Port link resolves to a fresh EIP-5564 address with per-Port key isolation. Sender and amount remain public.                                                                               |
+| Subsequent private spend | No ZK pool; withdrawal hygiene determines whether the receiver is later linked.                                             | Shielded UTXO transfers and DeFi interactions protect sender, recipient, token, and amount.                                                                                                                                          | A 0xbow-derived pool breaks the public deposit-to-withdrawal link. It does not hide every amount or timing signal.                                                                           |
+| Key and recovery UX      | Spending and viewing keys derive from a deterministic wallet signature.                                                     | A RAILGUN wallet uses a separate 12- or 24-word mnemonic plus local encryption material.                                                                                                                                             | Stealth and pool keys derive from deterministic wallet signatures; deposits can be reconstructed from public events while the original wallet remains available.                             |
+| Assurance/control model  | No ZK association-set admission layer.                                                                                      | PPOI, viewing keys, and tax exports provide strong assurance tools, but PPOI is separate from the core spending contracts and is list-provider/wallet/broadcaster driven.                                                            | Every private withdrawal must prove membership against an ASP root accepted by the Entrypoint. The architecture supports institution-defined admission; today's service approves all labels. |
+| Galeon's remaining delta | Galeon adds the pool, Port-path deposit provenance, merge/recovery flow, and partner reporting around the stealth endpoint. | Galeon uses a Port link backed by the recipient's existing wallet rather than a separate `0zk` wallet and mnemonic, and makes an ASP root mandatory for private withdrawal; RAILGUN offers materially broader cryptographic privacy. | The technical delta is the integrated Port-to-pool path. The durable moat would come from partner workflow, accountable ASP operation, and an active approved deposit set.                   |
+
+Primary-source checks (accessed 2026-07-22):
+
+- ScopeLift Umbra repository and protocol explanation: <https://github.com/ScopeLift/umbra-protocol>
+- RAILGUN shielding, wallet keys, privacy model, and Assurance Suite: <https://docs.railgun.org/wiki/learn/shielding-tokens>, <https://docs.railgun.org/developer-guide/wallet/private-wallets/railgun-wallets>, <https://docs.railgun.org/wiki/learn/privacy-system>, and <https://docs.railgun.org/wiki/assurance/railgun-assurance-suite>
+- Tornado Cash Classic compliance tool: <https://tornadocash-docs.gitbook.io/tornado.cash/tornado-cash-classic/compliance-tool>
+- 0xbow protocol documentation and product site: <https://docs.privacypools.com/> and <https://0xbow.io/>
 
 Talking points that land well:
 
 - **Named payment endpoints ("Ports")** make stealth addresses usable by normal people — share a link, not a meta-address blob.
-- **Only verified funds can enter the pool** (`verifiedBalance` gating) — the mixer can't be used as a laundering drop-box for arbitrary funds; every deposit traces to a Port payment.
-- **"No notes needed"**: if the user loses everything, all keys and all pool deposits regenerate from one wallet signature (`recoverPoolDeposits` walks the chain). Contrast with mixers where a lost note = lost funds.
-- **mergeDeposit is Galeon's own circuit** (not in upstream 0xbow): folds every deposit into one commitment → one proof, ~30 s, any amount — O(1) withdrawals regardless of history.
+- **Only Port-path funds can enter the pool** (`verifiedBalance` gating) — every accepted deposit traces to Galeon's payment path. This is workflow provenance, not proof that the payer or funds passed sanctions, identity, or source-of-funds screening.
+- **Deterministic recovery instead of per-deposit notes**: with access to the original wallet and deterministic signature, Galeon can re-derive pool keys and reconstruct deposits from public events. This reduces backup burden; it does not recover a lost wallet.
+- **mergeDeposit is Galeon's own circuit** (not in upstream 0xbow V1): folds every deposit into one commitment → one proof, ~30 s, any amount — O(1) withdrawals regardless of history. Engineering credibility, not a moat: 0xbow V2's completed ceremony includes N×M private-transaction circuits that supersede consolidation, and the deployed verifier runs on development setup parameters (PROGRESS.md) — do not demo it, never call it audited.
 - **Live on Mantle mainnet**, not a testnet demo — real deployed contracts (§4 table).
+
+#### July 2026 fact-check addendum (multi-agent verification, corrected by founder audit)
+
+- **Fluidkey** ships reusable stealth payment links in production at scale — payment links are established UX, not a Galeon first. **Cloaked (clkd.xyz)** pairs stealth receiving with 0xbow pools in a hosted consumer wallet — the closest technical overlap; Galeon's differentiation is humanitarian controls, partner operation, Port provenance, transparent ASP governance and deployability, not primitive novelty. Do not name Cloaked's screening vendor (unconfirmed).
+- **Aleo humanitarian stack**: Mercy Corps Ventures + Danish Refugee Council + Humanity Link run a USDCx pilot in Colombia (~300 participants, Apr–Sep 2026). USDCx privacy applies only on Aleo and supports monitoring/selective disclosure per Aleo's docs — do NOT claim Circle can unilaterally disclose. Galeon tests the distinct public-EVM case; frame as validation.
+- **0xbow V2**: trusted-setup ceremony COMPLETE (13,500/13,500 contributions, beacon applied; 27 circuits incl. 25 private N×M variants); the public V2 testnet includes payment requests and private transfers — "0xbow has no receive side" is obsolete for V2. Treat 0xbow as upstream and a likely migration/federation partner, not a competitor.
+- **Latest-ASP-root enforcement** (GaleonPrivacyPool.sol:102) is real but inherited — upstream enforces the same; never present it as a Galeon addition or contrast it with upstream.
+- **Server-side viewing keys**: the API stores and decrypts per-Port viewing keys to scan announcements (apps/api/app/models/port.ts, sync_service.ts) — the server can observe inbound payment relationships. Spending authority stays client-side. Never claim "no server learns the address graph."
+- **Open-source completeness**: mergeDeposit.circom is currently untracked inside the 0xbow submodule — a fresh public clone gets compiled artifacts but not this circuit source. Track it publicly (post-freeze) or scope it out of the open-source claim. multiWithdraw is circuit-only (no deployed verifier) — never present as shipped.
 
 ### 10.2 Numbers to quote
 
-| Metric                      | Value                                                            |
-| --------------------------- | ---------------------------------------------------------------- |
-| Tests                       | 194 contract · 215 API · 34 stealth-lib (all passing)            |
-| Contracts on Mantle mainnet | 8 (registry, announcer, ERC-6538, entrypoint, pool, 3 verifiers) |
-| Scan efficiency             | 1-byte view tags skip ~99.6 % of announcements without ECDH      |
-| Proof time                  | ~30–60 s in-browser (Groth16/snarkjs, no server sees secrets)    |
-| Pool architecture audit     | 0xbow privacy-pools-core (Oxorio-audited upstream)               |
-| Relayer fee cap             | On-chain `maxRelayFeeBPS` (500 = 5 %) — relayer can't gouge      |
+| Metric                      | Value                                                             |
+| --------------------------- | ----------------------------------------------------------------- |
+| Tests                       | 537 total: 194 contract · 215 API · 34 stealth-lib · 94 indexer   |
+| Contracts on Mantle mainnet | 8 (registry, announcer, ERC-6538, entrypoint, pool, 3 verifiers)  |
+| Scan efficiency             | 1-byte view tags skip ~99.6 % of announcements without ECDH       |
+| Proof time                  | ~30–60 s in-browser (Groth16/snarkjs, no server sees secrets)     |
+| Pool audit evidence         | 3 Oxorio reports cover inherited 0xbow work; Galeon delta pending |
+| Relayer fee cap             | On-chain `maxRelayFeeBPS` (500 = 5 %) — relayer can't gouge       |
 
 ### 10.3 Demo run-sheet (and live-demo gotchas)
 
@@ -467,7 +490,7 @@ Talking points that land well:
 3. **Pay it** (second wallet/phone, `/pay/[portId]`): amount + memo → point out on mantlescan that funds went to a _fresh address with no history_.
 4. **Collect** (`/receive` or `/collect`): scan finds the payment via view tag → either sweep to wallet or **deposit straight into the pool** from the stealth address.
 5. **Private send** (`/pool`): amount + recipient → ZK proof → relayer submits. Show recipient tx on mantlescan: _sender is the relayer, not you_.
-6. **Shipwreck** (`/reports`): export the tax PDF — the compliance counterweight to the privacy story.
+6. **Shipwreck** (`/reports`): export the current payment/tax PDF. Humanitarian program templates remain funded work.
 
 ⚠️ Gotchas to rehearse around:
 
@@ -480,15 +503,15 @@ Talking points that land well:
 
 ### 10.4 Hard questions you'll get (and honest answers)
 
-| Question                                   | Answer                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Is this trustless?"                       | No, and we say so: the server holds encrypted viewing keys (inbound-scan convenience), runs the ASP and the relayers. Spending keys never leave the browser — the server can _see_ inbound payments, never _take_ funds. Client-side viewing-key custody is on the roadmap.                                               |
-| "So it's a mixer — what about laundering?" | Two structural answers: (1) only Port-verified funds can enter the pool (`canDeposit` + `verifiedBalance`); (2) the ASP association-set design means withdrawals prove membership in an _approved_ set — today it auto-approves (hackathon), production plugs in real screening. Plus Shipwreck for voluntary disclosure. |
-| "What's actually yours vs 0xbow's?"        | Pool core + withdraw circuit are 0xbow (Apache-2.0, credited). Ours: the mergeDeposit circuit, Port/verifiedBalance gating, the whole stealth-address layer, ASP service, relayer, indexer, and product.                                                                                                                  |
-| "What if your servers disappear?"          | Funds are safe: keys re-derive from a wallet signature; deposits recover by scanning public chain data; users can withdraw directly without the relayer (losing sender privacy only). Ragequit exists at the contract level (UI post-hackathon).                                                                          |
-| "Why Mantle?"                              | Low fees make 6M-gas ZK verifications cheap; hackathon target. Config is multi-chain-shaped (chains/addresses centralized in `@galeon/config`) — chain choice follows pilot partners.                                                                                                                                     |
-| "Are port names private?"                  | No — they're on-chain in plaintext (known limitation, §9). Hash-on-chain + encrypted label is the fix. Be upfront if asked.                                                                                                                                                                                               |
-| "Withdrawal privacy from _you_?"           | Strong: withdrawals are never recorded server-side; even the user's own history is reconstructed client-side from their keys. The relayer sees the withdrawal it submits but can't link it to a deposit.                                                                                                                  |
+| Question                                   | Answer                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Is this trustless?"                       | No, and we say so: the server holds encrypted viewing keys (inbound-scan convenience), runs the ASP and the relayers. Spending keys never leave the browser — the server can _see_ inbound payments, never _take_ funds. Client-side viewing-key custody is on the roadmap.                                                                                                 |
+| "So it's a mixer — what about laundering?" | Port-path gating prevents arbitrary direct deposits and preserves workflow provenance, but it does not establish identity or clean source of funds. The association-set contract path can restrict private withdrawal, but the current ASP service auto-approves. Screening policy, review, appeals, and escalation are funded work to define with the partner and counsel. |
+| "What's actually yours vs 0xbow's?"        | Pool core + withdraw circuit are 0xbow (Apache-2.0, credited). Ours: the mergeDeposit circuit, Port/verifiedBalance gating, the whole stealth-address layer, ASP service, relayer, indexer, and product.                                                                                                                                                                    |
+| "What if your servers disappear?"          | Funds are safe: keys re-derive from a wallet signature; deposits recover by scanning public chain data; users can withdraw directly without the relayer (losing sender privacy only). Ragequit exists at the contract level (UI post-hackathon).                                                                                                                            |
+| "Why Mantle?"                              | Low fees make 6M-gas ZK verifications cheap; hackathon target. Config is multi-chain-shaped (chains/addresses centralized in `@galeon/config`) — chain choice follows pilot partners.                                                                                                                                                                                       |
+| "Are port names private?"                  | No — they're on-chain in plaintext (known limitation, §9). Hash-on-chain + encrypted label is the fix. Be upfront if asked.                                                                                                                                                                                                                                                 |
+| "Withdrawal privacy from _you_?"           | The ZK proof does not reveal which approved deposit funded the withdrawal, and spending secrets remain client-side. However, Galeon currently operates both inbound scanning and the relayer, so timing, amount, network, and operational metadata may still support correlation. Do not claim the operator is unable to link the two sides.                                |
 
 ### 10.5 Glossary (the project is jargon-dense — define these early)
 
@@ -505,7 +528,7 @@ Talking points that land well:
 | **mergeDeposit**    | Galeon circuit folding a new deposit into an existing commitment → O(1) withdrawals                     |
 | **Relayer**         | Backend wallet that submits withdrawals so the user's address never appears on-chain (fee-capped)       |
 | **Ragequit**        | Emergency exit: withdraw your own deposit publicly, no ASP approval needed                              |
-| **Shipwreck**       | Compliance reports: prove specific transactions (tax summary PDF) without exposing full history         |
+| **Shipwreck**       | Payment and tax-oriented report export; humanitarian program templates remain funded work               |
 | **Covenant**        | Terms acceptance embedded in the SIWE sign-in message                                                   |
 
 ---

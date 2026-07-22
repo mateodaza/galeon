@@ -62,6 +62,28 @@ Do not describe this as simply needing "more money in the pool."
 
 The pitch to UNICEF is therefore not "our code needs a strong arm." It is: **the protocol works, but responsible humanitarian deployment requires an institutional anchor. UNICEF can bring partner access, safeguarding discipline, and the conditions for real-world validation that code alone cannot create.**
 
+## The UNICEF-specific fit
+
+UNICEF's own 2026 work makes the fit more concrete than a generic blockchain pitch:
+
+- The Blockchain Ventures call explicitly asks for public-blockchain accountability using privacy-preserving approaches such as zero-knowledge proofs, together with reconciliation and anti-diversion controls.
+- UNICEF describes its blockchain strategy as combining modular, open-source building blocks rather than expecting one company to replace the whole humanitarian cash stack.
+- UNICEF's AidLink test combined beneficiary management, an EVM-compatible disbursement layer, an SMS wallet, and a mobile-money off-ramp. UNICEF reported that the transfers and off-ramp initiation were publicly traceable while beneficiary PII stayed off-chain.
+- UNICEF's HOPE system already exists to protect beneficiary identity, registration, targeting, payment-cycle, grievance, and reporting data. Galeon should complement that type of protected system of record, not duplicate it.
+
+The defensible proposition is:
+
+> UNICEF has already shown that modular EVM cash-transfer infrastructure can work. Galeon tests an additional privacy-and-policy component for the public-chain leg: program settlement remains verifiable, while the direct deposit-to-withdrawal link is reduced. The beneficiary system of record, eligibility, support, and cash-out remain with the implementing partner.
+
+Do not claim a current AidLink, HOPE, Rumsan, Xcapit, Kotani Pay, or UNICEF integration. Interoperability is a funded-period design and validation question, not a shipped feature or partnership.
+
+Primary sources:
+
+- <https://www.unicef.org/innovation/equity-free-funding-blockchain-solutions>
+- <https://www.unicefventurefund.org/story/tech-outlook-2026-blockchain-building-blocks-scalable-impact>
+- <https://www.unicefventurefund.org/story/insights-stablecoin-based-end-end-cash-transfer-platform-test>
+- <https://www.unicef.org/documents/humanitarian-cash-operations-and-programme-ecosystem-hope>
+
 ## Presentation ownership
 
 **Mateo is the designated speaker and host. Carlos owns the technical screens. Fabio has one concise business segment.** This follows Livia's instruction: one person introduces and speaks on behalf of the team, while domain owners intervene where useful.
@@ -128,7 +150,8 @@ Then introduce the team:
 4. While the proof runs, explain that it authorizes withdrawal without revealing which approved deposit funded it.
 5. On Mantlescan, point to the relayer in the `from` field. Say that the recipient address remains public and Galeon breaks the deposit-to-withdrawal link; it does not make the chain invisible.
 6. State the two current limits without apology: the live pool uses native MNT, and the ASP service auto-approves today.
-7. Move immediately to GitHub. Show the monorepo map, green CI, 537-test total, licenses, 0xbow boundary, and one explorer-verified contract. Do not show source-code snippets in the slide deck; Livia asked for a repository walkthrough, so the repository itself is the evidence.
+7. Move immediately to GitHub. Show the monorepo map, green CI, 537-test total, licenses, 0xbow boundary, and one explorer-verified contract.
+8. Do not demonstrate or volunteer mergeDeposit. Its deployed verifier runs on development setup parameters (documented in packages/contracts/PROGRESS.md); it is out of demo scope and comes up only if directly asked — answered with the audit-boundary wording in Q25. Do not show source-code snippets in the slide deck; Livia asked for a repository walkthrough, so the repository itself is the evidence.
 
 If the live transaction has not progressed after 45 seconds, switch to the pre-verified transaction and continue. A failed proof must not consume the code walkthrough.
 
@@ -235,7 +258,7 @@ No signed LOI is claimed. Q1 discovery is a milestone because the partner, juris
 The demo uses the deployed frontend, API, indexer, stealth package, contracts, pool SDK, and shared configuration in the public monorepo. Carlos will show those exact components and their CI.
 
 **25. How secure is it? — Carlos**  
-There are 537 automated tests across contracts, API, stealth, and indexer. The inherited 0xbow work has three Oxorio reports. Galeon-specific contracts, integrations, upgrades, ASP changes, and the stealth library still require the scoped external delta-audit and remediation.
+There are 537 automated tests across contracts, API, stealth, and indexer. The inherited 0xbow work has three Oxorio reports. Galeon-specific contracts, integrations, upgrades, ASP changes, and the stealth library still require the scoped external delta-audit and remediation. If pressed on circuits specifically: the inherited withdrawal/ragequit/commitment circuits carry upstream's audits and public trusted-setup ceremony; Galeon's added mergeDeposit circuit currently uses development setup parameters and sits outside both — prototype-grade until it receives an audited circuit and public ceremony, or is replaced by an appropriately assured V2 path. Never say "every circuit is audited," and never call the mainnet system production-ready for beneficiary funds.
 
 **26. Was the code AI-generated? — Carlos**  
 AI assistance was limited to boilerplate, tests, and UI work as disclosed. Contracts, circuits, and cryptographic primitives were not AI-generated; both founders review merges. Do not treat the test count as proof of security.
@@ -244,7 +267,7 @@ AI assistance was limited to boilerplate, tests, and UI work as disclosed. Contr
 Mateo and Carlos built the Galeon-specific application, integrations, stealth library, registry, API, and product-specific contracts. The privacy-pool base and circuits derive from 0xbow, with other normal open-source dependencies disclosed in the repository.
 
 **28. What is open source? — Carlos or Juan Jose**  
-The repository is public now. Apps and libraries are MIT; contracts and pool components are Apache-2.0. Funded components remain under OSI-approved permissive licenses, with Q2 focused on contributor and security readiness.
+The repository is public now. Apps and libraries are MIT; contracts and pool components are Apache-2.0. Funded components remain under OSI-approved permissive licenses, with Q2 focused on contributor and security readiness. One precision if probed hard: one Galeon-added circuit source (mergeDeposit.circom) currently sits untracked inside the upstream submodule, so a fresh public clone gets its compiled artifacts but not that source file; tracking it publicly is queued (deploy freeze this week). Say "the repository is public and we are closing one packaging gap on an added circuit source" — never "every line is public."
 
 ### Team, sustainability, and UNICEF fit
 
@@ -261,13 +284,27 @@ We are testing partner-supported hosting and support, ASP operation or attestati
 Mateo and Carlos built Galeon. Cartagena On Chain is the Colombian applicant and proposed funded-period operator. The applicant must document its rights to maintain and license funded contributions; open-source licensing does not eliminate that responsibility.
 
 **33. Why UNICEF? — Mateo**  
-The missing work is not another generic crypto feature. It is the institutional validation that UNICEF is positioned to enforce: child-data safeguards, partner fit, accountable ASP governance, controlled deployment, and open-source public value.
+UNICEF is already combining modular, open-source components for EVM-compatible cash transfers and has identified public-ledger accountability plus privacy-preserving technology as a priority. The missing work is not another generic crypto feature: it is testing whether Galeon can become a responsible privacy-and-policy component alongside a protected beneficiary system, partner delivery, and cash-out. UNICEF is positioned to enforce the child-data safeguards, accountable ASP governance, controlled deployment, and open-source public value that this test requires.
 
 **34. What would make you stop a pilot? — Juan David or Mateo**  
 No viable partner delivery or cash-out path; unresolved legal or DPIA findings; inadequate ASP governance; failed audit remediation; insufficient privacy conditions; safeguarding or incident-response gaps; or usability that creates unacceptable support or exclusion risk.
 
 **35. What does success at month 12 mean? — Juan David**  
 A reviewed stablecoin deployment, real ASP process, completed privacy and safeguarding gates, a controlled partner pilot with documented limitations, measured usability and incident burden, maintained open-source artifacts, and a defensible decision on whether and where to continue.
+
+### Competitive landscape (July 2026 fact-check; keep out of the pitch, Q&A only)
+
+**36. Mercy Corps and Aleo are already running privacy-preserving aid in Colombia. Why fund you? — Mateo, Fabio on the partnership angle**  
+Treat it as validation, not collision. Mercy Corps Ventures, the Danish Refugee Council and Humanity Link are piloting USDCx on Aleo with roughly 300 participants in Norte de Santander — evidence the sector wants privacy-preserving cash. The architectures differ: their privacy lives on a privacy-native chain and applies only while funds remain on Aleo, with compliance records designed for monitoring and selective disclosure. Galeon tests the distinct public-EVM case — privacy at the payment layer on transparent rails, an association-set gate an accountable institution can govern, and a public ragequit path. Both experiments should exist; the funded year decides whether the public-EVM version gets field evidence too. Do not disparage the pilot and do not speculate about who can access their compliance records.
+
+**37. Cloaked already combines stealth addresses with privacy pools — and your upstream 0xbow shipped V2 with payment requests. What is left for Galeon? — Carlos/Mateo**  
+Concede the movement; both are real. Cloaked is a hosted consumer wallet pairing stealth receiving with 0xbow's pools — the closest technical overlap to date. Galeon is open-source, partner-operable infrastructure with humanitarian controls: Port-level provenance on every pool deposit, program reconciliation, and an ASP governance model designed for an accountable institution — differentiation comes from those controls and deployability, not primitive novelty. 0xbow's V2 ceremony is complete, with private-transfer circuits and testnet payment requests; we treat 0xbow as upstream and a likely migration or federation path, not a competitor — we would rather join a credible ASP ecosystem than run a parallel one. What nobody ships for humanitarian programs is the intake-to-reconciliation workflow; that is the funded work. Do not name any competitor's screening vendor.
+
+**38. UNICEF already has AidLink. Why fund Galeon? — Mateo**  
+AidLink validates the modular EVM approach: beneficiary management, disbursement, SMS access, and mobile-money off-ramp can work together. UNICEF also reported that the pilot's on-chain disbursement and off-ramp initiation were publicly traceable. Keeping PII off-chain is necessary, but a public wallet can still become attributable when enrollment, support, or cash-out records are correlated. Galeon does not replace AidLink or HOPE; it tests whether a privacy-and-policy module can reduce public transaction-graph exposure while preserving program-level settlement evidence.
+
+**39. Can Galeon integrate with AidLink or HOPE today? — Carlos, then Fabio**  
+No integration or partnership is claimed. Galeon's contracts and service interfaces are EVM-oriented, so the architecture is compatible in principle with a modular disbursement stack, but actual identity boundaries, wallet control, reporting, cash-out, safeguarding, and support workflows must be designed with the implementing partner. That integration decision belongs in partner discovery and the staff sandbox before any beneficiary pilot.
 
 ## Phrases that lose credibility
 
@@ -284,6 +321,11 @@ Never say:
 - "We have users/revenue" unless documentary evidence changes before the call.
 - "The pool just needs more money" — say active, diverse, approved deposit set.
 - "We beat mobile money" or "we are better than Building Blocks."
+- "Every circuit is audited" — inherited circuits carry upstream assurance; the added mergeDeposit circuit runs on development setup parameters and does not.
+- "Production-ready for beneficiary funds" — the mainnet system is a working demonstration; the pilot gates come first.
+- "No server can see payments" — the backend holds encrypted viewing keys and scans announcements, so it can observe inbound relationships. Spending authority stays client-side; say that instead.
+- "We are the only ones combining stealth addresses with a privacy pool" — Cloaked ships that combination; Fluidkey ships stealth payment links at scale. Only the narrow claim survives: open-source, partner-operated infrastructure integrating per-payment receive addresses, association-set settlement, and program reconciliation.
+- Unsourced competitor specifics (another product's screening vendor, user counts stated as fact) — attribute or omit.
 
 ## Day-of control
 
@@ -293,3 +335,4 @@ Never say:
 - Mateo keeps a visible timer and calls the demo cut at 5:40 even if a technical step is incomplete.
 - Send the background deck on the existing email thread at least six hours before the meeting; send the PDF for rendering reliability and keep the PPTX locally for presentation.
 - Rehearse once for timing and once as an adversarial Q&A. The goal is coordinated truth, not memorized wording.
+- Morning of the demo: a two-minute check of scopelift.co/blog / @UmbraCash and 0xbow's channels — an Umbra v2 launch or a 0xbow V2 mainnet announcement inside the demo window would date-shift the answers in Q36-37.
