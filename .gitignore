@@ -37,6 +37,7 @@ coverage/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+.firecrawl/
 
 # Claude Code (local)
 CLAUDE.local.md

@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  X,
   ArrowRight,
   ExternalLink,
   Anchor,
@@ -234,118 +233,34 @@ function ProblemSlide() {
 function ComparisonSlide() {
   return (
     <SlideContainer className="mx-auto max-w-4xl">
-      <Badge className="bg-amber-500/20 text-amber-400">Market Comparison</Badge>
-      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">How we compare</h2>
+      <Badge className="bg-amber-500/20 text-amber-400">Protection Boundaries</Badge>
+      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+        Different layers solve different privacy problems
+      </h2>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-white/20 bg-slate-800/50">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/10 bg-cyan-500/20">
-              <th className="px-4 py-3 text-left font-semibold text-white">Feature</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-400">Tornado</th>
-              <th className="px-4 py-3 text-center font-semibold text-white">Umbra</th>
-              <th className="px-4 py-3 text-center font-semibold text-white">Railgun</th>
-              <th className="px-4 py-3 text-center font-semibold text-cyan-400">Galeon</th>
-            </tr>
-          </thead>
-          <tbody className="text-cyan-100/80">
-            <tr className="border-b border-white/10">
-              <td className="px-4 py-3 font-medium text-white">Hides Receiver</td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-            <tr className="border-b border-white/10">
-              <td className="px-4 py-3 font-medium text-white">Hides Sender</td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-            <tr className="border-b border-white/10">
-              <td className="px-4 py-3 font-medium text-white">Compliance Proofs</td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-            <tr className="border-b border-white/10">
-              <td className="px-4 py-3 font-medium text-white">Variable Amounts</td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-            <tr className="border-b border-white/10">
-              <td className="px-4 py-3 font-medium text-white">Payment Links</td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3 font-medium text-white">Not Sanctioned</td>
-              <td className="px-4 py-3 text-center">
-                <X className="mx-auto h-4 w-4 text-red-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-              <td className="px-4 py-3 text-center">
-                <Check className="mx-auto h-4 w-4 text-emerald-400" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="mt-8 grid gap-6 sm:grid-cols-2">
+        <div className="border-t-2 border-cyan-400 pt-5">
+          <h3 className="text-xl font-semibold text-white">Receiver linkability</h3>
+          <p className="mt-3 text-cyan-100/80">
+            Ports generate a fresh stealth address for each payment. Timing, amounts, and partner
+            records can still create correlations.
+          </p>
+        </div>
+        <div className="border-t-2 border-emerald-400 pt-5">
+          <h3 className="text-xl font-semibold text-white">Forward transaction graph</h3>
+          <p className="mt-3 text-cyan-100/80">
+            The Privacy Pool breaks the public deposit-to-withdrawal link. Protection depends on the
+            approved deposit set and user behaviour.
+          </p>
+        </div>
       </div>
 
-      <p className="mt-4 text-center text-sm text-cyan-100/70">
-        Full privacy + compliance + usability in one protocol.
-      </p>
+      <div className="mt-10 border-t border-white/10 pt-6">
+        <p className="text-lg font-medium text-amber-300">
+          The ASP controls private-withdrawal eligibility. The current service auto-approves every
+          label; real screening is planned work.
+        </p>
+      </div>
     </SlideContainer>
   )
 }
@@ -390,7 +305,7 @@ function SolutionSlide() {
             </div>
             <h3 className="mt-4 text-lg font-semibold text-white">Shipwreck</h3>
             <p className="mt-2 text-sm text-cyan-100/80">
-              Stay compliant with cryptographic proofs when audits require it.
+              Export payment records for reconciliation. Humanitarian templates remain planned work.
             </p>
           </CardContent>
         </Card>
@@ -402,31 +317,31 @@ function SolutionSlide() {
 function WhyBothSlide() {
   return (
     <SlideContainer className="mx-auto max-w-3xl">
-      <Badge className="bg-purple-500/20 text-purple-400">Why Both Protocols?</Badge>
+      <Badge className="bg-purple-500/20 text-purple-400">Two Privacy Layers</Badge>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-        Complete financial privacy requires both
+        Receiving privacy and withdrawal privacy are different problems
       </h2>
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2">
         <div className="rounded-xl border border-white/20 bg-slate-800/60 p-6">
           <h3 className="text-lg font-semibold text-cyan-400">Stealth Addresses</h3>
           <p className="mt-3 text-cyan-100/80">
-            Hide who received a payment. But when you spend those funds, the trail continues.
+            Reduce public links between a Port and the fresh addresses used for individual payments.
           </p>
-          <p className="mt-4 text-sm text-amber-400">Receiving privacy only</p>
+          <p className="mt-4 text-sm text-amber-400">Timing and partner records still matter</p>
         </div>
 
         <div className="rounded-xl border border-white/20 bg-slate-800/60 p-6">
           <h3 className="text-lg font-semibold text-cyan-400">Privacy Pool</h3>
           <p className="mt-3 text-cyan-100/80">
-            Breaks the forward trail, hiding what you do with money after you receive it.
+            Break the public link between an approved pool deposit and a later withdrawal.
           </p>
-          <p className="mt-4 text-sm text-emerald-400">Sending privacy added</p>
+          <p className="mt-4 text-sm text-emerald-400">Strength depends on the anonymity set</p>
         </div>
       </div>
 
       <p className="mt-8 text-center text-xl font-medium text-cyan-400">
-        You need both for complete financial privacy.
+        Together they reduce linkability; neither guarantees anonymity.
       </p>
     </SlideContainer>
   )
@@ -436,24 +351,25 @@ function TrustSlide() {
   return (
     <SlideContainer className="mx-auto max-w-3xl">
       <Badge className="bg-emerald-500/20 text-emerald-400">Trust Model</Badge>
-      <h2 className="mt-4 text-4xl font-bold text-white sm:text-5xl">Math, not middlemen.</h2>
+      <h2 className="mt-4 text-4xl font-bold text-white sm:text-5xl">
+        Cryptography reduces trust; operations still matter
+      </h2>
 
       <div className="mt-10 space-y-6 text-lg text-cyan-100/80">
         <p>
-          Your secrets <strong className="text-white">never leave your device</strong>. ZK proofs
-          are generated client-side in your browser, then verified on-chain by smart contracts.
+          ZK proofs are generated client-side and verified on-chain. The chain can validate a
+          withdrawal without learning which approved deposit funded it.
         </p>
         <p>
-          The relayer broadcasts transactions to preserve your privacy, but it{' '}
-          <strong className="text-white">
-            can&apos;t steal funds, modify proofs, or censor you
-          </strong>
-          . Every withdrawal can be submitted directly to the smart contract.
+          The relayer broadcasts private withdrawals and remains an availability and metadata
+          dependency. The ASP determines which deposit labels may use private withdrawal.
         </p>
       </div>
 
       <div className="mt-10 rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-6">
-        <p className="text-xl font-medium text-emerald-400">No indispensable intermediaries.</p>
+        <p className="text-xl font-medium text-emerald-400">
+          The current relayer and auto-approving ASP are disclosed operational dependencies.
+        </p>
       </div>
     </SlideContainer>
   )
@@ -473,7 +389,7 @@ function LiveSlide() {
 
   return (
     <SlideContainer className="mx-auto max-w-4xl">
-      <Badge className="bg-emerald-500/20 text-emerald-400">Live on Mantle</Badge>
+      <Badge className="bg-emerald-500/20 text-emerald-400">Native Asset Live on Mantle</Badge>
       <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Current Features</h2>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -489,7 +405,7 @@ function LiveSlide() {
       </div>
 
       <p className="mt-8 text-center font-medium text-cyan-100/80">
-        421+ contract tests passing · 7 deployed contracts · 100% open source
+        537 automated tests · Mantle mainnet deployment · public repository
       </p>
     </SlideContainer>
   )
@@ -498,20 +414,20 @@ function LiveSlide() {
 function MarketSlide() {
   const segments = [
     {
-      title: 'Freelancers & Creators',
-      description: 'Get paid without exposing your full financial history.',
+      title: 'Programs & NGOs',
+      description: 'Reduce public linkability where public-chain settlement is justified.',
     },
     {
-      title: 'DAOs & Treasuries',
-      description: 'Handle confidential payroll, grants, and contributor payments.',
+      title: 'Businesses & Treasuries',
+      description: 'Limit public exposure of vendor, payroll, and treasury activity.',
     },
     {
-      title: 'Businesses',
-      description: 'Execute private B2B transactions and vendor payments.',
+      title: 'Developers',
+      description: 'Integrate stealth payments and proof-authorized withdrawals.',
     },
     {
-      title: 'Anyone',
-      description: 'Who needs privacy without sacrificing compliance.',
+      title: 'Program Operators',
+      description: 'Reconcile public settlement while controlling private-withdrawal policy.',
     },
   ]
 
@@ -536,22 +452,23 @@ function MarketSlide() {
 
 function BusinessSlide() {
   const streams = [
-    { name: 'Protocol Fee', model: '0.1-0.3% on withdrawals' },
-    { name: 'Relayer Fees', model: 'Transaction broadcast fees' },
+    { name: 'Hosting & Support', model: 'Operational support and service levels' },
+    { name: 'ASP Operations', model: 'Policy-aligned attestation and screening service' },
+    { name: 'Reporting & Integration', model: 'Program reporting and systems integration' },
   ]
 
   return (
     <SlideContainer className="mx-auto max-w-3xl">
       <Badge className="bg-green-500/20 text-green-400">Business Model</Badge>
-      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Revenue Streams</h2>
+      <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+        Partner-side sustainability hypotheses
+      </h2>
 
       <div className="mt-8 overflow-hidden rounded-xl border border-white/20 bg-slate-800/60">
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/10 bg-cyan-500/20">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-white">
-                Revenue Stream
-              </th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-white">Channel</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-white">Model</th>
             </tr>
           </thead>
@@ -568,30 +485,45 @@ function BusinessSlide() {
           </tbody>
         </table>
       </div>
+      <p className="mt-4 text-center text-sm text-cyan-100/70">
+        No current revenue is claimed, and no beneficiary withdrawal fee is assumed.
+      </p>
     </SlideContainer>
   )
 }
 
 function RoadmapSlide() {
   const items = [
-    { status: 'done', title: 'MVP Complete', desc: 'Stealth + Pool + Shipwreck live on Mantle' },
+    {
+      status: 'done',
+      title: 'Native-asset protocol live',
+      desc: 'Stealth payments and private withdrawal on Mantle',
+    },
     {
       status: 'soon',
-      title: 'Permissionless Relayers',
-      desc: 'Anyone can run a relayer and compete on fees',
-    },
-    { status: 'soon', title: 'Security Audit', desc: 'External audit before mainnet scale' },
-    {
-      status: 'future',
-      title: 'Sub-Second Proofs',
-      desc: 'GPU-accelerated proving, mobile-friendly',
+      title: 'ERC-20 pool deployment',
+      desc: 'Deploy and validate the stablecoin path',
     },
     {
-      status: 'future',
-      title: 'Scalable ZK Trees',
-      desc: 'Dynamic tree expansion beyond 4.3B commitment limit',
+      status: 'soon',
+      title: 'External delta-audit',
+      desc: 'Review Galeon-specific changes and remediate findings',
     },
-    { status: 'future', title: 'Cross-Chain', desc: 'Bridge privacy across chains' },
+    {
+      status: 'future',
+      title: 'Real ASP process',
+      desc: 'Partner-agreed screening, review, appeals, and escalation',
+    },
+    {
+      status: 'future',
+      title: 'Partner-staff sandbox',
+      desc: 'Test the workflow before beneficiaries',
+    },
+    {
+      status: 'future',
+      title: 'Controlled pilot',
+      desc: 'Validate usability, support, and privacy conditions',
+    },
   ]
 
   return (
@@ -637,12 +569,14 @@ function ClosingSlide() {
       <h1 className="text-5xl font-bold tracking-wide text-white sm:text-6xl">Galeon</h1>
 
       <p className="mt-8 text-xl text-cyan-100/90">
-        Privacy when you receive. Privacy when you send.
+        Reduce linkability when receiving. Break the deposit-to-withdrawal link.
         <br />
-        Compliance when you need it.
+        Apply policy controls to private withdrawal.
       </p>
 
-      <p className="mt-6 text-2xl font-medium text-cyan-400">Your money, your business.</p>
+      <p className="mt-6 text-2xl font-medium text-cyan-400">
+        Open-source privacy infrastructure for public-chain payments.
+      </p>
 
       <a
         href="https://galeon.finance"
