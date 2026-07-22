@@ -175,7 +175,45 @@ Mention open source once in the one-minute pitch. Carlos proves it during the re
 
 Fabio gets 30 seconds:
 
-> We have no humanitarian pilot partner or current revenue to claim today. The funded period tests three partner-side sustainability hypotheses: paid hosting and support, ASP operation or attestation services, and reporting or integration support. No beneficiary withdrawal fee is assumed. Our Q1 partner discovery tests deployment fit, local delivery and cash-out, safeguarding requirements, and whether an institution is prepared to govern the ASP process.
+> Galeon stays free and self-hostable. Institutions pay to deploy it: integration with their wallet, beneficiary system, off-ramp, and reporting. They may then contract us to operate it: hosting, monitoring, upgrades, incident support, and the technical ASP service under their approved policy. Beneficiaries pay no Galeon fee. We have no revenue today; the funded year tests procurement, willingness to pay, and cost to serve.
+
+The business model is **open-source institutional infrastructure with two paid offerings**:
+
+| Offering       | What the institution buys                                                                                                        | Contract                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Deploy Galeon  | Configuration, integration, training, pilot support, and jurisdiction-specific reporting work                                    | One-time implementation contract |
+| Operate Galeon | Hosting, monitoring, upgrades, incident support, relayer operation, and technical ASP operation under institution-approved rules | Recurring support agreement      |
+
+Custom engineering can be scoped inside a deployment contract and contributed back where useful. Do not present Shipwreck reporting, attestation publication, or ASP screening as three independent businesses. They are parts of the deployment and managed-operation offerings.
+
+Do not quote a price in the demo, call grants customer revenue, or propose a percentage deducted from transfers. Contract scope, pricing unit, and procurement route are funded-period validation questions.
+
+The buyer and payer are the cash-program institution or its implementing partner. The beneficiary is the user of the payment rail, never the payer. Program funds deposited for transfers remain program funds; they are not Galeon revenue. A larger approved deposit set improves the privacy conditions but is not a monetization mechanism.
+
+Partnership status and required roles:
+
+- **Current status:** no signed humanitarian pilot, commercial customer, or revenue claim.
+- **Implementing institution:** owns the program, beneficiary relationship, safeguarding, policy approval, and procurement decision.
+- **Delivery partners:** provide wallet onboarding, local payment or off-ramp access, and any required identity checks.
+- **Assurance partners:** provide external security review, legal advice, and screening data or independent ASP oversight where needed.
+- **Technical ecosystem:** upstream open-source projects and EVM infrastructure can support interoperability; do not call them commercial partners without an agreement.
+
+Why this is credible to UNICEF: its own portfolio describes Somleng earning B2B revenue from paid integrations, modifications, and feature development while keeping the platform open source. UNICEF also describes Rahat's open core being sustained by customizations and premium modules. Galeon's proposal is more conservative during the funded period: the funded technology remains open, while institutions can pay for accountable implementation and operation.
+
+Sources for Q&A preparation:
+
+- UNICEF on Somleng's paid B2B integrations and feature development: <https://www.unicefventurefund.org/story/open-source-surprising-engine-profit-and-sustainability>
+- UNICEF on Rahat's customizations and premium modules: <https://www.unicefventurefund.org/story/oss-episode-1-transparent-aid-distribution-blockchain>
+
+Suggested slide 8 copy:
+
+```text
+SUSTAINABILITY PATH
+OPEN SOURCE — Free · Self-hostable
+DEPLOY — Integration · Configuration · Training
+OPERATE — Monitoring · Upgrades · Incident support · Technical ASP
+Institution pays · No beneficiary fee · No current revenue
+```
 
 ## Adversarial Q&A
 
@@ -282,7 +320,23 @@ Mateo and Carlos carry engineering. Humanitarian deployment also requires partne
 The plan deliberately front-loads engineering hardening and audit remediation, limits the pilot, keeps one pilot language, and leaves partner-owned functions outside the product. External audit and legal review are budgeted; broad decentralization and multi-ASP work are not in scope.
 
 **31. How will Galeon make money? — Fabio**  
-We are testing partner-supported hosting and support, ASP operation or attestation services, and reporting or integration support. These are hypotheses; there is no revenue claim today and no assumed beneficiary withdrawal fee.
+The software stays free and self-hostable. Institutions can pay for a deployment contract covering integration, configuration, training, and pilot support, then choose a recurring agreement for hosting, monitoring, upgrades, incident support, relayer operation, and technical ASP operation under their approved policy. There is no revenue claim today and no beneficiary fee. The funded year tests the procurement route, willingness to pay, and cost to serve.
+
+**31A. Why would an institution pay if the code is free? — Fabio**
+
+For implementation responsibility and operational assurance, not access to the source. A qualified buyer can self-host, which reduces lock-in. Institutions that do not want to assemble and maintain the integrations, monitoring, upgrades, incident response, and ASP infrastructure can contract the team that built it. The funded pilot must test whether that convenience and accountability are valuable enough to procure.
+
+**31B. Are you selling compliance decisions? — Fabio or Mateo**
+
+No. The institution and its counsel approve the policy, governance, escalation, and deployment criteria. Galeon can supply and operate the technical screening, attestation, relayer, monitoring, and appeals workflow under that mandate. If no accountable institution will own or supervise those decisions, Galeon should not be deployed for that program.
+
+**31C. Does more money in the pool create revenue? — Mateo**
+
+No. Program capital remains owed to depositors or recipients and is not company revenue. The active approved deposit set affects privacy quality. Galeon earns only from institutional deployment and operating services, not from treating program funds as liquidity or deducting a beneficiary fee.
+
+**31D. Isn't this just consulting? — Fabio**
+
+The first deployments are necessarily services-led because wallet, off-ramp, reporting, safeguarding, and ASP governance differ by program. The productization goal is a repeatable deployment package and a managed operating service, with improvements flowing back into the open-source code. We do not claim software-as-a-service economics today; the funded year tests repeatability, support burden, and cost to serve.
 
 **32. Who owns and operates Galeon? — Mateo**  
 Mateo and Carlos built Galeon. Cartagena On Chain is the Colombian applicant and proposed funded-period operator. The applicant must document its rights to maintain and license funded contributions; open-source licensing does not eliminate that responsibility.
