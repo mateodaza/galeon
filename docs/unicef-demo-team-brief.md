@@ -113,7 +113,7 @@ Target a **9:00 stop**, leaving one minute for a technical failure or transition
 | 5:20-6:50  | Carlos | Public GitHub repository, major components, tests, audit boundary, licenses, and current/planned split using slides 5-6            |
 | 6:50-7:35  | Mateo  | Institutional anchor: ASP governance, approved deposit participation, partner responsibilities, and UNICEF contribution on slide 7 |
 | 7:35-8:05  | Fabio  | Partner-side sustainability hypotheses and honest partnership status on slide 8                                                    |
-| 8:05-8:40  | Mateo  | Funded-year bridge and close on slide 8                                                                                            |
+| 8:05-8:40  | Mateo  | Funded-year bridge and the UNICEF-specific closing question on slide 8                                                             |
 | 8:40-10:00 | Mateo  | Buffer; do not fill it unless recovery is needed                                                                                   |
 
 ### Handoffs
@@ -122,6 +122,10 @@ Target a **9:00 stop**, leaving one minute for a technical failure or transition
 - Carlos to Mateo: "That is the current product and its code boundary. Mateo will explain the institutional conditions we need to validate next."
 - Mateo to Fabio: "The technology is only sustainable if institutions can operate and support it. Fabio will summarize the partner-side model we will test."
 - Fabio to Mateo: "Those are hypotheses, not revenue we claim today. Mateo will close with what the funded year proves."
+
+Mateo's final sentence:
+
+> UNICEF has already shown that modular EVM cash transfers can work. We are not asking you to fund another end-to-end cash platform. We are asking you to test one missing component: can public-chain aid remain auditable without creating a public beneficiary transaction graph?
 
 ### Q&A routing for the interaction score
 
@@ -136,7 +140,7 @@ The rehearsal goal is that all five answer at least one hostile question cleanly
 
 ## One-minute pitch
 
-> In high-risk settings, financial visibility is not abstract: a public payment trail can expose relationships, routines, and communities. Humanitarian programs that choose public-chain settlement still need verifiable transfers. Galeon is open-source privacy and compliance infrastructure for that specific case. EIP-5564 stealth addresses give each payment a fresh destination, a zero-knowledge pool breaks the public deposit-to-withdrawal link, and an Association Set Provider is designed to admit only approved deposits to private withdrawal. We preserve settlement and program reconciliation without claiming that the chain proves eligibility, receipt, or outcomes. The native-asset protocol works today on Mantle mainnet; stablecoin deployment, real ASP screening, and a controlled humanitarian pilot are funded work. Mateo Daza and Carlos Quintero built Galeon, and Cartagena On Chain is the applicant and proposed funded-period operator.
+> Public blockchains make aid auditable, but once a wallet is linked through enrollment, support, or cash-out records, the same ledger can expose a beneficiary's financial history. Galeon is an open-source privacy layer for humanitarian programs that choose public EVM settlement. It gives each payment a fresh address, uses a zero-knowledge pool to remove the direct deposit-to-withdrawal link, and supports a policy gate for private withdrawal. Partners retain identity, eligibility, cash-out, and outcome records; Galeon preserves settlement evidence without putting that data on-chain. The native-asset flow works today on Mantle mainnet. Stablecoin deployment, real screening, external review, and a controlled partner pilot are funded work. Carlos and I built the protocol; Cartagena On Chain is the proposed operator.
 
 Then introduce the team:
 
@@ -181,7 +185,7 @@ Fabio gets 30 seconds:
 The connected-wallet native-MNT flow is deployed on Mantle mainnet: Ports, stealth-address payments, collection, pool deposit, client-side proof generation, relayed private withdrawal, indexing, and current Shipwreck exports. Stablecoin deployment and real ASP filtering remain funded work.
 
 **2. Why is the stablecoin pool not live? — Carlos**  
-The ERC-20 pool is built and tested, but mainnet deployment and validation are sequenced in Q1 before the Galeon-specific audit freeze. We will not present native MNT as a humanitarian cash product.
+The base ERC-20 pool contracts and deposit/withdrawal behavior are implemented and covered by the current contract suite, but the complete Galeon collection path still requires Q1 hardening and live integration testing before deployment. Mainnet deployment and validation are therefore sequenced in Q1 before the Galeon-specific audit freeze. We will not present native MNT as a humanitarian cash product.
 
 **3. Does Galeon prove that aid reached an eligible person? — Mateo**  
 No. It proves settlement, contract-rule execution, and a valid private withdrawal against a pool and ASP root. Eligibility, wallet control, receipt, cash-out, and outcomes remain partner responsibilities.
@@ -305,6 +309,10 @@ AidLink validates the modular EVM approach: beneficiary management, disbursement
 
 **39. Can Galeon integrate with AidLink or HOPE today? — Carlos, then Fabio**  
 No integration or partnership is claimed. Galeon's contracts and service interfaces are EVM-oriented, so the architecture is compatible in principle with a modular disbursement stack, but actual identity boundaries, wallet control, reporting, cash-out, safeguarding, and support workflows must be designed with the implementing partner. That integration decision belongs in partner discovery and the staff sandbox before any beneficiary pilot.
+
+**40. What is your moat if the code is open source and others have similar primitives? — Mateo**
+
+We do not claim code exclusivity or a defensible moat today. The current advantage is that two founders shipped the receive-to-private-settlement integration, deployed it, and can show the matching public repository. In an open-source humanitarian product, durable defensibility would come from trusted partner integrations, accountable ASP operation, an active approved deposit set, reliable implementation support, and field evidence. Those are exactly the assets the funded year is designed to build, while the underlying code remains public value.
 
 ## Phrases that lose credibility
 

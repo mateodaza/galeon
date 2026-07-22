@@ -471,6 +471,7 @@ Talking points that land well:
 - **Latest-ASP-root enforcement** (GaleonPrivacyPool.sol:102) is real but inherited — upstream enforces the same; never present it as a Galeon addition or contrast it with upstream.
 - **Server-side viewing keys**: the API stores and decrypts per-Port viewing keys to scan announcements (apps/api/app/models/port.ts, sync_service.ts) — the server can observe inbound payment relationships. Spending authority stays client-side. Never claim "no server learns the address graph."
 - **Open-source completeness**: mergeDeposit.circom is currently untracked inside the 0xbow submodule — a fresh public clone gets compiled artifacts but not this circuit source. Track it publicly (post-freeze) or scope it out of the open-source claim. multiWithdraw is circuit-only (no deployed verifier) — never present as shipped.
+- **ERC-20 merge path**: `registerPool` grants the pool a maximum token allowance, while `mergeDeposit` later calls `safeIncreaseAllowance`; that increase can overflow and revert. Base ERC-20 deposit/withdrawal support is implemented, but the complete Galeon collection path still requires this Q1 fix and a live end-to-end integration test before stablecoin deployment.
 
 ### 10.2 Numbers to quote
 
