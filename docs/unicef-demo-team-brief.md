@@ -16,6 +16,29 @@ Galeon is open-source privacy and compliance infrastructure for humanitarian pro
 
 Galeon is not a donation platform, an enrollment system, a mobile-money replacement, a cash-out network, or proof that assistance reached an eligible person.
 
+## Why privacy is a safety issue
+
+The emotional center of Galeon is not privacy as convenience. In conflict-affected and otherwise high-risk settings, payment metadata can reveal relationships, routines, recipients, and communities. A public transaction graph can therefore become a protection risk even when no civil name is written on-chain.
+
+Mateo owns this sentence in the opening:
+
+> We built Galeon because, in high-risk settings, financial visibility is not abstract. A payment trail can expose relationships, routines, and communities. We treat privacy as part of safety while preserving the accountability humanitarian programs require.
+
+Carlos should translate that motivation into precise technical boundaries: Ports reduce receiver linkability; the pool breaks the public deposit-to-withdrawal link; neither layer hides every address, amount, timing pattern, device, network record, or partner-held record. Fabio should connect the same point to partner safeguarding and operational controls.
+
+Evidence available for Q&A, not all for the main deck:
+
+- UNICEF's responsible-data work warns that group data can put entire communities, such as residents of a village, at risk: <https://www.unicef.org/innocenti/reports/responsible-group-data-children>
+- UNICEF reports that HOPE has supported humanitarian cash transfers to more than 3.4 million crisis-affected families, showing the scale at which beneficiary-data controls must operate: <https://www.unicef.org/hope-hct/about>
+- The 2022 ICRC breach compromised information concerning more than 515,000 highly vulnerable people, and the ICRC identified possible public disclosure as a protection risk: <https://www.icrc.org/en/document/sophisticated-cyber-attack-targets-red-cross-red-crescent-data-500000-people>
+
+Strict boundaries:
+
+- Do not claim that a public blockchain caused a kidnapping or other act of violence. We do not have evidence for that causal claim.
+- Do not identify or recount a personal victim's story in the deck, repository, or Q&A without Mateo's explicit decision and appropriate consent.
+- Do not use casualty or kidnapping counts as emotional leverage. They establish that conflict exists, not that Galeon would have prevented an incident.
+- Do not say Galeon guarantees physical safety. It reduces specific forms of public linkability and must be combined with partner data protection, operational security, and safeguarding.
+
 ## The current truth everyone must know
 
 | Topic       | What is true now                                                                          | What remains funded work                                                           |
@@ -91,7 +114,7 @@ The rehearsal goal is that all five answer at least one hostile question cleanly
 
 ## One-minute pitch
 
-> Humanitarian programs that choose public-chain settlement face a conflict: the ledger makes transfers verifiable, but it can also publish a durable map of a beneficiary's financial activity. Galeon is open-source privacy and compliance infrastructure for that specific case. EIP-5564 stealth addresses give each payment a fresh destination, a zero-knowledge pool breaks the public deposit-to-withdrawal link, and an Association Set Provider is designed to admit only approved deposits to private withdrawal. We preserve verifiable settlement and program reconciliation without claiming that the chain proves eligibility, receipt, or outcomes. The native-asset protocol works today on Mantle mainnet; stablecoin deployment, real ASP screening, and a controlled humanitarian pilot are funded work. Mateo Daza and Carlos Quintero built Galeon, and Cartagena On Chain is the applicant and proposed funded-period operator.
+> In high-risk settings, financial visibility is not abstract: a public payment trail can expose relationships, routines, and communities. Humanitarian programs that choose public-chain settlement still need verifiable transfers. Galeon is open-source privacy and compliance infrastructure for that specific case. EIP-5564 stealth addresses give each payment a fresh destination, a zero-knowledge pool breaks the public deposit-to-withdrawal link, and an Association Set Provider is designed to admit only approved deposits to private withdrawal. We preserve settlement and program reconciliation without claiming that the chain proves eligibility, receipt, or outcomes. The native-asset protocol works today on Mantle mainnet; stablecoin deployment, real ASP screening, and a controlled humanitarian pilot are funded work. Mateo Daza and Carlos Quintero built Galeon, and Cartagena On Chain is the applicant and proposed funded-period operator.
 
 Then introduce the team:
 
