@@ -1,14 +1,26 @@
 # Railway Shutdown Status — galeon / production
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-08-01
 **Action by:** Mateo (via Claude Code)
 **Reason:** No active users; Alchemy RPC costs (Ponder indexer polling) were too high to keep paying.
 
+**Timeline:**
+
+- **2026-07-01** — all services `railway down`'d to cut costs.
+- **2026-07-15** — all services RESTORED for the UNICEF demo (23 July).
+- **2026-08-01** — all services `railway down`'d again (demo over).
+
 ## Current state: STOPPED (reversible, data preserved)
 
-All services in the `galeon` / `production` Railway project have their deployments
-removed (`railway down`). **No containers are running → no compute billing and no
-RPC calls to Alchemy.** Env vars, service configs, and data volumes are untouched.
+All 7 services in the `galeon` / `production` Railway project have their deployments
+removed (`railway down`), verified 2026-08-01. **No containers are running → no compute
+billing and no RPC calls to Alchemy.** Env vars, service configs, and data volumes are
+untouched.
+
+> ⚠️ **Auto-redeploy gotcha:** `worker` and `scheduler` have **no watch-path filter**, so
+> **any push to `main` auto-redeploys them** (this is why the July 1 shutdown was never
+> fully complete). `@galeon/api` and `@galeon/indexer` skip non-matching pushes. After
+> stopping, avoid pushing to `main` — or expect to re-stop worker + scheduler afterward.
 
 | Service         | Service ID                             | State      | Notes                                  |
 | --------------- | -------------------------------------- | ---------- | -------------------------------------- |
@@ -72,3 +84,9 @@ railway redeploy -s 877b740c-69bc-4e20-99a1-22d224a0e7a8 -e production -y  # @ga
 
 Note: redeploying `@galeon/indexer` restarts the Alchemy RPC polling and the associated
 cost. Leave it stopped until you actually need indexed data.
+
+> ⚠️ **`railway redeploy` fails on a stopped (REMOVED) deployment** — it errors with
+> "No deployment found". The July 15 restore instead called the Railway GraphQL API
+> `deploymentRedeploy(id:)` against each service's last REMOVED deployment ID, using the
+> CLI token from `~/.railway/config.json`. Easiest alternative: click **Redeploy** on the
+> last deployment in the Railway dashboard.
