@@ -4,10 +4,6 @@
 
 Umbra hides receivers. Railgun hides senders. Galeon hides both — with compliance built in.
 
-## UNICEF proposal review — September 2026
-
-The [final team-review package](./outputs/unicef-2026-09-10/README.md) contains the current workplan, USD 70,000 budget, reply draft and supporting notes. It distinguishes the existing prototype from proposed funded-year deliverables. Earlier UNICEF documents elsewhere in this repository are historical, not the current submission package.
-
 ## Overview
 
 On-chain payments are public by default. Galeon makes them private.
