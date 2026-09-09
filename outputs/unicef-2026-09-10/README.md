@@ -2,7 +2,9 @@
 
 Prepared for the 10 September 2026 submission deadline. **Proposal for final team review; not an awarded investment or a production-readiness claim.** Publishing this package to the repository does not send the application to UNICEF.
 
-This directory is the current baseline. Earlier root-level UNICEF documents, August workplans and intermediate September drafts are historical; they do not add commitments to this proposal.
+This directory is the **only current review and submission package**. Update these six files in place; do not create parallel `final`, `v2` or email copies. The PM readiness memo and technical capacity basis support this same proposal; they are not alternative plans.
+
+Earlier root-level UNICEF documents, July demo decks, August workplans and intermediate September drafts are historical; they do not add commitments to this proposal. Superseded local drafts and generated inspection files have been moved to a recoverable archive outside the checkout, so this directory contains only the six current files below.
 
 ## Review order
 
