@@ -40,7 +40,7 @@ These are cost allocations, not confirmed tranche amounts or dates. Company inco
 
 ## Review status and remaining actions
 
-The independent proposal reviewer reported the review closed after personnel-budget confirmation. Final team sign-off is still required. This is not the independent security/privacy review planned within the funded year.
+The independent proposal reviewer reported the 8 September review closed after personnel-budget confirmation. On 9 September, Mateo approved Carlos's targeted clarifications: conditional initial ASP operation by Cartagena, eligible-depositor exits, optional merging, explicit mobile gates and clearer resource/testing assumptions. The email was simplified. The budget, staffing percentages and targets are unchanged; final team sign-off is still required. This is not the independent security/privacy review planned within the funded year.
 
 Checked in the exported workbooks:
 
@@ -48,7 +48,7 @@ Checked in the exported workbooks:
 - No blank C–F activity cells in Template 3; numeric activity targets; each person's activity shares sum to the milestone and to 100% per quarter.
 - Activity costs, personnel allocations, eight category totals, quarter totals and company income/expense reconcile to USD 70,000.
 - Template 3 D97 contains cumulative inflows; D98 separately states the final-30-day median and external-resource requirement.
-- Saved formula caches, error checks, representative visual inspection and an independent LibreOffice open/save check passed. This was not a Microsoft Excel application test or a production/security audit.
+- The 9 September pass changed only 12 Template 3 text cells and their row heights. All other cell values/formulas are unchanged; Template 7 is byte-identical. Saved formula caches, reconciliation checks, visual inspection of affected rows and a LibreOffice open/save check passed. This was not a Microsoft Excel application test or a production/security audit.
 
 The clean email retains four questions for UNICEF: the reviewed privacy operating-floor approach, testnet portability, general-administration eligibility, and the anticipated start/first-tranche timing. None is presented as already approved.
 
@@ -59,7 +59,7 @@ Before sending: obtain final team sign-off, check that the actual outgoing email
 ## Workbook integrity
 
 ```text
-9f55d4455c66d27d5b2428130e038f99749280d4c336554f84aa79754716620c  Annex_C_Template_3_Galeon_PrivacyProtocol_2026-09.xlsx
+b8fe20248375e08b39b667de30ac2a7a133634267d0f66a9c6d90ba652719d5c  Annex_C_Template_3_Galeon_PrivacyProtocol_2026-09.xlsx
 3815fe40e310a533b96bb6f7a4fe7bbf1a1d19a52d4805e1cd48e89a106b844a  Annex_C_Template_7_Galeon_Budget_USD70000_2026-09.xlsx
 ```
 

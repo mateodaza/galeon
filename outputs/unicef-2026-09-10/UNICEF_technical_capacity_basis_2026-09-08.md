@@ -1,6 +1,6 @@
 # Galeon: internal basis for the funded-year capacity plan
 
-8 September 2026. Planning estimate, not a security audit, measured delivery rate or approved compensation agreement. Mateo is the development lead. This note supports the updated PM memo; it is not an attachment or technical answer to send to UNICEF.
+Updated 9 September 2026 with the agreed operator, acceptance-testing and assurance clarifications. Planning estimate, not a security audit or measured delivery rate. Mateo is the development lead. The confirmed all-in role budgets and milestone percentages are unchanged. This note supports the PM memo; it is not an attachment or technical answer to send to UNICEF.
 
 ## Decision
 
@@ -26,7 +26,7 @@ The following observations inform effort; they do not prove production readiness
 
 Important boundaries: the scheduler checks every 15 seconds and updates when the root changes; this is not proof of a root change every 15 seconds. The ASP key fallback permits sharing a relayer credential, but source alone does not establish current key holders. Viewing-key storage gives the server visibility when that option is used; it is not the same claim as custody of spending keys. In the checked implementation, ragequit requires the original depositor and a valid unspent-note proof: it is not an unconditional beneficiary exit.
 
-## Bottom-up estimate for the disputed work bundle
+## Bottom-up estimate for the control and PWA work
 
 Convention: one engineer-day is a full working day of one engineer; one planning person-month is 20 days. Ranges are judgement-based, not statistical confidence intervals. Working estimates include implementation, task-specific tests and documentation. They exclude independent reviewers' own time, new cryptographic research, a custom-circuit ceremony, and the separately allocated Q3 physical-device/recovery acceptance work.
 
@@ -70,6 +70,10 @@ Q2 reconciles as follows:
 | M5: technical lead, validation, review intake and protected contingency |           9 |         12 |            21 |
 | **Total**                                                               |      **60** |     **60** |       **120** |
 
+Q2 acceptance work uses existing allocations, not extra time. Within the seven control/PWA days already estimated for cross-component fixtures, runbook and reproducibility, plan three days for preparation (one Carlos, two Mateo) and four for integrated execution/evidence (two each). These are part of Q2 M2's 54 days, not its six-day margin or the contingency reserve. Unit and feature tests remain in their implementation tasks.
+
+Q2 M5's 21 engineering days comprise Carlos nine and Mateo twelve. Carlos's six contingency days leave three: plan 1.5 for acceptance/triage and 1.5 for initial reviewer intake. Mateo's six leadership days include review coordination; his other six are protected contingency. This preserves F52/F53: each activity has Carlos 4.5 days (three contingency plus 1.5 validation/intake) and Mateo six (three leadership plus three contingency). Fabio's nine M5 days split 4.5 for tester logistics/feedback and 4.5 for review/evidence administration; he does not substitute for engineering or independent review. The integrated acceptance plan therefore has 5.5 engineering days beyond fixture preparation, plus feature-specific tests elsewhere. This is a planning allocation, not proof it is sufficient. Check it at the day-30 and Q1 demonstrator reviews; if it cannot cover the agreed acceptance matrix, make an explicit trade-off instead of silently consuming protected contingency or claiming Q2 review closure.
+
 Disclosure has an explicit 80-day allocation inside existing milestone totals, replacing the previous 80–90-day range. These shares are planned, not historical time measurements or evidence that the construction is proven:
 
 | Disclosure task and containing milestone                        | Carlos days | Mateo days | Total days |
@@ -83,7 +87,7 @@ Disclosure has an explicit 80-day allocation inside existing milestone totals, r
 
 Q1 M2 has 18 Carlos / 21 Mateo days overall. After six foundation days per engineer and the disclosure shares above, six Carlos / three Mateo days remain for the authority/wallet design. Thus Q1 disclosure is 18 days, not an assumed 25, and neither foundation work nor contingency is counted twice. The Q3 and Q4 disclosure shares likewise sit within their existing milestone budgets; the other work uses the remainder. No added engineer, salary or reviewer time is created by this allocation. If the Q1 demonstrator requires new circuit research or broader merged-history semantics, recost that option explicitly. Tax PDFs are not a substitute.
 
-The 60-day control/PWA estimate does not include native Android, account-abstraction infrastructure, a second production pool, automated compliance-provider integrations, a full appeals case-management system, or custom-circuit assurance. Existing artifacts built with development keys cannot enter the reviewed release. A custom circuit remains a D1 option only with public source, trustworthy setup provenance, scoped independent review and an affordable, scheduled route to release.
+The 60-day control/PWA estimate does not include native Android, account-abstraction infrastructure, a second production pool, automated compliance-provider integrations, a full appeals case-management system, or custom-circuit assurance. Preserve repeated receipts and practical partial withdrawals; merging remains a Q1 option, not an automatic custom-circuit requirement. Existing artifacts built with development keys cannot enter the reviewed release. A custom circuit remains a D1 option only with public source, trustworthy setup provenance, scoped independent review and an affordable, scheduled route to release.
 
 ## Calendar dependencies and assurance
 
@@ -91,13 +95,15 @@ Q1 is active engineering, not a month of planning followed by two idle months. B
 
 Q2 completes the integrated candidate, disclosure exporter/verifier, ASP correction/handover core, timelock and relayer packaging, local-key protection and interruption-state reconciliation. The reviewed operating-floor policy and warning behavior are due in Q2. Independent review starts against identifiable implemented commits in late Q2; scope includes Galeon's changes and the enabled services, not just inherited contracts.
 
-Months 7–8 cover final wallet handoff, lost/shared-phone handling, low-end Android acceptance, reviewer remediation and re-review. Final code added after an earlier review must receive appropriate coverage before external use. The reviewed launch is planned no later than mid-month 9 to preserve at least fourteen days of initial external-use evidence. Required authority restrictions and tested exits precede launch; the fuller alternate-relayer/operator-replacement demonstrations may finish later in Q3 only where safe readiness is already established.
+Months 7–8 cover final wallet handoff, lost/shared-phone handling, low-end Android acceptance, reviewer remediation and re-review. Require warm-cache proof-generation p95 ≤60 seconds, ≥95% proof-generation completion and the network/cold-start thresholds established by Q1 end, on both selected physical devices; repeat these gates in Q4. Final code added after an earlier review must receive appropriate coverage before external use. Launch is planned no later than mid-month 9, leaving at least fourteen days of observed use. Required authority restrictions and exits for eligible original depositors with the required proof precede launch; fuller alternate-relayer/operator-replacement demonstrations may finish later in Q3 only where safe readiness is established.
 
 Keep two relayer results separate: a Q3 technical failover demonstration, with ten successful alternate submissions while the primary is disabled, and the Q3 independent-operator recruitment target owned by Fabio. Different deployments/keys do not establish independent control. A team-run alternate demonstrates resilience only; if no independent operator is recruited, report the independence target as not achieved. This distinction is offered in the plan, not used to relabel a missed agreed outcome afterwards.
 
+Cartagena On Chain is the proposed initial ASP operator, including if no independent alternative joins, subject to Q1 legal/role assessment and the release gates. Record actual ASP and relayer powers and accepted operating responsibilities before use. The team may operate relayer instances under reviewed controls without claiming independence. A beneficiary programme remains partner-operated; the proposed ASP role does not appoint Cartagena to run it or establish a licensing exemption. If a required legal or operating condition fails, a self-hostable package alone does not authorize launch.
+
 Q4 is sustained operation, fixes and documented independent deployment—not the first point at which safe recovery or provenance becomes available. The bounded second-EVM test deployment starts with compatibility preparation in Q3 and completes in Q4. It does not require a second production pool or divide liquidity.
 
-Independent review remains an estimated USD 15,000 envelope; this note does not establish vendor availability or price. The USD 5,000 legal line also remains an estimate, not a conclusion that licensing or reporting obligations are absent. Q1 procurement validates both against the selected design. The staff budget stays USD 40,000; changed allocations do not change proposed annual role costs or create company funding.
+Independent review remains an estimated USD 15,000 envelope across Q1 scoping (USD 1,500), Q2 implemented-scope review (USD 8,000), Q3 remediation/mobile re-review (USD 3,500) and Q4 release/regression review (USD 2,000). Scope includes modified contracts/governance, selected circuit/disclosure claims, privacy policy, ASP/relayer and PWA secret/state handling. These amounts do not establish vendor availability or sufficient specialist coverage. Team implementation/test time is already in personnel. A new custom ceremony is not automatically funded by this allowance: scope, price and schedule it before adopting that path. No signed quote is newly required before submission. The USD 5,000 legal estimate must cover the actual initial-operator model and selected jurisdiction; Q1 procurement validates both professional-service scopes. Staff costs remain USD 40,000 and the total USD 70,000; no allocation or funding source is added.
 
 ## What belongs in the email
 
