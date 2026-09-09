@@ -60,3 +60,8 @@ typechain-types/
 # Sensitive budget drafts (kept local, not tracked)
 docs/BUDGET.md
 _archive/SCF-BUDGET-DRAFT.md
+
+# Local artifact workspaces and generated spreadsheet inspection sidecars.
+# Final review documents and workbooks are staged explicitly; do not ignore them.
+/tmp/
+/outputs/**/*.inspect.ndjson
