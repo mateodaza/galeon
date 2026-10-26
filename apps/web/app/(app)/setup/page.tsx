@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { DEFAULT_CALLBACK, safeCallbackPath } from '@/lib/safe-callback'
 import { Check, Loader2 } from 'lucide-react'
 import * as m from 'motion/react-m'
 import { useReducedMotion } from 'motion/react'
@@ -31,7 +32,7 @@ export default function SetupPage() {
   const [showModal, setShowModal] = useState(false)
 
   // Get callback URL from query params (for redirect after setup)
-  const callbackUrl = searchParams.get('callback') || '/dashboard'
+  const callbackUrl = safeCallbackPath(searchParams.get('callback'))
 
   // Determine current step for progress indicator
   const currentStep = !isConnected
@@ -170,7 +171,7 @@ export default function SetupPage() {
                     size="lg"
                     className="mt-6 w-full"
                   >
-                    {callbackUrl === '/dashboard' ? 'Go to Dashboard' : 'Continue'}
+                    {callbackUrl === DEFAULT_CALLBACK ? 'Go to Dashboard' : 'Continue'}
                   </Button>
                 </m.div>
               )}
