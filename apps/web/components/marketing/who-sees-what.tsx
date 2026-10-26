@@ -1,19 +1,22 @@
 import { WHO } from '@/content/landing'
 import { DisplayTitle } from './display-title'
+import { keepWhole, Phrased } from './phrased'
 import { SectionLabel } from './section-label'
 
 /** Keys for the two columns: solid for what a party sees, lines for what stays withheld. */
 const SEES = <i className="k k-solid" aria-hidden="true" />
 const WITHHELD = <i className="k k-lines" aria-hidden="true" />
 
-/** What each party can learn from the prototype today, ourselves included. */
+/** What each party can learn, whoever runs the deployment included. */
 export function WhoSeesWhat() {
   return (
     <section className="sect" id="who" aria-labelledby="who-h">
       <div className="wrap cols">
-        <SectionLabel n={WHO.n} label={WHO.label} />
+        <SectionLabel label={WHO.label} />
         <DisplayTitle id="who-h" title={WHO.title} />
-        <p className="body who-lede">{WHO.lede}</p>
+        <p className="body who-lede">
+          <Phrased text={WHO.lede} clauses />
+        </p>
         <div className="who">
           <div role="table" aria-labelledby="who-h">
             <div className="who-head" role="row">
@@ -39,19 +42,18 @@ export function WhoSeesWhat() {
                     {SEES}
                     {WHO.cols.sees}
                   </b>
-                  <p>{r.sees}</p>
+                  <p>{keepWhole(r.sees)}</p>
                 </div>
                 <div className="c3" role="cell">
                   <b aria-hidden="true">
                     {WITHHELD}
                     {WHO.cols.hidden}
                   </b>
-                  <p>{r.hidden}</p>
+                  <p>{keepWhole(r.hidden)}</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="who-foot">{WHO.note}</p>
         </div>
       </div>
     </section>

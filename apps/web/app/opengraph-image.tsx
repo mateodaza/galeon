@@ -8,10 +8,6 @@ export const contentType = OG_CONTENT_TYPE
 export default function Image() {
   return renderOg({
     eyebrow: HERO.eyebrow,
-    lines: [
-      ['Privacy', 0],
-      ['at the level', 0.6],
-      ['you need.', 1.4],
-    ],
+    lines: HERO.title.lines,
   })
 }

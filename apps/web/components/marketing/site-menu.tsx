@@ -7,7 +7,8 @@ import { SiteLinkAnchor } from './site-link'
 /**
  * The phone and tablet menu. It is a <details> element, so it opens and
  * closes without JavaScript; the script only closes it after a link is
- * followed, on Escape, or on a click outside.
+ * followed, on Escape, or on a click outside. The theme control stays in
+ * the bar beside it.
  */
 export function SiteMenu() {
   const ref = useRef<HTMLDetailsElement>(null)

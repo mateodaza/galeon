@@ -7,25 +7,39 @@
  * rows crossing the sails take ink in place and the rest of the sea withdraws. Nothing arrives
  * from outside: the private mark is the same public lines, held differently. Settled, it is the
  * master mark engraved in the round-4 plate's language (tone carried by line width), and only
- * the water band drifts. Scroll unwinds the upper horn back toward the sea, reversibly.
+ * the water band drifts. Scroll unwinds the upper horn back toward the sea, reversibly. The
+ * formation reads at about 3.8 s and settles at 5.5 s (formation.ts).
  *
- *   const hero = mount(canvas, options)   // -> { destroy(), setScroll(p) } (+ renderAt, info)
+ * The same engine draws the closing mark (mode 'reveal', reveal.ts): the settled engraving inked
+ * once from the waterline up when it comes into view, then drifting under a soft light; with no
+ * pointer over it, a slow ambient light walks the water band and the sails (ambient.ts).
+ *
+ *   const hero = mount(canvas, options)   // -> { destroy(), setScroll(p), setLight(x, y, k) }
  *
  * The module never touches the DOM beyond drawing into the canvas: no styles, no attributes,
  * no window access at import time, so it is safe to import into a client component and mount
- * in an effect. URL flags (location.hash, combine with &), re-read on hashchange:
+ * in an effect. It pauses off-screen and in a hidden tab, coarsens or skips to settled on slow
+ * devices (the governor), and re-reads its ink when the theme changes. URL flags (location.hash,
+ * combine with &), re-read on hashchange; in reveal mode t counts on the reveal:
  *   #t=<s> freeze at t seconds · #still settled frame · #scroll=<0..1> force scroll · #reduced
  *
  * Modules: mark (constants from logo/final/constants.json), tone (tone fields and maths),
  * geometry (layout and the precomputed cut), sails, formation (the timeline as pure functions
- * of t and scroll), paint, threads, renderer, options (types and URL flags), and this runtime.
+ * of t and scroll), reveal (the closing mark's front and light), ambient (its idle light),
+ * paint (sea), threads, ink,
+ * renderer, governor (slow devices), theme (the ink follows it), options (types and URL flags),
+ * and this runtime.
  * The static SVG fallback uses `lib/hero-mark/mark.ts`, which shares the plate's viewBox.
  */
+import { createAmbient } from './ambient'
 import { T_SETTLED } from './formation'
 import { PATH_MARK, PLATE_VIEWBOX } from './mark'
-import { boxFromBleed, fallbackSvg, p90, readHash, type Bleed, type Flags } from './options'
-import type { HeroMarkInfo, HeroMarkInstance, HeroMarkOptions } from './options'
-import { createRenderer } from './renderer'
+import { createGovernor } from './governor'
+import { bleedOf, boxFromBleed, fallbackSvg, NOOP, readHash, type Flags } from './options'
+import type { HeroMarkInstance, HeroMarkOptions } from './options'
+import { createRenderer, painter, watchSize } from './renderer'
+import { createLight, T_REVEAL } from './reveal'
+import { watchTheme } from './theme'
 
 export type { Box } from './geometry'
 export type {
@@ -35,40 +49,31 @@ export type {
   HeroMarkInstance,
   HeroMarkOptions,
 } from './options'
-export { T_SETTLED, PLATE_VIEWBOX, PATH_MARK, fallbackSvg }
-
-const NOOP: HeroMarkInstance = {
-  destroy() {},
-  setScroll() {},
-  renderAt: () => 0,
-  info: () => ({
-    W: 0,
-    H: 0,
-    dpr: 1,
-    rs: 1,
-    pitchUnits: 0,
-    pitchCss: 0,
-    rows: 0,
-    threads: 0,
-    sailRows: 0,
-    governor: 'ok',
-  }),
-}
+export { T_SETTLED, T_REVEAL, PLATE_VIEWBOX, PATH_MARK, fallbackSvg }
 
 export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}): HeroMarkInstance {
   const c0 = canvas.getContext('2d')
   if (!c0 || typeof Path2D === 'undefined' || typeof DOMMatrix === 'undefined') return NOOP
   const opt = options
-  const color =
+  const reveal = opt.mode === 'reveal'
+  const settleAt = reveal ? T_REVEAL : T_SETTLED
+  const readInk = (): string =>
     opt.color || getComputedStyle(canvas).getPropertyValue('--plate-ink').trim() || '#1D5C5E'
-  const bleed: Bleed =
-    typeof opt.bleed === 'number'
-      ? { top: opt.bleed, right: opt.bleed, bottom: opt.bleed, left: opt.bleed }
-      : (opt.bleed ?? { top: 0, right: 0, bottom: 0, left: 0 })
-  const R = createRenderer(canvas, c0, color, opt.layout ?? ((w, h) => boxFromBleed(w, h, bleed)))
+  const bleed = bleedOf(opt.bleed)
+  const R = createRenderer(
+    canvas,
+    c0,
+    readInk(),
+    opt.layout ?? ((w, h) => boxFromBleed(w, h, bleed))
+  )
   if (!R) return NOOP
+  const light = createLight()
+  // the ambient light holds the plate whenever the page's light is out
+  const amb = reveal && opt.ambient ? createAmbient(light) : null
+  const paint = painter(R, reveal, light)
+  const drawIdle = R.idle
   const idleMs = 1000 / Math.max(1, opt.idleFps ?? 20)
-  const maxFrameMs = opt.maxFrameMs ?? 12
+  const revealAt = Math.min(1, Math.max(0.01, opt.revealAt ?? 0.4))
   const mq =
     typeof matchMedia === 'undefined' ? null : matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -84,19 +89,21 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
       reduced: h.reduced ?? opt.reduced ?? false,
     }
     reduced = f.reduced || !!(mq && mq.matches)
-    frozenT = f.t !== null ? f.t : f.still ? T_SETTLED + 1 : null
+    frozenT = f.t !== null ? f.t : f.still ? settleAt + 1 : null
     forcedScroll = f.scroll
+    if (frozenT === null) return
+    amb?.aim(frozenT)
+    light.snap()
   }
   applyFlags()
-  let coarsen = 1
-  let governor: HeroMarkInfo['governor'] = 'ok'
-  const drawFull = R.full
-  const drawIdle = R.idle
-  const resize = (): void => R.resize(coarsen)
+  const gov = createGovernor(opt.maxFrameMs ?? 12)
+  const resize = (): void => R.resize(gov.coarsen())
 
   /* ---------- the loop: rAF while forming, a 20 fps timer once settled, redraws only when dirty ---------- */
   let scroll = 0
   let clock = Math.max(0, opt.startAt ?? 0)
+  // the reveal waits for its band; the formation runs from mount
+  let armed = !reveal || clock >= T_REVEAL
   let last = 0
   let raf = 0
   let timer: ReturnType<typeof setTimeout> | 0 = 0
@@ -106,71 +113,53 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
   let firstFired = false
   let dirty = true
   let drawnScroll = -1
-  const costs: number[] = []
-  let frames = 0
   let lastIdle = -1e9
 
   const sc = (): number => (forcedScroll !== null ? forcedScroll : scroll)
   const live = (): boolean =>
-    !destroyed && onScreen && !document.hidden && !reduced && frozenT === null
-
-  function first(): void {
-    if (firstFired) return
-    firstFired = true
-    opt.onFirstFrame?.()
-  }
+    !destroyed && armed && onScreen && !document.hidden && !reduced && frozenT === null
 
   function govern(ms: number): void {
-    if (governor === 'skipped' || ++frames <= 4) return
-    costs.push(ms)
-    if (costs.length < 12) return
-    if (p90(costs) > maxFrameMs) {
-      if (governor === 'ok') {
-        governor = 'coarse'
-        coarsen = 1.6
-        resize()
-      } else {
-        // still too slow: skip to the settled plate, cut once at the full pitch and cached
-        governor = 'skipped'
-        clock = Math.max(clock, T_SETTLED)
-        coarsen = 1
-        resize()
-      }
-    }
-    costs.length = 0
+    const next = gov.record(ms)
+    if (!next) return
+    if (next === 'skipped') clock = Math.max(clock, settleAt)
+    resize()
   }
 
   function draw(): void {
     const s = sc()
     if (reduced) drawIdle(0)
-    else if (frozenT !== null) {
-      if (frozenT >= T_SETTLED && s < 0.001) drawIdle(frozenT)
-      else drawFull(frozenT, s, frozenT)
-    } else if (clock < T_SETTLED) {
+    else if (frozenT !== null) paint(frozenT, s, frozenT)
+    else if (armed && clock < settleAt) {
       const t0 = performance.now()
-      drawFull(clock, s, clock)
+      paint(clock, s, clock)
       govern(performance.now() - t0)
     } else {
-      if (!settledFired) {
+      if (armed && !settledFired) {
         settledFired = true
         opt.onSettle?.()
       }
-      if (s < 0.001) drawIdle(clock)
-      else drawFull(T_SETTLED + 1, s, clock)
+      paint(clock, s, clock)
     }
     drawnScroll = s
     dirty = false
-    first()
+    if (!firstFired) {
+      firstFired = true
+      opt.onFirstFrame?.()
+    }
   }
 
   function tick(now: number): void {
     raf = 0
     if (!live()) return
-    const forming = clock < T_SETTLED
-    if (last) clock += Math.min(0.1, (now - last) / 1000)
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
     last = now
+    clock += dt
+    const forming = clock < settleAt
+    amb?.aim(clock)
+    const easing = light.step(dt)
     // settled frames change only with the drift: draw them at the idle rate, or at once when dirty
-    if (forming || dirty || sc() !== drawnScroll || now - lastIdle >= idleMs - 4) {
+    if (forming || easing || dirty || sc() !== drawnScroll || now - lastIdle >= idleMs - 4) {
       if (!forming) lastIdle = now
       draw()
     }
@@ -179,7 +168,9 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
 
   function schedule(): void {
     if (raf || timer || !live()) return
-    if (clock < T_SETTLED || dirty) raf = requestAnimationFrame(tick)
+    // the page's light follows at the full frame rate; the ambient one is slow enough for idle frames
+    const lightMoves = light.moving() && !amb?.holds()
+    if (clock < settleAt || dirty || lightMoves) raf = requestAnimationFrame(tick)
     else
       timer = setTimeout(() => {
         timer = 0
@@ -199,7 +190,7 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
     dirty = true
     if (destroyed) return
     if (!live()) {
-      // frozen, reduced or paused: draw now if anyone can see it, else when it comes back
+      // frozen, reduced, paused or waiting: draw now if anyone can see it, else when it comes back
       if (onScreen && !document.hidden) draw()
       return
     }
@@ -213,37 +204,31 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
   resize()
   draw()
 
-  let ro: ResizeObserver | null = null
+  const unwatchSize = watchSize(canvas, R, () => {
+    resize()
+    invalidate()
+  })
   let io: IntersectionObserver | null = null
-  let pendingResize = 0
-  if (typeof ResizeObserver !== 'undefined') {
-    ro = new ResizeObserver(() => {
-      if (pendingResize) return
-      pendingResize = requestAnimationFrame(() => {
-        pendingResize = 0
-        const r = canvas.getBoundingClientRect()
-        const z = R.size()
-        if (
-          Math.abs(r.width - z.W) < 0.5 &&
-          Math.abs(r.height - z.H) < 0.5 &&
-          (window.devicePixelRatio || 1) === z.dpr
-        )
-          return
-        resize()
-        invalidate()
-      })
-    })
-    ro.observe(canvas)
-  }
   if (typeof IntersectionObserver !== 'undefined') {
-    io = new IntersectionObserver((es) => {
-      const e = es[es.length - 1]
-      onScreen = e ? e.isIntersecting : true
-      if (onScreen) invalidate()
-      else stop()
-    })
+    io = new IntersectionObserver(
+      (es) => {
+        const e = es[es.length - 1]
+        onScreen = e ? e.isIntersecting : true
+        // the reveal starts once enough of the plate is in view (or it fills the viewport)
+        const vh = e?.rootBounds?.height ?? 0
+        if (
+          e &&
+          !armed &&
+          (e.intersectionRatio >= revealAt || e.intersectionRect.height > vh * 0.6)
+        )
+          armed = true
+        if (onScreen) invalidate()
+        else stop()
+      },
+      { threshold: reveal ? [0, revealAt / 2, revealAt] : 0 }
+    )
     io.observe(canvas)
-  }
+  } else armed = true
   const onVis = (): void => (document.hidden ? stop() : invalidate())
   document.addEventListener('visibilitychange', onVis)
   const onFlags = (): void => {
@@ -257,30 +242,38 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
     if (opt.urlFlags !== false) onFlags()
   }
   window.addEventListener('hashchange', onHash)
+  const unwatch = opt.color ? () => {} : watchTheme(() => R.setColor(readInk()) && invalidate())
   schedule()
 
   return {
     destroy() {
       destroyed = true
       stop()
-      if (pendingResize) cancelAnimationFrame(pendingResize)
-      ro?.disconnect()
+      unwatchSize()
       io?.disconnect()
+      unwatch()
       document.removeEventListener('visibilitychange', onVis)
       mq?.removeEventListener('change', onFlags)
       window.removeEventListener('hashchange', onHash)
     },
     setScroll(p: number) {
       const v = Math.min(1, Math.max(0, Number.isFinite(p) ? p : 0))
-      if (Math.abs(v - scroll) < 1e-4) return
+      if (reveal || Math.abs(v - scroll) < 1e-4) return
       scroll = v
       if (reduced || forcedScroll !== null) return
       invalidate()
     },
+    setLight(x: number, y: number, k: number) {
+      if (!reveal || reduced || ![x, y, k].every(Number.isFinite)) return
+      amb?.yieldTo()
+      light.set(x, y, k)
+      if (!light.moving()) return
+      if (!live()) light.snap()
+      invalidate()
+    },
     renderAt(t: number, s = 0) {
       const t0 = performance.now()
-      if (t >= T_SETTLED && s < 0.001) drawIdle(t)
-      else drawFull(t, s, t)
+      paint(t, s, t)
       return performance.now() - t0
     },
     info() {
@@ -292,7 +285,7 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
         rows: G ? G.rows.length : 0,
         threads: G ? G.threads.length : 0,
         sailRows: G ? G.sails.length : 0,
-        governor,
+        governor: gov.state(),
       }
     },
   }

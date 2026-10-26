@@ -19,7 +19,7 @@
   --color-text-secondary: #6b6b7b;
   --color-border-subtle: #f0f0f5;
 
-  /* Deep Sea Cyan Accent (San José Caribbean Depths) */
+  /* Deep Sea Cyan Accent */
   --color-accent-hover: #0e7490;
   --color-accent-muted: #cffafe;
   --color-accent-subtle: #ecfeff;
@@ -248,11 +248,6 @@
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     background-color: #020617;
-  }
-
-  /* The public site paints the whole document in paper (see app/(marketing)/site.css) */
-  html:has(.site) {
-    background-color: #f2eee6;
   }
 
   * {

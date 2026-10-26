@@ -18,8 +18,10 @@ function sizeVars(size: DisplayTitleCopy['size']): CSSProperties | undefined {
 }
 
 /**
- * An Aztec-scale headline: hanging lines on desktop, a plain break on phones.
- * Both visual sets are hidden from assistive tech; the sentence is read once.
+ * A large headline set line by line: the desktop break, then the phone break.
+ * Lines end where phrases end; a line hangs only when the copy gives it a
+ * hang. Both visual sets are hidden from assistive tech; the sentence is read
+ * once.
  */
 export function DisplayTitle({ title, as: Tag = 'h2', id, className }: DisplayTitleProps) {
   const sentence = title.lines.map(([text]) => text).join(' ')

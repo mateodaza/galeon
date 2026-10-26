@@ -28,6 +28,11 @@ interface FloatingNavProps {
    * @default 'dark'
    */
   variant?: 'dark' | 'light'
+  /**
+   * Where the logo leads; the previous site under /legacy keeps its own home.
+   * @default '/'
+   */
+  homeHref?: string
 }
 
 const variants = {
@@ -58,7 +63,7 @@ const variants = {
  * Transparent glass effect with rounded corners, centered nav links.
  * Responsive: hamburger menu on mobile.
  */
-export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
+export function FloatingNav({ nav, variant = 'dark', homeHref = '/' }: FloatingNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const navLinks = nav ?? defaultNavLinks
@@ -74,7 +79,7 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
       >
         {/* Logo */}
         <Link
-          href="/"
+          href={homeHref}
           className={`flex items-center gap-2 rounded-full px-4 py-2 transition-colors ${styles.logo}`}
         >
           <Lockup className="h-7 w-auto" />
@@ -110,7 +115,10 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
         className={`mx-auto flex w-full max-w-md items-center justify-between rounded-full border px-3 py-2 shadow-lg backdrop-blur-xl sm:hidden ${styles.nav}`}
       >
         {/* Logo */}
-        <Link href="/" className={`flex items-center gap-2 rounded-full px-2 py-1 ${styles.logo}`}>
+        <Link
+          href={homeHref}
+          className={`flex items-center gap-2 rounded-full px-2 py-1 ${styles.logo}`}
+        >
           <Lockup className="h-7 w-auto" />
         </Link>
 

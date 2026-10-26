@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Audiences } from '@/components/marketing/audiences'
 import { ClosingBand } from '@/components/marketing/closing-band'
-import { FactsRow } from '@/components/marketing/facts-row'
 import { Hero } from '@/components/marketing/hero'
 import { HowItWorks } from '@/components/marketing/how-it-works'
 import { PrincipleBand } from '@/components/marketing/principle-band'
@@ -19,7 +18,6 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <FactsRow />
       <WhyBand />
       <HowItWorks />
       <PrincipleBand />

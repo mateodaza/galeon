@@ -1,21 +1,24 @@
 /**
  * The formation, as pure functions of time t (seconds) and scroll progress sc (0..1).
  *
- *   0.0 to 0.7  the public sea is cut in, row by row, left to right, behind a burin's dark point
- *   0.5 to 1.1  the swell calms; the sails show faintly in the sea (the moon does not)
- *   1.0 to 2.0  the waterline rows lift and wind onto circle O: every row shares one wrap
+ *   0.0 to 1.2  the public sea is cut in, row by row, left to right, behind a burin's dark point
+ *   0.9 to 2.0  the swell calms; the sails show faintly in the sea (the moon does not)
+ *   1.7 to 3.4  the waterline rows lift and wind onto circle O: every row shares one wrap
  *               angle, so no two lines ever cross, and the ink darkens right behind the front
- *   1.4 to 2.3  the sails take ink in place, foot first, from rows that were already there
- *   1.5 to 2.5  the rest of the sea withdraws, farthest first
- *   2.6         the mark has landed; 3.2 settled, and only the water band drifts
+ *   2.3 to 3.8  the sails take ink in place, foot first, from rows that were already there
+ *   2.5 to 4.2  the rest of the sea withdraws, farthest first
+ *   about 3.8   the mark reads; 4.5 it has landed; 5.5 settled, and only the water band drifts
  *
- * Scroll unwinds the upper horn back toward the sea (the wrap angle eases to 65 %), brings the
- * swell and a ring of sea back round the mark, and thins the ink a little. All reversible.
+ * Every beat is BEATS (the round-5 timing) stretched by PACE, so the proportions hold and the
+ * pace is one number. Scroll unwinds the upper horn back toward the sea (the wrap angle eases to
+ * 65 %), brings the swell back, and thins the ink a little; past a fifth of the hero's scroll,
+ * once the mark is visibly sinking, a ring of sea comes back round it. All reversible.
  */
 import { A_L, A_R } from './mark'
 import { bezierEase, c01, softmin, sstep } from './tone'
 
-export const TL = {
+/** The beats at the round-5 pace (settled at 3.2 s), in seconds. */
+const BEATS = {
   cutStart: 0.04,
   cutSpread: 0.3,
   cutDur: 0.36,
@@ -23,7 +26,6 @@ export const TL = {
   swellB: 1.15,
   ghostA: 0.45,
   ghostB: 1.0,
-  ghost: 0.34,
   wrapStart: 0.98,
   wrapDur: 1.02,
   hoistA: 1.36,
@@ -33,10 +35,22 @@ export const TL = {
   retireB: 2.45,
   bowlA: 1.7,
   bowlB: 2.3,
+  settled: 3.2,
 } as const
 
-/** Seconds to the settled mark: after this only the water band drifts. */
-export const T_SETTLED = 3.2
+/** How much slower than round 5 the formation runs: long enough to be watched, not waited for. */
+export const PACE = 1.72
+
+type Beat = keyof typeof BEATS
+export const TL: Readonly<Record<Beat, number>> = Object.freeze(
+  Object.fromEntries(Object.entries(BEATS).map(([k, v]) => [k, v * PACE])) as Record<Beat, number>
+)
+
+/** Weight of the sails' ghost in the calmed sea. */
+const GHOST = 0.34
+
+/** Seconds to the settled mark (5.5): after this only the water band drifts. */
+export const T_SETTLED = TL.settled
 /** End of the cut-in, when the burin points are gone. */
 export const T_CUT_END = TL.cutStart + TL.cutSpread + TL.cutDur
 
@@ -91,10 +105,11 @@ export function stateAt(t: number, sc: number): FrameState {
     aR,
     swell: 1 - sstep(TL.swellA, TL.swellB, t) + 0.9 * sc,
     lam: 1 - sstep(0, 0.12, u),
-    ghost: TL.ghost * sstep(TL.ghostA, TL.ghostB, t),
-    sea: 1 - 0.38 * sstep(TL.wrapStart, TL.wrapStart + 0.6, t) * (1 - sc),
+    ghost: GHOST * sstep(TL.ghostA, TL.ghostB, t),
+    sea: 1 - 0.38 * sstep(TL.wrapStart, TL.wrapStart + 0.6 * PACE, t) * (1 - sc),
     q: sstep(TL.retireA, TL.retireB, t),
-    ring: 0.75 * sc,
+    // held back on small scrolls, where a faint ring reads as stray dashes rather than sea
+    ring: 0.75 * sstep(0.2, 0.6, sc),
     lift: sstep(0, 0.1, u),
     free: 1 - sstep(0, 0.3, E),
     lag: 0.55 * (1 - sstep(0.6, 1, wound)) + 0.03,

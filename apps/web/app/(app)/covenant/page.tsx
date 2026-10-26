@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 export const metadata = {
-  title: 'Covenant | Galeon',
+  title: 'Covenant',
   description: 'Our public commitment to users: what we store, what we see, and what we promise',
 }
 

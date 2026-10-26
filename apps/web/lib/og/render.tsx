@@ -16,7 +16,7 @@ const RULE = 'rgba(14,26,38,0.18)'
 export interface OgCard {
   /** Short line above the headline. */
   eyebrow: string
-  /** Headline as [line, hang in em] pairs, set in Switzer Light. */
+  /** Headline as [line, hang in em] pairs, set in Switzer Light. Hangs are usually 0. */
   lines: readonly (readonly [string, number])[]
   /** Optional size override for longer headlines. */
   fontSize?: number
@@ -33,7 +33,7 @@ async function loadFont(file: string): Promise<ArrayBuffer> {
 
 /**
  * Social card in the site's style: paper, the engraved mark in sea at the
- * right, the nav lockup, and the headline in Switzer Light with its hang.
+ * right, the nav lockup, and the headline in Switzer Light.
  * Shared by every route; each passes its own eyebrow and lines.
  */
 export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
@@ -77,14 +77,12 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 16,
               fontSize: 24,
               fontWeight: 400,
               color: INK_2,
               marginBottom: 26,
             }}
           >
-            <div style={{ width: 34, height: 1.5, background: INK, display: 'flex' }} />
             {eyebrow}
           </div>
           {lines.map(([text, hang]) => (
@@ -114,7 +112,7 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
               color: INK_2,
             }}
           >
-            Open source · Prototype on Mantle mainnet · Not audited
+            Open source · Built in Colombia
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 /** The engine's public types, its URL flags and layout helpers. */
 import type { Box } from './geometry'
+import type { GovernorState } from './governor'
 import { PATH_MARK, PLATE_VIEWBOX } from './mark'
 
 export interface Bleed {
@@ -10,7 +11,23 @@ export interface Bleed {
 }
 
 export interface HeroMarkOptions {
-  /** Ink colour. Default: the canvas's `--plate-ink` custom property, else #1D5C5E. */
+  /**
+   * 'formation' (default): the hero, the sea becoming the ship. 'reveal': the closing mark, the
+   * settled engraving inked once from the waterline up when the canvas comes into view, then
+   * drifting, with a soft light set by `setLight`. Times and flags then count on the reveal.
+   */
+  readonly mode?: 'formation' | 'reveal'
+  /** Reveal mode: the visible share of the canvas that starts the reveal. Default 0.4. */
+  readonly revealAt?: number
+  /**
+   * Reveal mode: while `setLight` leaves the plate unlit, a slow light walks the water band and
+   * climbs the sails, one pass every 11 s (ambient.ts). Default false.
+   */
+  readonly ambient?: boolean
+  /**
+   * Ink colour. Default: the canvas's `--plate-ink` custom property, else #1D5C5E, re-read when
+   * the theme changes (html[data-theme] or class, or prefers-color-scheme).
+   */
   readonly color?: string
   /** How far the canvas reaches past the plate square on each side, as a share of the square. */
   readonly bleed?: number | Bleed
@@ -20,7 +37,7 @@ export interface HeroMarkOptions {
   readonly freezeAt?: number | null
   /** Draw the settled mark and never animate the formation (the #still flag). */
   readonly still?: boolean
-  /** Start the formation this many seconds in; T_SETTLED starts settled (late hydration). */
+  /** Start this many seconds in; T_SETTLED (T_REVEAL in reveal mode) starts settled (late hydration). */
   readonly startAt?: number
   /** Force scroll progress (the #scroll flag). */
   readonly scroll?: number | null
@@ -43,6 +60,11 @@ export interface HeroMarkHandle {
   destroy(): void
   /** Hero scroll progress: 0 with the hero in place, 1 once it has scrolled away. */
   setScroll(p: number): void
+  /**
+   * Reveal mode: where the light should be, as shares of the plate square (0..1, may run past
+   * it), and its strength 0..1 (0 puts it out). The engine eases toward it.
+   */
+  setLight(x: number, y: number, strength: number): void
 }
 
 export interface HeroMarkInfo {
@@ -55,7 +77,7 @@ export interface HeroMarkInfo {
   readonly rows: number
   readonly threads: number
   readonly sailRows: number
-  readonly governor: 'ok' | 'coarse' | 'skipped'
+  readonly governor: GovernorState
 }
 
 export interface HeroMarkInstance extends HeroMarkHandle {
@@ -87,6 +109,31 @@ export function readHash(): Partial<Flags> {
   return out
 }
 
+export const NOOP: HeroMarkInstance = {
+  destroy() {},
+  setScroll() {},
+  setLight() {},
+  renderAt: () => 0,
+  info: () => ({
+    W: 0,
+    H: 0,
+    dpr: 1,
+    rs: 1,
+    pitchUnits: 0,
+    pitchCss: 0,
+    rows: 0,
+    threads: 0,
+    sailRows: 0,
+    governor: 'ok',
+  }),
+}
+
+export function bleedOf(b: number | Bleed | undefined): Bleed {
+  return typeof b === 'number'
+    ? { top: b, right: b, bottom: b, left: b }
+    : (b ?? { top: 0, right: 0, bottom: 0, left: 0 })
+}
+
 export function boxFromBleed(W: number, H: number, b: Bleed): Box {
   const sw = 1 + b.left + b.right
   const sh = 1 + b.top + b.bottom
@@ -94,10 +141,7 @@ export function boxFromBleed(W: number, H: number, b: Bleed): Box {
   return { x: b.left * size + (W - size * sw) / 2, y: b.top * size + (H - size * sh) / 2, size }
 }
 
-export const p90 = (a: readonly number[]): number =>
-  [...a].sort((x, y) => x - y)[Math.floor(a.length * 0.9)] ?? 0
-
-/** The static fallback: mark.svg on the plate's viewBox, so it lines up with the canvas. */
-export function fallbackSvg(color = '#1D5C5E'): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${PLATE_VIEWBOX}" aria-hidden="true" focusable="false"><path fill="${color}" d="${PATH_MARK}"/></svg>`
+/** The static fallback: mark.svg on the plate's viewBox, so it lines up with the canvas. Ink follows --plate-ink. */
+export function fallbackSvg(color = 'var(--plate-ink, #1D5C5E)'): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${PLATE_VIEWBOX}" aria-hidden="true" focusable="false"><path style="fill:${color}" d="${PATH_MARK}"/></svg>`
 }

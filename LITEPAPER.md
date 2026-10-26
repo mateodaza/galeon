@@ -532,7 +532,7 @@ Galeon provides privacy from public blockchain observers. In its current archite
 
 The Privacy Pool circuits are forked from 0xbow's audited implementation. Galeon-specific modifications (Port-only deposit gating, verified balance consumption, UUPS upgradeability) have not yet undergone independent audit.
 
-The Groth16 proving system requires a trusted setup ceremony. Galeon uses the ceremony parameters from the upstream 0xbow implementation.
+The Groth16 proving system requires a trusted setup for each circuit. The withdrawal and commitment circuits use the ceremony parameters from the upstream 0xbow implementation. The merge-deposit circuit is Galeon's own: its verifier uses development setup parameters, and publishing its source with a public setup ceremony is planned before any use with beneficiary funds.
 
 The circuits impose a 128-bit value limit (maximum deposit or withdrawal of 2^128 wei), which is practically unlimited for real-world use.
 

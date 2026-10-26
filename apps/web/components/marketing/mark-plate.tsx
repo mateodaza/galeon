@@ -19,25 +19,27 @@ interface MarkPlateProps {
   /** Prefix for the clip and pattern ids; unique per page. */
   id: string
   className?: string
-  /** Literal colours and size, for renderers without CSS (the social cards). */
+  /** Literal colour and size, for renderers without CSS (the social cards). */
   ink?: string
-  water?: string
   size?: number
 }
 
-/** A literal colour as an attribute, or the CSS custom property as a style. */
-function paint(prop: 'fill' | 'stroke', literal: string | undefined, cssVar: string) {
-  return literal ? { [prop]: literal } : { style: { [prop]: `var(${cssVar})` } }
+/**
+ * A literal colour as an attribute, or else `--plate-ink` as a style, so the
+ * static mark follows the theme and the band it sits on, as the canvas does.
+ */
+function paint(prop: 'fill' | 'stroke', literal: string | undefined) {
+  return literal ? { [prop]: literal } : { style: { [prop]: 'var(--plate-ink, currentColor)' } }
 }
 
 /**
  * The mark as a static line engraving in SVG: concentric arcs in the moon,
  * S-concentric arcs in the water band, horizontal rows in the sails. It is the
- * fallback for the hero canvas (no JavaScript, reduced motion) and the mark on
- * the closing band. Colours come from `--plate-ink` and `--plate-water`. The
- * viewBox matches where the canvas engine places the mark.
+ * fallback for the hero and closing canvases (no JavaScript, reduced motion)
+ * and the mark on the social cards. One colour, as the logo is: `--plate-ink`.
+ * The viewBox matches where the canvas engine places the mark.
  */
-export function MarkPlate({ id, className, ink, water, size }: MarkPlateProps) {
+export function MarkPlate({ id, className, ink, size }: MarkPlateProps) {
   return (
     <svg
       className={className}
@@ -55,19 +57,15 @@ export function MarkPlate({ id, className, ink, water, size }: MarkPlateProps) {
           <path d={PLATE.parts.water} />
         </clipPath>
         <pattern id={`${id}-rows`} patternUnits="userSpaceOnUse" width="64" height={PITCH}>
-          <rect width="64" height={PITCH * 0.42} {...paint('fill', ink, '--plate-ink')} />
+          <rect width="64" height={PITCH * 0.42} {...paint('fill', ink)} />
         </pattern>
       </defs>
-      <g clipPath={`url(#${id}-moon)`} fill="none" {...paint('stroke', ink, '--plate-ink')}>
+      <g clipPath={`url(#${id}-moon)`} fill="none" {...paint('stroke', ink)}>
         {MOON_RINGS.map(({ r, w }) => (
           <circle key={r} cx={PLATE.O.c[0]} cy={PLATE.O.c[1]} r={r} strokeWidth={w} />
         ))}
       </g>
-      <g
-        clipPath={`url(#${id}-water)`}
-        fill="none"
-        {...paint('stroke', water ?? ink, '--plate-water')}
-      >
+      <g clipPath={`url(#${id}-water)`} fill="none" {...paint('stroke', ink)}>
         {WATER_RINGS.map((r) => (
           <circle
             key={r}

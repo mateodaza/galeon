@@ -19,10 +19,8 @@ export const metadata: Metadata = {
     'compliant privacy',
     'on-chain privacy',
     'humanitarian cash transfers',
-    'digital public good',
-    'USDC privacy',
   ],
-  authors: [{ name: 'Mateo Daza' }, { name: 'Carlos Quintero' }, { name: 'Fabio Anaya' }],
+  authors: [{ name: ORG.name, url: ORG.url }],
   creator: SITE_NAME,
   publisher: ORG.name,
   category: 'technology',
@@ -56,7 +54,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#F2EEE6',
+  // the wallet app's bar; the public site sets its own in app/(marketing)/layout.tsx
+  themeColor: '#10b981',
 }
 
 /**

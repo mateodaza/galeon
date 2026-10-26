@@ -1,26 +1,26 @@
 /**
- * Draws frames into the canvas: the full formation at (t, scroll), or the settled plate from a
- * cache with only the water band's box redrawn. Owns sizing and the precomputed geometry.
+ * Draws frames into the canvas: the full formation at (t, scroll), the settled ink under the
+ * closing mark's effects, or the settled plate from a cache with only the water band's box
+ * redrawn. Owns sizing, the ink colour and the precomputed geometry.
  */
-import { SETTLED, stateAt } from './formation'
+import { SETTLED, stateAt, T_SETTLED } from './formation'
 import { buildGeometry, makeLayout, type Box, type Geometry } from './geometry'
-import {
-  bandBox,
-  makePaths,
-  makeScratch,
-  paintInk,
-  paintSea,
-  paintTips,
-  type Paths,
-  type Scratch,
-} from './paint'
+import { bandBox, paintInk } from './ink'
+import { makePaths, makeScratch, paintSea, paintTips, type Paths, type Scratch } from './paint'
+import { frontAt, T_REVEAL, type InkFx, type Light } from './reveal'
 import { paintThreads } from './threads'
 
 export interface Renderer {
   /** Re-reads the canvas size and rebuilds the cut; coarsen widens the pitch (slow devices). */
   resize(coarsen: number): void
   full(t: number, sc: number, T: number): void
+  /** The settled ink under the closing mark's front and light. */
+  ink(T: number, fx: InkFx): void
   idle(T: number): void
+  /** Blank paper. */
+  clear(): void
+  /** A new ink colour (the theme changed): true if it differs, and the next frame repaints everything. */
+  setColor(color: string): boolean
   /** The next idle frame repaints the whole canvas, not just the band. */
   rebase(): void
   readonly size: () => { W: number; H: number; dpr: number; rs: number }
@@ -30,13 +30,14 @@ export interface Renderer {
 export function createRenderer(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
-  color: string,
+  ink0: string,
   box: (w: number, h: number) => Box
 ): Renderer | null {
   const cache = document.createElement('canvas')
   const c1 = cache.getContext('2d')
   if (!c1) return null
   const cctx: CanvasRenderingContext2D = c1
+  let color = ink0
   let G: Geometry | null = null
   let P: Paths | null = null
   let S: Scratch = makeScratch(512)
@@ -75,6 +76,21 @@ export function createRenderer(
     const free = paintThreads(ctx, G, P, S, st, T)
     paintTips(ctx, G, st, T)
     paintInk(ctx, G, P, S, st, T, 'full', free)
+  }
+
+  function ink(T: number, fx: InkFx): void {
+    if (!G || !P) return
+    idleBase = false
+    ctx.setTransform(rs, 0, 0, rs, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+    ctx.fillStyle = color
+    paintInk(ctx, G, P, S, SETTLED, T, 'full', null, fx)
+  }
+
+  function clear(): void {
+    idleBase = false
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
   // Settled frames: the still plate is cached once; afterwards only the water band's box is redrawn.
@@ -117,11 +133,59 @@ export function createRenderer(
   return {
     resize,
     full,
+    ink,
     idle,
+    clear,
+    setColor: (c: string) => {
+      if (c === color) return false
+      color = c
+      cacheOk = false
+      idleBase = false
+      return true
+    },
     rebase: () => {
       idleBase = false
     },
     size: () => ({ W, H, dpr, rs }),
     geometry: () => G,
+  }
+}
+
+/** Draws one frame at time t (formation or reveal clock) and scroll s; T drives the drift. */
+export function painter(R: Renderer, reveal: boolean, light: Light) {
+  return (t: number, s: number, T: number): void => {
+    if (!reveal) {
+      if (t >= T_SETTLED && s < 0.001) R.idle(T)
+      else R.full(t, s, T)
+      return
+    }
+    const L = R.geometry()?.L
+    if (t <= 0 || !L) R.clear()
+    else if (t >= T_REVEAL && light.strength() < 2e-3) R.idle(T)
+    else R.ink(T, light.fx(frontAt(t), T, L.sp, L.minW))
+  }
+}
+
+/** Calls back, at most once a frame, when the canvas's CSS size or the device pixel ratio changes. */
+export function watchSize(canvas: HTMLCanvasElement, R: Renderer, changed: () => void): () => void {
+  if (typeof ResizeObserver === 'undefined') return () => {}
+  let pending = 0
+  const ro = new ResizeObserver(() => {
+    if (pending) return
+    pending = requestAnimationFrame(() => {
+      pending = 0
+      const r = canvas.getBoundingClientRect()
+      const z = R.size()
+      const same =
+        Math.abs(r.width - z.W) < 0.5 &&
+        Math.abs(r.height - z.H) < 0.5 &&
+        (window.devicePixelRatio || 1) === z.dpr
+      if (!same) changed()
+    })
+  })
+  ro.observe(canvas)
+  return () => {
+    if (pending) cancelAnimationFrame(pending)
+    ro.disconnect()
   }
 }

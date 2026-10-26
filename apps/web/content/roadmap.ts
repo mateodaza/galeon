@@ -1,60 +1,34 @@
 /**
- * Roadmap page copy. It must agree with the trust section on the landing
- * (`TRUST` in `content/landing.ts`): the same gaps, the same plans. Dated by
- * `STATUS.asOf` in `lib/site.ts`.
+ * Roadmap page copy: what the code does today, then the plan. It must agree
+ * with the trust section on the landing (`TRUST` in `content/landing.ts`).
+ * No chain is named; the brand name comes from `lib/site.ts`.
  */
 import type { DisplayTitle } from '@/content/landing'
-import { SITE_NAME, STATUS } from '@/lib/site'
+import { SITE_NAME } from '@/lib/site'
 
 const BRAND = SITE_NAME
 
-export interface Limit {
-  readonly title: string
-  readonly now: string
-  readonly why?: string
-  readonly next: string
-}
-
 export const ROADMAP = {
-  label: `Roadmap · ${STATUS.asOf}`,
+  label: 'Roadmap',
   meta: {
     title: `${BRAND} roadmap`,
-    description: `What ${BRAND} does today, what still depends on our team, and what has to be true before it carries funds that matter.`,
+    description: `What ${BRAND} does today, and what comes next.`,
   },
   og: [
     ['Where it stands,', 0],
-    ['and what comes next.', 0.5],
+    ['and what comes next.', 0],
   ] as const,
   title: {
     lines: [
       ['Where it stands,', 0],
-      ['and what comes next.', 1.0],
+      ['and what comes next.', 0],
     ],
-    phone: ['Where it stands,', 'and what', 'comes next.'],
-    size: { desktop: 112, phone: 40 },
+    phone: ['Where it stands,', 'and what comes next.'],
+    size: { desktop: 112, phone: 38 },
   } satisfies DisplayTitle,
-  lede: `This page is deliberately plain. It lists what works today and what still depends on our team, then what has to be true before ${BRAND} carries funds that matter.`,
-  status: [
-    { term: 'Status', value: STATUS.label, detail: STATUS.detail },
-    {
-      term: 'Review',
-      value: 'Not audited',
-      detail: 'No independent review of our own contracts and circuits yet.',
-    },
-    {
-      term: 'Hosted services',
-      value: 'Paused',
-      detail: 'The contracts on Mantle keep running without them.',
-    },
-    {
-      term: 'Next',
-      value: 'Base',
-      detail: 'With native USDC, after security, mobile and operational checks.',
-    },
-  ],
+  lede: 'The code is on GitHub, so progress is public too.',
   shipped: {
-    n: '01',
-    label: 'Works today',
+    label: 'Built',
     title: {
       lines: [['What works.', 0]],
       phone: ['What works.'],
@@ -77,116 +51,60 @@ export const ROADMAP = {
       ],
       [
         'A relayer',
-        'It submits private withdrawals, so the address you withdraw to does not pay its own gas.',
+        'It sends private withdrawals, so the address you withdraw to does not pay its own gas.',
       ],
+      ['Reports', 'Tax summaries for a Port and period, exported as PDF for the US or Colombia.'],
       [
-        'Reports',
-        'Reports for the Ports and period you choose, exported as PDF in US and Colombian tax formats.',
+        'A stealth address library',
+        'EIP-5564 in TypeScript, with an EIP-6538 registry contract, for anyone to build on.',
       ],
     ] as const,
   },
-  limits: {
-    n: '02',
-    label: 'Known gaps',
-    title: {
-      lines: [
-        ['What still', 0],
-        ['depends on us.', 0.9],
-      ],
-      phone: ['What still', 'depends on us.'],
-      size: { desktop: 96, phone: 40 },
-    } satisfies DisplayTitle,
-    cols: { gap: 'Gap', now: 'Today', why: 'Why', next: 'Plan' },
-    items: [
-      {
-        title: 'The relayer',
-        now: 'We run the only relayer. If it stops, you can send a withdrawal to the contract yourself, but the address you withdraw to then pays its own gas, which can tie it back to you.',
-        why: 'One relayer was enough to prove the flow in a prototype.',
-        next: 'Independent relayers, with a tested way to switch between them.',
-      },
-      {
-        title: 'The approved set',
-        now: 'We run the only approval service, called an Association Set Provider, and in this prototype it approves every deposit automatically.',
-        why: 'A single operator is the simplest setup to reason about while the pool is small.',
-        next: "Screening under each programme's own policy, with recorded decisions, a documented handover and more than one provider.",
-      },
-      {
-        title: 'Viewing keys',
-        now: 'Kept on our server, encrypted, so it can find your payments and build your reports.',
-        why: 'Scanning every announcement on a phone was too slow for the prototype.',
-        next: 'Viewing keys that stay on your device, with our server reduced to an index it cannot read.',
-      },
-      {
-        title: 'Port records',
-        now: 'Each payment records its Port on-chain, and each Port records its name and the wallet that created it.',
-        next: 'Hashed Port names.',
-      },
-      {
-        title: 'The admin key',
-        now: 'One admin address we control can upgrade the pool contracts, stop new deposits and bar an address from depositing.',
-        why: 'Upgrades let us swap verifiers as the circuits changed.',
-        next: 'A multisig with a waiting period before any privileged change, then shared governance.',
-      },
-      {
-        title: 'Proving setup',
-        now: 'The verifier for merging deposits uses development setup parameters, and its circuit source is not yet public.',
-        why: 'A public ceremony is a project of its own, and it was out of scope for a prototype.',
-        next: 'Public circuit source and a public setup ceremony before any beneficiary funds.',
-      },
-      {
-        title: 'Review',
-        now: 'Our own contracts and circuits have had no independent review.',
-        next: 'An independent review before any use with beneficiary funds, with the findings published.',
-      },
-      {
-        title: 'Use',
-        now: 'Almost all activity so far is our own testing, so there are few deposits to hide among.',
-        why: 'Privacy grows with the number of people in the pool, and there have been few.',
-        next: 'A privacy floor, measured and shown in the app, before sensitive use.',
-      },
-    ] satisfies readonly Limit[],
-  },
   next: {
-    n: '03',
     label: 'Next',
     title: {
       lines: [['What comes next.', 0]],
-      phone: ['What comes', 'next.'],
+      phone: ['What comes next.'],
       size: { desktop: 96, phone: 40 },
     } satisfies DisplayTitle,
     items: [
       {
-        n: '01',
-        name: 'Base with native USDC',
-        text: 'The contracts already support ERC-20 tokens. Moving from Mantle to Base is integration work on the whole application, released only after security, mobile and operational checks.',
+        name: 'Native USDC',
+        text: 'The contracts already support ERC-20 tokens. Next comes native USDC across the whole app, on a chain where proofs stay cheap to verify.',
       },
       {
-        n: '02',
-        name: 'A mobile-first reference app',
-        text: 'Proofs and the receive, deposit and withdraw flow tested on low-end Android phones, with targets for proof time and completion, before anyone outside the team is asked to use it.',
+        name: 'A mobile-first app',
+        text: 'The receive, deposit and withdraw flow tuned for low-end Android phones, with targets for proof time.',
       },
       {
-        n: '03',
-        name: 'Independent review',
-        text: 'Contracts, circuits and the proving setup reviewed by people who did not write them, with the findings addressed and published before limited real use.',
+        name: 'Keys on your device',
+        text: 'Viewing keys that stay on your device, with any server reduced to an index it cannot read.',
       },
       {
-        n: '04',
+        name: 'Private Port names',
+        text: 'Port names stored as hashes, so the chain shows less about each Port.',
+      },
+      {
+        name: 'More than one operator',
+        text: "Screening under each deployment's own policy, with recorded decisions, and relayers run by more than one party.",
+      },
+      {
+        name: 'Shared control',
+        text: 'A multisig with a delay before any privileged change, then shared governance.',
+      },
+      {
+        name: 'Open circuits, reviewed',
+        text: "Every circuit's source published, with a public setup ceremony. Then contracts, circuits and setup reviewed by people who did not write them, with published findings.",
+      },
+      {
         name: 'Proof of source',
-        text: 'A package you approve that links selected incoming payments to a completed withdrawal, which a third party can check without your spending keys. Whether an off-ramp accepts it is their decision.',
+        text: 'A package you approve that links selected incoming payments to a withdrawal. A third party can check it without your spending keys.',
       },
       {
-        n: '05',
-        name: 'Operators that are not us',
-        text: 'Recorded and auditable approval decisions, the software and runbooks for another organisation to run the approval service, and relayers run by others.',
-      },
-      {
-        n: '06',
         name: 'Disclosure as proofs',
-        text: 'Cryptographic statements in place of exported PDFs: prove that a payment happened, or that income in a period stayed under a threshold, without showing the rest.',
+        text: 'Prove that a payment happened, or that income in a period stayed under a threshold, without showing the rest.',
       },
     ],
-    after:
-      'The order follows funding and partner readiness rather than dates. Progress is public in the repository.',
+    after: 'The order follows what the first deployments need.',
   },
 } as const

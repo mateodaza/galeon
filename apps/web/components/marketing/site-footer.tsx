@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { Lockup } from '@/components/brand/lockup'
 import { FOOTER, NAV_COPY } from '@/content/landing'
+import { Phrased } from './phrased'
 import { SiteLinkAnchor } from './site-link'
 
-/** Who builds it, the name's story, the honest status, and every link once more. */
+/** What it is and where it is made, every link once more, and a quiet way back to the previous site. */
 export function SiteFooter() {
   return (
     <footer>
@@ -14,7 +15,9 @@ export function SiteFooter() {
           </Link>
           <div className="f-lines">
             {FOOTER.lines.map((t) => (
-              <p key={t}>{t}</p>
+              <p key={t}>
+                <Phrased text={t} clauses />
+              </p>
             ))}
           </div>
         </div>
@@ -35,6 +38,9 @@ export function SiteFooter() {
             {FOOTER.base.map((t) => (
               <li key={t}>{t}</li>
             ))}
+            <li className="f-legacy">
+              <SiteLinkAnchor link={FOOTER.legacy} />
+            </li>
           </ul>
         </div>
       </div>

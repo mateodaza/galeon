@@ -1,0 +1,376 @@
+/* =============================================================================
+   Galeon public site: paper, ink and sea, in light and dark.
+   Every rule is scoped under .site so nothing reaches the wallet app, and none
+   of it sits in a cascade layer, so it wins over Tailwind's preflight.
+   Palette: ink, paper, sea, sea on dark, and tints of them. Nothing else.
+
+   The theme is html[data-theme], set before first paint by the layout's script
+   (from localStorage 'galeon-theme', else the system). Without JavaScript the
+   system's scheme applies through the media query.
+
+   Files, in cascade order: base (tokens, type, buttons), chrome (nav, menu,
+   theme control, footer), hero, sections (the landing), pages (About, Roadmap).
+   ============================================================================= */
+
+html:has(.site) {
+  scroll-behavior: smooth;
+  background: #f2eee6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme='light']):has(.site) {
+    background: #0b1214;
+    color-scheme: dark;
+  }
+}
+html[data-theme='dark']:has(.site) {
+  background: #0b1214;
+  color-scheme: dark;
+}
+
+.site {
+  --paper: #f2eee6;
+  --paper-2: #eae4d8;
+  --ink: #0e1a26;
+  --ink-2: #474f56;
+  --ink-3: #656a6f;
+  --rule: rgba(14, 26, 38, 0.13);
+  --rule-2: rgba(14, 26, 38, 0.3);
+  /* the firm rule over a list, a table or a step */
+  --line: var(--ink);
+  /* sea is the accent on the page; sea on dark is the accent on dark surfaces */
+  --sea: #1d5c5e;
+  --sea-dk: #93c6c7;
+  --btn-hover: #22303d;
+  /* The two dark bands. Ink is the firm one; deep is the soft one, a teal-tinted
+     dark that carries sea on dark. In dark the ink band becomes a lifted surface
+     of the page's own green-black, and a hairline sets both bands off. */
+  --band-ink: #0e1a26;
+  --band-deep: #13303a;
+  --band-edge: transparent;
+  --on: #f2eee6;
+  --on-2: rgba(242, 238, 230, 0.84);
+  --on-ink: #0e1a26;
+  --on-rule: rgba(242, 238, 230, 0.24);
+  --on-rule-2: rgba(242, 238, 230, 0.5);
+  /* the engraved mark: one colour, as the logo is (sea on paper, sea on dark elsewhere) */
+  --plate-ink: var(--sea);
+  --sans: var(--font-switzer), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --mono: var(--font-fragment-mono), ui-monospace, 'SF Mono', Menlo, monospace;
+  --gut: 48px;
+  --gap: 24px;
+  --max: 1440px;
+  --nav: 72px;
+  --W: min(calc(100vw - 2 * var(--gut)), var(--max));
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+  overflow-x: clip;
+  color-scheme: light;
+}
+
+/* Dark: the Plain Sight night, with sea on dark as the accent. Written twice,
+   for the system's choice and for a choice made with the toggle. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .site {
+    --paper: #0b1214;
+    --paper-2: #111b1e;
+    --ink: #e8edec;
+    --ink-2: #a6b1b3;
+    --ink-3: #86939a;
+    --rule: #1e2a2d;
+    --rule-2: #33434a;
+    --line: rgba(232, 237, 236, 0.5);
+    --sea: #93c6c7;
+    --btn-hover: #ffffff;
+    --band-ink: #142126;
+    --band-edge: #22343a;
+    --on: #e8edec;
+    --on-2: rgba(232, 237, 236, 0.8);
+    --on-ink: #0b1214;
+    --on-rule: rgba(232, 237, 236, 0.16);
+    --on-rule-2: rgba(232, 237, 236, 0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] .site {
+  --paper: #0b1214;
+  --paper-2: #111b1e;
+  --ink: #e8edec;
+  --ink-2: #a6b1b3;
+  --ink-3: #86939a;
+  --rule: #1e2a2d;
+  --rule-2: #33434a;
+  --line: rgba(232, 237, 236, 0.5);
+  --sea: #93c6c7;
+  --btn-hover: #ffffff;
+  --band-ink: #142126;
+  --band-edge: #22343a;
+  --on: #e8edec;
+  --on-2: rgba(232, 237, 236, 0.8);
+  --on-ink: #0b1214;
+  --on-rule: rgba(232, 237, 236, 0.16);
+  --on-rule-2: rgba(232, 237, 236, 0.4);
+  color-scheme: dark;
+}
+
+.site main {
+  flex: 1;
+}
+/* An in-page jump (#how, the skip link) lands below the bar, and so does a link
+   reached with Shift+Tab. The offset sits on the targets, not on html as
+   scroll-padding: that would also make focus in the bar itself scroll the page
+   to clear the strip the bar is sitting in. */
+.site main,
+.site main [id],
+.site main :is(a, button, summary, [tabindex]) {
+  scroll-margin-top: 80px;
+}
+.site a {
+  color: inherit;
+}
+/* running text never ends on a lone word; short lines and heads split evenly */
+.site p,
+.site dd,
+.site li {
+  text-wrap: pretty;
+}
+.site h3,
+.site .ledger strong {
+  text-wrap: balance;
+}
+/* a sentence or clause set as one unit (Phrased): lines break between them first */
+.site .phr {
+  display: inline-block;
+}
+.site ::selection {
+  background: var(--sea);
+  color: var(--paper);
+}
+.site :focus-visible {
+  outline: 2px solid var(--sea);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.site .on-dark :focus-visible {
+  outline-color: var(--sea-dk);
+}
+.site .wrap {
+  max-width: calc(var(--max) + 2 * var(--gut));
+  margin: 0 auto;
+  padding: 0 var(--gut);
+}
+.site .cols {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gap);
+}
+.site .sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.site .skip {
+  position: fixed;
+  left: 16px;
+  top: -60px;
+  z-index: 60;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 2px;
+}
+.site .skip:focus {
+  top: 12px;
+}
+.site .ico {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  display: inline-block;
+  vertical-align: -1px;
+}
+/* the last word of a link and its icon never wrap apart */
+.site .nw {
+  white-space: nowrap;
+}
+.site .nw .ico {
+  margin-left: 0.45em;
+}
+.site .btn .nw .ico {
+  margin-left: 12px;
+}
+
+/* ---------- display type: Aztec scale, Switzer light ---------- */
+/* The copy sets every line by hand (desktop and phone sets), so nothing here
+   wraps or balances them; --hang indents a line only where the copy asks. */
+.site .display {
+  font-weight: 300;
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+  font-size: clamp(46px, calc(var(--W) * var(--dk, 0.1042)), calc(var(--max) * var(--dk, 0.1042)));
+}
+/* the two-column hero sets its headline smaller from 901 to 1140, so the
+   section titles step down with it and the hero still leads */
+@media (min-width: 901px) and (max-width: 1140px) {
+  .site .display {
+    font-size: clamp(
+      46px,
+      calc(var(--W) * var(--dk, 0.1042) * 0.82),
+      calc(var(--max) * var(--dk, 0.1042))
+    );
+  }
+}
+.site .display .ln {
+  display: block;
+  padding-left: calc(var(--hang, 0) * 1em);
+  white-space: nowrap;
+}
+.site .display .ph {
+  display: none;
+}
+.site .lede {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  letter-spacing: -0.003em;
+}
+.site .body {
+  font-size: 17px;
+  line-height: 1.62;
+  color: var(--ink-2);
+}
+.site .small {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.site .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+/* the section's name, small, in the accent */
+.site .label {
+  grid-column: 1/-1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sea);
+  margin-bottom: 44px;
+}
+.site .label b {
+  font-weight: 500;
+}
+
+/* ---------- buttons and links ---------- */
+.site .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 22px 0 24px;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+.site .btn:hover {
+  background: var(--btn-hover);
+}
+.site .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+  text-decoration-color: var(--rule-2);
+  transition: text-decoration-color 0.15s;
+}
+.site .link:hover {
+  text-decoration-color: var(--sea);
+}
+.site .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 30px;
+}
+.site .on-dark .btn {
+  background: var(--on);
+  color: var(--on-ink);
+}
+.site .on-dark .btn:hover {
+  background: #fff;
+}
+.site .on-dark .link {
+  color: var(--on);
+  text-decoration-color: var(--on-rule-2);
+}
+.site .on-dark .link:hover {
+  text-decoration-color: var(--sea-dk);
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 760px) {
+  .site {
+    --gut: 20px;
+    --gap: 16px;
+    --nav: 60px;
+  }
+  .site .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .site .cols > * {
+    grid-column: 1/-1 !important;
+  }
+  .site .display {
+    font-size: var(--ph, 11vw);
+    line-height: 0.95;
+  }
+  .site .display .dk {
+    display: none;
+  }
+  .site .display .ph {
+    display: block;
+    padding-left: 0;
+  }
+  .site .label {
+    margin-bottom: 28px;
+  }
+  .site .body {
+    font-size: 16.5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.site) {
+    scroll-behavior: auto;
+  }
+  .site * {
+    transition: none !important;
+  }
+}

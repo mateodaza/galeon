@@ -1,13 +1,18 @@
 import Link from 'next/link'
 import { Lockup } from '@/components/brand/lockup'
 import { NAV_COPY } from '@/content/landing'
+import { SiteHeader } from './site-header'
 import { SiteLinkAnchor } from './site-link'
 import { SiteMenu } from './site-menu'
+import { ThemeToggle } from './theme-toggle'
 
-/** Sticky paper bar: lockup, section links, litepaper and source; a menu below 900 px. */
+/**
+ * Sticky paper bar: lockup, section links, litepaper, source and the theme
+ * control; a menu below 900 px. It hides on a scroll down (SiteHeader).
+ */
 export function SiteNav() {
   return (
-    <header className="nav">
+    <SiteHeader>
       <div className="wrap cols">
         <Link className="brand" href="/" aria-label={NAV_COPY.home}>
           <Lockup title="" />
@@ -25,9 +30,10 @@ export function SiteNav() {
           {NAV_COPY.tools.map((l) => (
             <SiteLinkAnchor key={l.href} className="nt" link={l} />
           ))}
+          <ThemeToggle />
           <SiteMenu />
         </div>
       </div>
-    </header>
+    </SiteHeader>
   )
 }

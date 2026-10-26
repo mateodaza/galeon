@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { DisplayTitle } from '@/components/marketing/display-title'
+import { keepWhole, Phrased } from '@/components/marketing/phrased'
 import { MarkConstruction } from '@/components/marketing/mark-construction'
 import { SectionLabel } from '@/components/marketing/section-label'
 import { SiteLinkAnchor } from '@/components/marketing/site-link'
 import { ABOUT } from '@/content/about'
 import { pageMetadata } from '@/lib/page-metadata'
-import { CHAIN, CONTRACTS, TEAM } from '@/lib/site'
 
 export const metadata: Metadata = pageMetadata({
   title: 'About',
@@ -14,7 +14,7 @@ export const metadata: Metadata = pageMetadata({
   path: '/about',
 })
 
-const { what, team, mark, contracts } = ABOUT
+const { what, open, mark } = ABOUT
 
 export default function AboutPage() {
   return (
@@ -24,8 +24,10 @@ export default function AboutPage() {
           <SectionLabel label={ABOUT.label} />
           <DisplayTitle as="h1" id="about-h" title={ABOUT.title} />
           <div className="story">
-            {ABOUT.story.map((p) => (
-              <p key={p}>{p}</p>
+            {ABOUT.intro.map((p) => (
+              <p key={p}>
+                <Phrased text={p} clauses />
+              </p>
             ))}
           </div>
         </div>
@@ -33,20 +35,24 @@ export default function AboutPage() {
 
       <section className="sub" aria-labelledby="what-h">
         <div className="wrap cols">
-          <SectionLabel n={what.n} label={what.label} />
+          <SectionLabel label={what.label} />
           <DisplayTitle id="what-h" title={what.title} />
-          <p className="body page-lede">{what.lede}</p>
+          <p className="body page-lede">
+            <Phrased text={what.lede} clauses />
+          </p>
           <ol className="aud">
             {what.layers.map((l) => (
               <li key={l.n}>
                 <span className="n">{l.n}</span>
                 <h3>{l.name}</h3>
-                <p>{l.text}</p>
+                <p>{keepWhole(l.text)}</p>
               </li>
             ))}
           </ol>
           <div className="devs after">
-            <p>{what.after}</p>
+            <p>
+              <Phrased text={what.after} clauses />
+            </p>
             <p className="actions">
               {what.links.map((l) => (
                 <SiteLinkAnchor key={l.href} className="link" link={l} icon="arrow" />
@@ -56,85 +62,35 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="sub" aria-labelledby="team-h">
+      <section className="sub" aria-labelledby="open-h">
         <div className="wrap cols">
-          <SectionLabel n={team.n} label={team.label} />
-          <DisplayTitle id="team-h" title={team.title} />
-          <p className="body page-lede">{team.lede}</p>
-          <ul className="rows">
-            {TEAM.map((person) => (
-              <li className="row" key={person.name}>
-                <h3>{person.name}</h3>
-                <div className="r2">
-                  <span className="tag">{person.role}</span>
-                  <p>{person.bio}</p>
-                </div>
-                <p className="r3 row-links">
-                  {'github' in person.links && (
-                    <SiteLinkAnchor
-                      className="link"
-                      link={{ label: 'GitHub', href: person.links.github, external: true }}
-                    />
-                  )}
-                  <SiteLinkAnchor
-                    className="link"
-                    link={{ label: 'LinkedIn', href: person.links.linkedin, external: true }}
-                  />
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className="team-org">
-            <SiteLinkAnchor className="link" link={team.org} />
-          </p>
+          <SectionLabel label={open.label} />
+          <DisplayTitle id="open-h" title={open.title} />
+          <div className="open-copy">
+            <p className="body">
+              <Phrased text={open.body} />
+            </p>
+            <p className="actions">
+              {open.links.map((l) => (
+                <SiteLinkAnchor key={l.href} className="link" link={l} />
+              ))}
+            </p>
+          </div>
         </div>
       </section>
 
       <section className="sub" aria-labelledby="mark-h">
         <div className="wrap cols mark-grid">
-          <SectionLabel n={mark.n} label={mark.label} />
+          <SectionLabel label={mark.label} />
           <DisplayTitle id="mark-h" title={mark.title} />
           <div className="mark-copy">
-            {mark.body.map((p) => (
-              <p className="body" key={p}>
-                {p}
-              </p>
-            ))}
+            <p className="body">
+              <Phrased text={mark.body} clauses />
+            </p>
           </div>
           <figure className="mark-figure">
             <MarkConstruction label={mark.figure} />
           </figure>
-        </div>
-      </section>
-
-      <section className="sub" aria-labelledby="chain-h">
-        <div className="wrap cols">
-          <SectionLabel n={contracts.n} label={contracts.label} />
-          <DisplayTitle id="chain-h" title={contracts.title} />
-          <p className="body page-lede">{contracts.lede}</p>
-          <div className="chain">
-            {(['Stealth', 'Pool'] as const).map((group) => (
-              <div key={group}>
-                <h3>{contracts.groups[group]}</h3>
-                <ul>
-                  {CONTRACTS.filter((c) => c.group === group).map((c) => (
-                    <li key={c.address}>
-                      <span>{c.name}</span>
-                      <a
-                        className="mono"
-                        href={`${CHAIN.explorer}${c.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {c.address}
-                        <span className="sr"> on {CHAIN.name}scan (opens in a new tab)</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
     </>

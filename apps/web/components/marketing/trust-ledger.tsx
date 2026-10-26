@@ -1,18 +1,20 @@
 import { TRUST } from '@/content/landing'
 import { DisplayTitle } from './display-title'
+import { keepWhole, Phrased } from './phrased'
 import { SectionLabel } from './section-label'
 import { SiteLinkAnchor } from './site-link'
 
-/** What holds without trusting the team, and what still rests on it, with a plan beside each. */
+/** Two short lists: what holds by design, and what whoever runs a deployment decides. */
 export function TrustLedger() {
   return (
     <section className="sect" id="trust" aria-labelledby="trust-h">
       <div className="wrap cols">
-        <SectionLabel n={TRUST.n} label={TRUST.label} />
+        <SectionLabel label={TRUST.label} />
         <DisplayTitle id="trust-h" title={TRUST.title} />
         <div className="trust-intro">
-          <p className="body">{TRUST.intro}</p>
-          <span className="reviewed">{TRUST.reviewed}</span>
+          <p className="body">
+            <Phrased text={TRUST.intro} clauses />
+          </p>
         </div>
       </div>
       <div className="wrap cols ledger">
@@ -21,41 +23,34 @@ export function TrustLedger() {
             <i aria-hidden="true" />
             {TRUST.holds.title}
           </h3>
-          <p className="qual">{TRUST.holds.qualifier}</p>
           <ul>
             {TRUST.holds.items.map(([title, text]) => (
               <li key={title}>
                 <strong>{title}</strong>
-                <p>{text}</p>
+                <p>{keepWhole(text)}</p>
               </li>
             ))}
           </ul>
-          <div className="foot-notes">
-            {TRUST.footnotes.map((t) => (
-              <p key={t}>{t}</p>
-            ))}
-            <p>
-              <SiteLinkAnchor className="link" link={TRUST.link} />
-            </p>
-          </div>
+          <p className="qual">{TRUST.holds.qualifier}</p>
         </div>
         <div className="col-b">
           <h3>
             <i aria-hidden="true" />
-            {TRUST.relies.title}
+            {TRUST.operator.title}
           </h3>
           <ul>
-            {TRUST.relies.items.map((it) => (
-              <li key={it.label}>
-                <strong>{it.label}</strong>
-                <p>{it.today}</p>
-                <p className="next">
-                  <b>{TRUST.relies.planLabel}</b>
-                  <span>{it.plan}</span>
-                </p>
+            {TRUST.operator.items.map(([title, text]) => (
+              <li key={title}>
+                <strong>{title}</strong>
+                <p>{keepWhole(text)}</p>
               </li>
             ))}
           </ul>
+          <div className="foot-notes">
+            <p>
+              <SiteLinkAnchor className="link" link={TRUST.link} />
+            </p>
+          </div>
         </div>
       </div>
     </section>

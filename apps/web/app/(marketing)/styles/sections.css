@@ -1,0 +1,343 @@
+/* =============================================================================
+   The landing's bands and steps: the ink band (why), how it works, the deep
+   band (principle) and the closing deep band. The bands are dark in both
+   themes and carry sea on dark. The tables and lists are in lists.css.
+   ============================================================================= */
+
+.site .sect {
+  padding-top: 184px;
+}
+.site .cols > .display {
+  grid-column: 1/-1;
+}
+.site .band {
+  margin-top: 184px;
+  padding: 160px 0 156px;
+}
+/* The hero's own bottom row already leaves room under its buttons, so the
+   first band only adds the rest of the usual gap between sections. */
+.site .hero + .band {
+  margin-top: 24px;
+}
+.site .on-dark {
+  color: var(--on);
+  --plate-ink: var(--sea-dk);
+}
+.site .on-dark .label {
+  color: var(--sea-dk);
+}
+.site .on-dark .body {
+  color: var(--on-2);
+}
+.site .on-dark ::selection {
+  background: var(--sea-dk);
+  color: var(--on-ink);
+}
+.site .band-ink {
+  background: var(--band-ink);
+}
+/* the soft dark: ink with a little sea in it, its accent sea on dark */
+.site .band-deep {
+  background: var(--band-deep);
+}
+.site .band-ink,
+.site .band-deep {
+  box-shadow:
+    inset 0 1px 0 var(--band-edge),
+    inset 0 -1px 0 var(--band-edge);
+}
+
+/* ---------- on a public chain ---------- */
+.site .why-a {
+  grid-column: 4/12;
+  margin-top: 72px;
+  max-width: 34em;
+}
+
+/* ---------- how it works ---------- */
+/* the ledes start at column 4 and run as far as their measure allows */
+.site .how-lede,
+.site .who-lede,
+.site .trust-intro {
+  grid-column: 4/12;
+  margin-top: 52px;
+  max-width: 34em;
+}
+/* short ledes split evenly rather than leave a word alone */
+.site .why-a,
+.site .how-lede,
+.site .who-lede,
+.site .trust-intro .body,
+.site .principle-copy .body,
+.site .close-copy .body,
+.site .step-line,
+.site .qual {
+  text-wrap: balance;
+}
+.site .steps {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--gap);
+  margin-top: 84px;
+  list-style: none;
+}
+.site .step {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+}
+.site .step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.site .step-head span {
+  font-size: 14px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.site .step-head h3 {
+  font-weight: 300;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.site .diagram {
+  margin: 30px 0 26px;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.site .step-line {
+  font-size: 18.5px;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin-bottom: 12px;
+  max-width: 21em;
+}
+.site .step .small {
+  flex: 1;
+  max-width: 30em;
+}
+.site .step .mono {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+/* the step diagrams: lines and type from the tokens, so they follow the theme */
+.site .d-ink {
+  stroke: var(--ink);
+  fill: none;
+  stroke-width: 1;
+}
+.site .d-soft {
+  stroke: var(--ink-3);
+  fill: none;
+  stroke-width: 1;
+}
+.site .d-dash {
+  stroke: var(--ink-3);
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.site .d-dash-ink {
+  stroke: var(--ink);
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.site .d-rule {
+  stroke: var(--rule-2);
+  stroke-width: 1;
+}
+.site .d-paper {
+  fill: var(--paper);
+}
+.site .d-fill {
+  fill: var(--ink);
+}
+.site .d-sea {
+  fill: var(--sea);
+}
+.site .d-row {
+  fill: var(--ink-3);
+}
+.site .d-t,
+.site .d-t-ink,
+.site .d-t-soft {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-2);
+}
+.site .d-t-ink {
+  fill: var(--ink);
+}
+.site .d-t-soft {
+  fill: var(--ink-3);
+}
+
+/* ---------- principle: the creed set in sea on dark ---------- */
+.site #principle .display {
+  color: var(--sea-dk);
+}
+.site .principle-copy {
+  grid-column: 4/12;
+  margin-top: 64px;
+}
+.site .principle-copy .body {
+  font-size: 19px;
+  color: var(--on);
+  max-width: 30em;
+}
+
+/* ---------- closing: the mark returns, in sea on dark ---------- */
+.site .closing {
+  margin-top: 200px;
+  padding: 150px 0;
+}
+.site .close-grid {
+  align-items: center;
+}
+.site .close-plate {
+  grid-column: 1/6;
+  grid-row: 1/3;
+  width: 100%;
+  max-width: 600px;
+  justify-self: start;
+}
+.site .closing .close-title {
+  grid-column: 6/13;
+  grid-row: 1;
+  align-self: end;
+}
+/* the request sits flush under "Yours / to tell.", one edge for the column */
+.site .closing .close-copy {
+  grid-column: 6/12;
+  grid-row: 2;
+  align-self: start;
+  margin-top: 52px;
+}
+.site .close-copy .body {
+  font-size: 18px;
+  color: var(--on);
+}
+.site .close-copy .actions {
+  margin-top: 36px;
+}
+
+/* ---------- steps between phone and wide desktop: one per row, diagram beside the words ---------- */
+@media (min-width: 761px) and (max-width: 1140px) {
+  .site .steps {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 72px;
+  }
+  .site .step {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--gap);
+    align-content: start;
+  }
+  .site .step-head {
+    grid-column: 1/-1;
+  }
+  .site .step .diagram {
+    grid-column: 1;
+    grid-row: 2 / span 3;
+    margin: 30px 0 0;
+  }
+  .site .step-line,
+  .site .step .small,
+  .site .step .mono {
+    grid-column: 2;
+  }
+  .site .step-line {
+    margin-top: 30px;
+  }
+}
+/* tablet: the ledes move in to column 2, so a one-line lede stays one line */
+@media (max-width: 1100px) {
+  .site .why-a,
+  .site .how-lede,
+  .site .who-lede,
+  .site .trust-intro,
+  .site .principle-copy {
+    grid-column: 2/12;
+  }
+}
+@media (max-width: 900px) {
+  /* the hero is as tall as its content here, ending on its padding */
+  .site .hero + .band {
+    margin-top: 100px;
+  }
+  .site .close-plate {
+    grid-column: 1/-1;
+    grid-row: auto;
+    max-width: 520px;
+    justify-self: center;
+  }
+  .site .closing .close-title,
+  .site .closing .close-copy {
+    grid-column: 1/-1;
+    grid-row: auto;
+  }
+  .site .closing .close-title {
+    margin-top: 40px;
+  }
+}
+@media (max-width: 760px) {
+  .site .sect {
+    padding-top: 116px;
+  }
+  .site .band {
+    margin-top: 116px;
+    padding: 96px 0 92px;
+  }
+  .site .hero + .band {
+    margin-top: 52px;
+  }
+  .site .why-a,
+  .site .how-lede,
+  .site .who-lede,
+  .site .trust-intro,
+  .site .principle-copy {
+    margin-top: 30px;
+  }
+  .site .steps {
+    grid-template-columns: 1fr;
+    row-gap: 56px;
+    margin-top: 48px;
+  }
+  .site .closing {
+    margin-top: 116px;
+    padding: 84px 0 92px;
+  }
+  .site .close-plate {
+    max-width: 300px;
+  }
+  /* the phone body size, as everywhere else; the request then reads on one line */
+  .site .close-copy .body {
+    font-size: 16.5px;
+  }
+  .site .closing .close-title,
+  .site .closing .close-copy {
+    margin-top: 28px;
+  }
+}
+@media (max-width: 376px) {
+  .site .diagram text {
+    font-size: 11.8px;
+  }
+}
+
+/* phones: a step title stays below the band statements and the hero */
+@media (max-width: 760px) {
+  .site .step-head h3 {
+    font-size: 30px;
+  }
+}

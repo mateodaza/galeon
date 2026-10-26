@@ -14,6 +14,8 @@ import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
  */
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
+  // noindex pages should not claim the home page as their canonical
+  alternates: { canonical: null },
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
