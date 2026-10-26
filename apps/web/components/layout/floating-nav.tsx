@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
+import { Lockup } from '@/components/brand/lockup'
 
 interface NavItem {
   href: string
@@ -77,8 +77,7 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
           href="/"
           className={`flex items-center gap-2 rounded-full px-4 py-2 transition-colors ${styles.logo}`}
         >
-          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
-          <span className="font-semibold">Galeon</span>
+          <Lockup className="h-7 w-auto" />
         </Link>
 
         {/* Divider */}
@@ -112,8 +111,7 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
       >
         {/* Logo */}
         <Link href="/" className={`flex items-center gap-2 rounded-full px-2 py-1 ${styles.logo}`}>
-          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
-          <span className="font-semibold">Galeon</span>
+          <Lockup className="h-7 w-auto" />
         </Link>
 
         {/* Hamburger */}

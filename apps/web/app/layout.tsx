@@ -1,62 +1,74 @@
 import type { Metadata, Viewport } from 'next'
-import { headers } from 'next/headers'
-import { cookieToInitialState } from 'wagmi'
-import { config } from '@/lib/wagmi'
-import { Providers } from '@/components/providers'
-import { DeepSeaGradient } from '@/components/landing/deep-sea-gradient'
+import { META } from '@/content/landing'
+import { ORG, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Galeon',
-  description: 'Your payments. Your treasure. Hidden in plain sight.',
-  icons: {
-    icon: '/favicon.ico',
-  },
+  metadataBase: new URL(SITE_URL),
+  title: { default: META.title, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'privacy protocol',
+    'open-source privacy',
+    'stealth addresses',
+    'EIP-5564',
+    'privacy pools',
+    'zero-knowledge proofs',
+    'selective disclosure',
+    'compliant privacy',
+    'on-chain privacy',
+    'humanitarian cash transfers',
+    'digital public good',
+    'USDC privacy',
+  ],
+  authors: [{ name: 'Mateo Daza' }, { name: 'Carlos Quintero' }, { name: 'Fabio Anaya' }],
+  creator: SITE_NAME,
+  publisher: ORG.name,
+  category: 'technology',
+  alternates: { canonical: '/' },
   openGraph: {
-    title: 'Galeon',
-    description: 'Your payments. Your treasure. Hidden in plain sight.',
-    url: 'https://www.galeon.finance',
-    siteName: 'Galeon',
-    images: [
-      {
-        url: '/galeon-cool-graphic.png',
-        width: 1200,
-        height: 630,
-        alt: 'Galeon - Private Payments',
-      },
-    ],
-    locale: 'en_US',
     type: 'website',
+    siteName: SITE_NAME,
+    title: META.ogTitle,
+    description: META.ogDescription,
+    url: '/',
+    locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Galeon',
-    description: 'Your payments. Your treasure. Hidden in plain sight.',
-    images: ['/galeon-cool-graphic.png'],
+    title: META.ogTitle,
+    description: META.ogDescription,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
   },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#10b981',
+  themeColor: '#F2EEE6',
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const headersList = await headers()
-  const cookies = headersList.get('cookie')
-  const initialState = cookieToInitialState(config, cookies)
-
+/**
+ * Root layout. Fonts, styles and structured data for the public site live in
+ * `app/(marketing)/layout.tsx`; the wallet app's providers in `app/(app)/layout.tsx`.
+ * Both stylesheets scroll smoothly, so `data-scroll-behavior` lets Next turn that
+ * off during route changes.
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" style={{ backgroundColor: '#020617' }}>
-      <body className="min-h-screen antialiased">
-        {/* Global gradient - persists across page navigations */}
-        {/* bg-slate-950 provides fallback color while WebGL canvas initializes */}
-        <div className="fixed inset-0 -z-10 bg-slate-950">
-          <DeepSeaGradient variant="ocean" intensity="calm" />
-        </div>
-        <Providers initialState={initialState}>{children}</Providers>
-      </body>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   )
 }

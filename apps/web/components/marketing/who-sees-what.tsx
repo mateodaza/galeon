@@ -1,0 +1,59 @@
+import { WHO } from '@/content/landing'
+import { DisplayTitle } from './display-title'
+import { SectionLabel } from './section-label'
+
+/** Keys for the two columns: solid for what a party sees, lines for what stays withheld. */
+const SEES = <i className="k k-solid" aria-hidden="true" />
+const WITHHELD = <i className="k k-lines" aria-hidden="true" />
+
+/** What each party can learn from the prototype today, ourselves included. */
+export function WhoSeesWhat() {
+  return (
+    <section className="sect" id="who" aria-labelledby="who-h">
+      <div className="wrap cols">
+        <SectionLabel n={WHO.n} label={WHO.label} />
+        <DisplayTitle id="who-h" title={WHO.title} />
+        <p className="body who-lede">{WHO.lede}</p>
+        <div className="who">
+          <div role="table" aria-labelledby="who-h">
+            <div className="who-head" role="row">
+              <span className="c1" role="columnheader">
+                {WHO.cols.who}
+              </span>
+              <span className="c2" role="columnheader">
+                {SEES}
+                {WHO.cols.sees}
+              </span>
+              <span className="c3" role="columnheader">
+                {WITHHELD}
+                {WHO.cols.hidden}
+              </span>
+            </div>
+            {WHO.rows.map((r) => (
+              <div className="who-row" role="row" key={r.who}>
+                <div className="c1" role="rowheader">
+                  <h3>{r.who}</h3>
+                </div>
+                <div className="c2" role="cell">
+                  <b aria-hidden="true">
+                    {SEES}
+                    {WHO.cols.sees}
+                  </b>
+                  <p>{r.sees}</p>
+                </div>
+                <div className="c3" role="cell">
+                  <b aria-hidden="true">
+                    {WITHHELD}
+                    {WHO.cols.hidden}
+                  </b>
+                  <p>{r.hidden}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="who-foot">{WHO.note}</p>
+        </div>
+      </div>
+    </section>
+  )
+}

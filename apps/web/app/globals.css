@@ -247,6 +247,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+    background-color: #020617;
+  }
+
+  /* The public site paints the whole document in paper (see app/(marketing)/site.css) */
+  html:has(.site) {
+    background-color: #f2eee6;
   }
 
   * {
