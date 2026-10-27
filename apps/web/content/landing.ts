@@ -55,7 +55,8 @@ const VIEW_SOURCE: SiteLink = { label: 'View the source', href: LINKS.github, ex
 
 export const META = {
   title: `${BRAND} · Open-source privacy for public blockchains`,
-  ogTitle: 'Privacy at the level you need',
+  // chat apps show this as the link preview's headline: it names the brand, as the tab title does
+  ogTitle: `${BRAND} · Privacy at the level you need`,
   ogDescription: `${BRAND} is an open-source privacy protocol for public blockchains, built in Colombia. Stealth addresses, privacy pools and zero-knowledge proofs, used as far as you need.`,
 } as const
 

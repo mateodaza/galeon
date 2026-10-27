@@ -276,8 +276,12 @@
   80% {
     clip-path: inset(60% 10% 0 70%);
   }
+  /* gone for good: Safari on iOS keeps the last visible clip when the clip
+     collapses to nothing, so the bar also fades and leaves the layout */
   100% {
-    clip-path: inset(50% 50% 50% 50%);
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    visibility: hidden;
   }
 }
 /* a section title waits, hidden, until it comes into view */
