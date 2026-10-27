@@ -54,7 +54,7 @@ const VIEW_SOURCE: SiteLink = { label: 'View the source', href: LINKS.github, ex
 export const META = {
   title: `${BRAND} · Open-source privacy for public blockchains`,
   ogTitle: 'Privacy at the level you need',
-  ogDescription: `${BRAND} is an open-source privacy protocol for public blockchains, built in Colombia. Payments hidden in plain sight, kept out of reach, and yours to tell.`,
+  ogDescription: `${BRAND} is an open-source privacy protocol for public blockchains, built in Colombia. Stealth addresses, privacy pools and zero-knowledge proofs, used as far as you need.`,
 } as const
 
 export const NAV_COPY = {
@@ -78,11 +78,11 @@ export const HERO = {
     ],
     phone: ['Privacy', 'at the level', 'you need.'],
   } satisfies DisplayTitle,
-  /** Rendered as one paragraph with the three level names in bold; the lead is two phrases. */
+  /** Rendered as one paragraph with the three technologies in bold; the lead is two phrases. */
   lede: {
-    lead: `${BRAND} gives payments on public blockchains | three levels of privacy:`,
-    levels: ['hidden in plain sight', 'out of reach', 'yours to tell'],
-    tail: 'Use the first on its own, or all three.',
+    lead: `${BRAND} keeps payments on public blockchains private | with`,
+    tech: ['stealth addresses', 'privacy pools', 'zero-knowledge proofs'],
+    tail: 'Use only what you need.',
   },
   primary: { label: 'See how it works', href: '#how' } satisfies SiteLink,
   secondary: VIEW_SOURCE,
@@ -93,13 +93,13 @@ export const WHY = {
   label: 'On a public chain',
   title: {
     lines: [
-      ['Anyone who learns your address', 0],
-      ['can read your whole history.', 0],
+      ['One address.', 0],
+      ['Your whole history.', 0],
     ],
-    phone: ['Anyone', 'who learns your address', 'can read your whole history.'],
-    size: { desktop: 96, phone: 30 },
+    phone: ['One address.', 'Your whole history.'],
+    size: { desktop: 124, phone: 44 },
   } satisfies DisplayTitle,
-  body: 'Everyone who pays you learns it. So does every shop you pay.',
+  body: 'Anyone who pays you, or gets paid by you, | can read every payment you have ever made.',
 } as const
 
 export const HOW = {
@@ -176,9 +176,9 @@ export const WHO = {
     /** The second line starts under "depends": the answer sits under the word it answers. */
     lines: [
       ['It depends', 0],
-      ['who is looking.', 0.61],
+      ['on who is looking.', 0.61],
     ],
-    phone: ['It depends', 'who is looking.'],
+    phone: ['It depends', 'on who', 'is looking.'],
     size: { desktop: 124, phone: 44 },
   } satisfies DisplayTitle,
   lede: `What each party can learn, including whoever runs ${BRAND}.`,

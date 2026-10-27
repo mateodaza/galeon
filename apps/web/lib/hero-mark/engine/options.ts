@@ -45,6 +45,12 @@ export interface HeroMarkOptions {
   readonly reduced?: boolean
   /** Read #t, #still, #scroll and #reduced from location.hash, and follow hashchange. Default true. */
   readonly urlFlags?: boolean
+  /**
+   * Formation mode: once settled, a slow wave keeps travelling round the moon's lines and the
+   * sails breathe (ink.ts), drawn whole every idle frame. It turns itself off on a device too slow
+   * to draw it in time. Default false.
+   */
+  readonly alive?: boolean
   /** Frame rate of the settled drift. Default 20. */
   readonly idleFps?: number
   /** Slow-device governor: p90 draw time (ms) that coarsens the cut, then skips to settled. Default 12. */
@@ -62,9 +68,10 @@ export interface HeroMarkHandle {
   setScroll(p: number): void
   /**
    * Reveal mode: where the light should be, as shares of the plate square (0..1, may run past
-   * it), and its strength 0..1 (0 puts it out). The engine eases toward it.
+   * it), and its strength 0..1 (0 puts it out). With `shade` 1 it is a shade instead: the lines
+   * round it thin away to nothing. The engine eases toward it.
    */
-  setLight(x: number, y: number, strength: number): void
+  setLight(x: number, y: number, strength: number, shade?: number): void
 }
 
 export interface HeroMarkInfo {

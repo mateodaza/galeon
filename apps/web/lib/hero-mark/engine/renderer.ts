@@ -13,7 +13,8 @@ import { paintThreads } from './threads'
 export interface Renderer {
   /** Re-reads the canvas size and rebuilds the cut; coarsen widens the pitch (slow devices). */
   resize(coarsen: number): void
-  full(t: number, sc: number, T: number): void
+  /** The formation at (t, scroll); `alive` lets the settled lines keep their travelling wave. */
+  full(t: number, sc: number, T: number, alive?: boolean): void
   /** The settled ink under the closing mark's front and light. */
   ink(T: number, fx: InkFx): void
   idle(T: number): void
@@ -65,7 +66,7 @@ export function createRenderer(
     idleBase = false
   }
 
-  function full(t: number, sc: number, T: number): void {
+  function full(t: number, sc: number, T: number, alive = false): void {
     if (!G || !P) return
     idleBase = false
     const st = stateAt(t, sc)
@@ -75,7 +76,7 @@ export function createRenderer(
     if (st.q < 1 || sc > 0.001) paintSea(ctx, G, S, st, T)
     const free = paintThreads(ctx, G, P, S, st, T)
     paintTips(ctx, G, st, T)
-    paintInk(ctx, G, P, S, st, T, 'full', free)
+    paintInk(ctx, G, P, S, st, T, 'full', free, null, alive ? st.drift : 0)
   }
 
   function ink(T: number, fx: InkFx): void {
@@ -151,11 +152,16 @@ export function createRenderer(
   }
 }
 
-/** Draws one frame at time t (formation or reveal clock) and scroll s; T drives the drift. */
-export function painter(R: Renderer, reveal: boolean, light: Light) {
+/**
+ * Draws one frame at time t (formation or reveal clock) and scroll s; T drives the drift. While
+ * `alive()` holds, the settled hero is drawn whole every frame so its wave can travel; otherwise
+ * it comes from the cache with only the water band redrawn.
+ */
+export function painter(R: Renderer, reveal: boolean, light: Light, alive: () => boolean) {
   return (t: number, s: number, T: number): void => {
     if (!reveal) {
-      if (t >= T_SETTLED && s < 0.001) R.idle(T)
+      if (alive()) R.full(t, s, T, true)
+      else if (t >= T_SETTLED && s < 0.001) R.idle(T)
       else R.full(t, s, T)
       return
     }

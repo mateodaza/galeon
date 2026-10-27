@@ -1,6 +1,7 @@
 /**
  * The ink: the wound threads inside the crescent (the moon and the water band) and the sails,
- * with tone carried by line width. Settled, only the water band drifts. CSS px throughout.
+ * with tone carried by line width. Settled, the water band drifts; with `wave` (the hero) a slow
+ * swell also rolls round the moon's lines and the sails' cloth breathes. CSS px throughout.
  */
 import { hoistAt, type FrameState } from './formation'
 import { THS, type Geometry, type ThreadRun } from './geometry'
@@ -12,6 +13,17 @@ import { sstep, swell } from './tone'
 /** Idle drift of the water band: amplitude in pitches, period in seconds. */
 const DRIFT = 0.13
 const DRIFT_PERIOD = 10
+
+/**
+ * The living wave (hero only): a crest of weight and a small radial swell that travel round the
+ * moon, one lap every WAVE_PERIOD seconds, so the wound lines seem to turn. Its radial amplitude
+ * (in pitches) stays far below half a pitch, and its phase changes little from one thread to the
+ * next, so neighbouring lines never touch. The sails' rows sway by SAIL_SWAY pitches.
+ */
+const WAVE_W = 0.5
+const WAVE_R = 0.32
+const WAVE_PERIOD = 8
+const SAIL_SWAY = 0.22
 
 export type InkMode = 'full' | 'static' | 'band'
 
@@ -28,19 +40,20 @@ export function paintInk(
   T: number,
   mode: InkMode,
   avoid: Path2D | null = null,
-  fx: InkFx | null = null
+  fx: InkFx | null = null,
+  wave = 0
 ): void {
   if (st.aL + st.aR > 1e-4) {
     c.save()
     c.clip(P.crescent)
     c.beginPath()
     for (const th of G.threads)
-      for (const rn of th.runs) paintRun(c, G, S, st, T, mode, fx, th.r, rn)
+      for (const rn of th.runs) paintRun(c, G, S, st, T, mode, fx, th.r, rn, wave)
     c.fill()
     c.restore()
   }
   if (mode === 'band') return
-  paintSails(c, G, P, S, st, T, avoid, fx)
+  paintSails(c, G, P, S, st, T, avoid, fx, wave)
 }
 
 /** One run of a wound thread (radius r): the tone behind the wrap front, and the water's drift. */
@@ -53,13 +66,16 @@ function paintRun(
   mode: InkMode,
   fx: InkFx | null,
   r: number,
-  rn: ThreadRun
+  rn: ThreadRun,
+  wave: number
 ): void {
   const { ku, ox, oy, p, minW, maxW } = G.L
   const Ox = ox + O.x * ku
   const Oy = oy + O.y * ku
   const tw = threadWidth(G, st)
   const ph = (TAU * T) / DRIFT_PERIOD
+  const wph = (TAU * T) / WAVE_PERIOD
+  const cap = 0.9 * G.L.sp
   const d = rn.d
   for (let i = 0; i < rn.n; i++) {
     const o = i * THS
@@ -78,10 +94,19 @@ function paintRun(
       const toneW = minW + (maxW - minW) * d[o + 2]
       w = (tw + (toneW - tw) * sstep(0, st.lag, cc)) * st.ink
       if (bw > 0) w *= 1 + 0.12 * bw * st.drift * Math.sin(r * d[o + 6] * 0.42 - 0.8 * ph + 2.1)
+      // the crest never swells a line past 0.9 of the pitch, so lines never merge
+      if (wave > 0)
+        w = Math.min(
+          w * (1 + WAVE_W * wave * Math.sin(d[o + 6] - wph + r * 0.05)),
+          Math.max(w, cap)
+        )
       if (fx) w = fxWidth(fx, w, O.x + r * d[o], O.y + r * d[o + 1])
     }
+    const swellR = wave > 0 ? WAVE_R * p * wave * Math.sin(3 * d[o + 6] - 1.3 * wph + r * 0.08) : 0
     const rr =
-      (r + (bw > 0 ? DRIFT * p * bw * st.drift * Math.sin(r * d[o + 6] * 0.3 - ph + r * 0.9) : 0)) *
+      (r +
+        swellR +
+        (bw > 0 ? DRIFT * p * bw * st.drift * Math.sin(r * d[o + 6] * 0.3 - ph + r * 0.9) : 0)) *
       ku
     S.X[i] = Ox + rr * d[o]
     S.Y[i] = Oy + rr * d[o + 1]
@@ -104,11 +129,12 @@ function paintSails(
   st: FrameState,
   T: number,
   avoid: Path2D | null,
-  fx: InkFx | null
+  fx: InkFx | null,
+  wave: number
 ): void {
   const L = G.L
   const { ku, ox, oy, minW, maxW } = L
-  const A = st.swell * L.p
+  const A = (st.swell + SAIL_SWAY * wave) * L.p
   c.save()
   c.clip(P.sails)
   if (avoid) {
@@ -135,7 +161,7 @@ function paintSails(
     }
     emit(c, S, row.n)
   }
-  paintSpines(c, G, S, st, T, fx)
+  paintSpines(c, G, S, st, T, fx, wave)
   c.fill()
   c.restore()
 }
@@ -147,10 +173,11 @@ function paintSpines(
   S: Scratch,
   st: FrameState,
   T: number,
-  fx: InkFx | null
+  fx: InkFx | null,
+  wave: number
 ): void {
   const { ku, ox, oy, p } = G.L
-  const A = st.swell * p
+  const A = (st.swell + SAIL_SWAY * wave) * p
   for (const sp of G.spines) {
     for (let i = 0; i < sp.n; i++) {
       const amt = Math.max(st.ghost, hoistAt(sp.order[i], st.t)) * st.ink

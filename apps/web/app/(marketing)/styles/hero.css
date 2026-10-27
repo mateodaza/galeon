@@ -41,7 +41,7 @@
   margin-top: 36px;
   max-width: 31em;
 }
-/* the three level names, introduced in the lede and expanded in #how; a name never splits */
+/* the three technologies named in the lede; a name never splits */
 .site .hero .lede strong {
   font-weight: 500;
   color: var(--ink);

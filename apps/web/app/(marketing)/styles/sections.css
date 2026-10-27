@@ -1,7 +1,8 @@
 /* =============================================================================
    The landing's bands and steps: the ink band (why), how it works, the deep
    band (principle) and the closing deep band. The bands are dark in both
-   themes and carry sea on dark. The tables and lists are in lists.css.
+   themes and carry sea on dark. The three level cards are in steps.css, the
+   tables and lists in lists.css.
    ============================================================================= */
 
 .site .sect {
@@ -49,17 +50,22 @@
 
 /* ---------- on a public chain ---------- */
 .site .why-a {
-  grid-column: 4/12;
-  margin-top: 72px;
+  grid-column: 1/9;
+  margin-top: 56px;
   max-width: 34em;
+  font-size: 21px;
+}
+/* how it works follows the dark band closely: the band already set the section apart */
+.site #how {
+  padding-top: 132px;
 }
 
 /* ---------- how it works ---------- */
-/* the ledes start at column 4 and run as far as their measure allows */
+/* the ledes sit on the left edge, under their titles */
 .site .how-lede,
 .site .who-lede,
 .site .trust-intro {
-  grid-column: 4/12;
+  grid-column: 1/9;
   margin-top: 52px;
   max-width: 34em;
 }
@@ -73,61 +79,6 @@
 .site .step-line,
 .site .qual {
   text-wrap: balance;
-}
-.site .steps {
-  grid-column: 1/-1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: var(--gap);
-  margin-top: 84px;
-  list-style: none;
-}
-.site .step {
-  border-top: 1px solid var(--line);
-  padding-top: 18px;
-  display: flex;
-  flex-direction: column;
-}
-.site .step-head {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-}
-.site .step-head span {
-  font-size: 14px;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-.site .step-head h3 {
-  font-weight: 300;
-  font-size: 36px;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-.site .diagram {
-  margin: 30px 0 26px;
-  width: 100%;
-  max-width: 360px;
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-.site .step-line {
-  font-size: 18.5px;
-  line-height: 1.35;
-  letter-spacing: -0.012em;
-  color: var(--ink);
-  margin-bottom: 12px;
-  max-width: 21em;
-}
-.site .step .small {
-  flex: 1;
-  max-width: 30em;
-}
-.site .step .mono {
-  margin-top: 22px;
-  padding-top: 12px;
-  border-top: 1px solid var(--rule);
 }
 /* the step diagrams: lines and type from the tokens, so they follow the theme */
 .site .d-ink {
@@ -186,9 +137,13 @@
 .site #principle .display {
   color: var(--sea-dk);
 }
+/* the answer sits low on the right, under the end of "responsibility", so
+   the band reads as one diagonal from the creed's first word down to it */
 .site .principle-copy {
-  grid-column: 4/12;
-  margin-top: 64px;
+  grid-column: 8/13;
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--on-rule-2);
 }
 .site .principle-copy .body {
   font-size: 19px;
@@ -231,43 +186,16 @@
   margin-top: 36px;
 }
 
-/* ---------- steps between phone and wide desktop: one per row, diagram beside the words ---------- */
-@media (min-width: 761px) and (max-width: 1140px) {
-  .site .steps {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 72px;
-  }
-  .site .step {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: var(--gap);
-    align-content: start;
-  }
-  .site .step-head {
-    grid-column: 1/-1;
-  }
-  .site .step .diagram {
-    grid-column: 1;
-    grid-row: 2 / span 3;
-    margin: 30px 0 0;
-  }
-  .site .step-line,
-  .site .step .small,
-  .site .step .mono {
-    grid-column: 2;
-  }
-  .site .step-line {
-    margin-top: 30px;
-  }
-}
-/* tablet: the ledes move in to column 2, so a one-line lede stays one line */
+/* tablet: the ledes take more of the width; the creed's answer stays on the right */
 @media (max-width: 1100px) {
   .site .why-a,
   .site .how-lede,
   .site .who-lede,
-  .site .trust-intro,
+  .site .trust-intro {
+    grid-column: 1/12;
+  }
   .site .principle-copy {
-    grid-column: 2/12;
+    grid-column: 6/13;
   }
 }
 @media (max-width: 900px) {
@@ -294,6 +222,12 @@
   .site .sect {
     padding-top: 116px;
   }
+  .site #how {
+    padding-top: 84px;
+  }
+  .site .why-a {
+    font-size: 18px;
+  }
   .site .band {
     margin-top: 116px;
     padding: 96px 0 92px;
@@ -307,11 +241,6 @@
   .site .trust-intro,
   .site .principle-copy {
     margin-top: 30px;
-  }
-  .site .steps {
-    grid-template-columns: 1fr;
-    row-gap: 56px;
-    margin-top: 48px;
   }
   .site .closing {
     margin-top: 116px;
@@ -332,12 +261,5 @@
 @media (max-width: 376px) {
   .site .diagram text {
     font-size: 11.8px;
-  }
-}
-
-/* phones: a step title stays below the band statements and the hero */
-@media (max-width: 760px) {
-  .site .step-head h3 {
-    font-size: 30px;
   }
 }

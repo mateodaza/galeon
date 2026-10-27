@@ -7,11 +7,15 @@ import { MarkPlate } from '@/components/marketing/mark-plate'
 export const OG_SIZE = { width: 1200, height: 630 } as const
 export const OG_CONTENT_TYPE = 'image/png'
 
-const PAPER = '#F2EEE6'
-const INK = '#0E1A26'
-const INK_2 = '#474F56'
-const SEA = '#1D5C5E'
-const RULE = 'rgba(14,26,38,0.18)'
+/** The deep band's colours (styles/base.css): the card stands out in a light feed and a dark one. */
+const DEEP = '#13303A'
+const ON = '#F2EEE6'
+const ON_2 = 'rgba(242,238,230,0.78)'
+const SEA_DK = '#93C6C7'
+const RULE = 'rgba(242,238,230,0.24)'
+
+/** What the protocol is built from, under every headline. */
+const TECH = 'Stealth addresses · Privacy pools · Zero-knowledge proofs'
 
 export interface OgCard {
   /** Short line above the headline. */
@@ -20,6 +24,8 @@ export interface OgCard {
   lines: readonly (readonly [string, number])[]
   /** Optional size override for longer headlines. */
   fontSize?: number
+  /** The line under the rule. Default: the three technologies. */
+  footer?: string
 }
 
 /** Switzer, converted from the site's WOFF2 to WOFF because the renderer cannot read WOFF2. */
@@ -32,11 +38,11 @@ async function loadFont(file: string): Promise<ArrayBuffer> {
 }
 
 /**
- * Social card in the site's style: paper, the engraved mark in sea at the
- * right, the nav lockup, and the headline in Switzer Light.
- * Shared by every route; each passes its own eyebrow and lines.
+ * Social card in the site's style: the deep sea band, the whole engraved mark
+ * in sea on dark at the right, the nav lockup, and the headline in Switzer
+ * Light. Shared by every route; each passes its own eyebrow and lines.
  */
-export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
+export async function renderOg({ eyebrow, lines, fontSize = 88, footer = TECH }: OgCard) {
   const [light, regular] = await Promise.all([
     loadFont('switzer-300.woff'),
     loadFont('switzer-400.woff'),
@@ -50,14 +56,14 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
         width: '100%',
         height: '100%',
         display: 'flex',
-        background: PAPER,
-        color: INK,
+        background: DEEP,
+        color: ON,
         position: 'relative',
         fontFamily: 'Switzer',
       }}
     >
-      <div style={{ position: 'absolute', right: -8, top: 66, display: 'flex' }}>
-        <MarkPlate id="og" ink={SEA} size={500} />
+      <div style={{ position: 'absolute', right: 52, top: 75, display: 'flex' }}>
+        <MarkPlate id="og" ink={SEA_DK} size={480} />
       </div>
       <div
         style={{
@@ -69,8 +75,8 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
         }}
       >
         <svg viewBox={LOCKUP_NAV.viewBox} width={lockupW} height={lockupH}>
-          <path fill={INK} transform={LOCKUP_NAV.mark.transform} d={LOCKUP_NAV.mark.d} />
-          <path fill={INK} transform={LOCKUP_NAV.word.transform} d={LOCKUP_NAV.word.d} />
+          <path fill={SEA_DK} transform={LOCKUP_NAV.mark.transform} d={LOCKUP_NAV.mark.d} />
+          <path fill={ON} transform={LOCKUP_NAV.word.transform} d={LOCKUP_NAV.word.d} />
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div
@@ -79,7 +85,7 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
               alignItems: 'center',
               fontSize: 24,
               fontWeight: 400,
-              color: INK_2,
+              color: SEA_DK,
               marginBottom: 26,
             }}
           >
@@ -106,13 +112,13 @@ export async function renderOg({ eyebrow, lines, fontSize = 84 }: OgCard) {
               marginTop: 40,
               paddingTop: 18,
               borderTop: `1.5px solid ${RULE}`,
-              width: 640,
+              width: 570,
               fontSize: 21,
               fontWeight: 400,
-              color: INK_2,
+              color: ON_2,
             }}
           >
-            Open source · Built in Colombia
+            {footer}
           </div>
         </div>
       </div>

@@ -14,7 +14,7 @@
  * once from the waterline up when it comes into view, then drifting under a soft light; with no
  * pointer over it, a slow ambient light walks the water band and the sails (ambient.ts).
  *
- *   const hero = mount(canvas, options)   // -> { destroy(), setScroll(p), setLight(x, y, k) }
+ *   const hero = mount(canvas, options)   // -> { destroy(), setScroll(p), setLight(x, y, k, shade) }
  *
  * The module never touches the DOM beyond drawing into the canvas: no styles, no attributes,
  * no window access at import time, so it is safe to import into a client component and mount
@@ -70,8 +70,13 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
   const light = createLight()
   // the ambient light holds the plate whenever the page's light is out
   const amb = reveal && opt.ambient ? createAmbient(light) : null
-  const paint = painter(R, reveal, light)
+  // the living wave costs a whole frame each time: a device that cannot afford it keeps the drift
+  let alive = !reveal && !!opt.alive
+  let aliveCost = 0
+  let aliveFrames = 0
+  const paint = painter(R, reveal, light, () => alive)
   const drawIdle = R.idle
+  const rebase = R.rebase
   const idleMs = 1000 / Math.max(1, opt.idleFps ?? 20)
   const revealAt = Math.min(1, Math.max(0.01, opt.revealAt ?? 0.4))
   const mq =
@@ -139,7 +144,17 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
         settledFired = true
         opt.onSettle?.()
       }
+      const t0 = performance.now()
       paint(clock, s, clock)
+      if (alive) {
+        aliveCost = aliveFrames
+          ? aliveCost * 0.9 + (performance.now() - t0) * 0.1
+          : performance.now() - t0
+        if (++aliveFrames > 20 && aliveCost > (opt.maxFrameMs ?? 12)) {
+          alive = false
+          rebase()
+        }
+      }
     }
     drawnScroll = s
     dirty = false
@@ -263,10 +278,10 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
       if (reduced || forcedScroll !== null) return
       invalidate()
     },
-    setLight(x: number, y: number, k: number) {
-      if (!reveal || reduced || ![x, y, k].every(Number.isFinite)) return
+    setLight(x: number, y: number, k: number, shade = 0) {
+      if (!reveal || reduced || ![x, y, k, shade].every(Number.isFinite)) return
       amb?.yieldTo()
-      light.set(x, y, k)
+      light.set(x, y, k, shade)
       if (!light.moving()) return
       if (!live()) light.snap()
       invalidate()

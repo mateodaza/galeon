@@ -9,6 +9,7 @@ import './styles/base.css'
 import './styles/chrome.css'
 import './styles/hero.css'
 import './styles/sections.css'
+import './styles/steps.css'
 import './styles/lists.css'
 import './styles/pages.css'
 

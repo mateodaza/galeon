@@ -15,11 +15,26 @@
   column-gap: var(--gap);
 }
 .site .who-head {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink);
-  padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
+}
+.site .who-head > span {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+/* what stays hidden is its own tinted column, top to bottom, in the accent */
+.site .who {
+  --hid: color-mix(in srgb, var(--sea) 9%, var(--paper));
+}
+.site .who .c3 {
+  background: var(--hid);
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.site .who-head .c3 {
+  color: var(--sea);
 }
 .site .who-head span,
 .site .who-row > * {
@@ -41,8 +56,11 @@
   grid-column: 9/13;
 }
 .site .who-row {
-  padding: 26px 0 30px;
   border-bottom: 1px solid var(--rule);
+}
+.site .who-row > * {
+  padding-top: 26px;
+  padding-bottom: 30px;
 }
 .site .who-row h3 {
   font-weight: 300;
@@ -54,13 +72,14 @@
 .site .who-row p {
   font-size: 15.5px;
   line-height: 1.58;
-  color: var(--ink-2);
+  color: var(--ink);
   max-width: 31em;
   /* short cells: even lines, never a lone last word */
   text-wrap: balance;
 }
 .site .who-row .c3 p {
   max-width: 26.5em;
+  color: var(--sea);
 }
 .site .who-row b {
   display: none;
@@ -237,8 +256,15 @@
   }
   .site .who-row {
     grid-template-columns: 1fr;
-    row-gap: 14px;
     padding: 22px 0 24px;
+  }
+  .site .who-row > * {
+    padding-top: 0;
+    padding-bottom: 14px;
+  }
+  .site .who-row > .c3 {
+    margin-top: 4px;
+    padding: 16px 16px 18px;
   }
   .site .who .c1,
   .site .who .c2,

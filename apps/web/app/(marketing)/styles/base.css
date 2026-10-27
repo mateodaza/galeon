@@ -267,13 +267,15 @@ html[data-theme='dark']:has(.site) {
   letter-spacing: 0.01em;
   color: var(--ink-3);
 }
-/* the section's name, small, in the accent */
+/* the section's name, in the accent: big enough to be read before the title */
 .site .label {
   grid-column: 1/-1;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
   color: var(--sea);
-  margin-bottom: 44px;
+  margin-bottom: 36px;
 }
 .site .label b {
   font-weight: 500;
@@ -360,7 +362,8 @@ html[data-theme='dark']:has(.site) {
     padding-left: 0;
   }
   .site .label {
-    margin-bottom: 28px;
+    font-size: 19px;
+    margin-bottom: 22px;
   }
   .site .body {
     font-size: 16.5px;

@@ -18,8 +18,8 @@ export function Hero() {
         </p>
         <DisplayTitle as="h1" title={HERO.title} />
         <p className="lede">
-          <Phrased text={HERO.lede.lead} /> <strong>{HERO.lede.levels[0]}</strong>,{' '}
-          <strong>{HERO.lede.levels[1]}</strong>, and <strong>{HERO.lede.levels[2]}</strong>.{' '}
+          <Phrased text={HERO.lede.lead} /> <strong>{HERO.lede.tech[0]}</strong>,{' '}
+          <strong>{HERO.lede.tech[1]}</strong>, and <strong>{HERO.lede.tech[2]}</strong>.{' '}
           <Phrased text={HERO.lede.tail} />
         </p>
         <div className="hero-plate">
