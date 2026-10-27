@@ -12,11 +12,20 @@ export interface Bleed {
 
 export interface HeroMarkOptions {
   /**
-   * 'formation' (default): the hero, the sea becoming the ship. 'reveal': the closing mark, the
-   * settled engraving inked once from the waterline up when the canvas comes into view, then
-   * drifting, with a soft light set by `setLight`. Times and flags then count on the reveal.
+   * 'formation' (default): the hero. 'reveal': the closing mark, the settled engraving inked once
+   * from the waterline up when the canvas comes into view (start it at T_REVEAL to skip that),
+   * with a light or shade set by `setLight`. Times and flags then count on the reveal.
    */
   readonly mode?: 'formation' | 'reveal'
+  /**
+   * Formation mode: how the mark arrives. 'formation' (default): the sea becomes the ship.
+   * 'slices': the mark is disclosed in eight glitched pieces, then every few seconds a small
+   * cluster of blocks of it glitches out, stays hidden for a moment and glitches back in (slices.ts). Times and flags then
+   * count on it.
+   */
+  readonly intro?: 'formation' | 'slices'
+  /** Reveal mode: false holds the water band still. Default true. */
+  readonly drift?: boolean
   /** Reveal mode: the visible share of the canvas that starts the reveal. Default 0.4. */
   readonly revealAt?: number
   /**

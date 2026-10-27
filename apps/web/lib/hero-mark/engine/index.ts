@@ -10,9 +10,13 @@
  * the water band drifts. Scroll unwinds the upper horn back toward the sea, reversibly. The
  * formation reads at about 3.8 s and settles at 5.5 s (formation.ts).
  *
- * The same engine draws the closing mark (mode 'reveal', reveal.ts): the settled engraving inked
- * once from the waterline up when it comes into view, then drifting under a soft light; with no
- * pointer over it, a slow ambient light walks the water band and the sails (ambient.ts).
+ * The site's hero uses the 'slices' intro instead (slices.ts): the settled mark is disclosed in
+ * eight glitched pieces, then every few seconds a small cluster of blocks of it glitches out,
+ * stays hidden for a moment, and glitches back in.
+ *
+ * The same engine draws the closing mark (mode 'reveal', reveal.ts): the settled engraving, inked
+ * once from the waterline up or shown whole and still, under a light or shade set by the page;
+ * with `ambient`, a slow light walks the water band and the sails when the page sets none.
  *
  *   const hero = mount(canvas, options)   // -> { destroy(), setScroll(p), setLight(x, y, k, shade) }
  *
@@ -25,7 +29,8 @@
  *
  * Modules: mark (constants from logo/final/constants.json), tone (tone fields and maths),
  * geometry (layout and the precomputed cut), sails, formation (the timeline as pure functions
- * of t and scroll), reveal (the closing mark's front and light), ambient (its idle light),
+ * of t and scroll), slices (the hero's intro and glitches), reveal (the closing mark's front,
+ * light and shade), ambient (its idle light),
  * paint (sea), threads, ink,
  * renderer, governor (slow devices), theme (the ink follows it), options (types and URL flags),
  * and this runtime.
@@ -39,6 +44,7 @@ import { bleedOf, boxFromBleed, fallbackSvg, NOOP, readHash, type Flags } from '
 import type { HeroMarkInstance, HeroMarkOptions } from './options'
 import { createRenderer, painter, watchSize } from './renderer'
 import { createLight, T_REVEAL } from './reveal'
+import { T_SLICES } from './slices'
 import { watchTheme } from './theme'
 
 export type { Box } from './geometry'
@@ -49,14 +55,15 @@ export type {
   HeroMarkInstance,
   HeroMarkOptions,
 } from './options'
-export { T_SETTLED, T_REVEAL, PLATE_VIEWBOX, PATH_MARK, fallbackSvg }
+export { T_SETTLED, T_REVEAL, T_SLICES, PLATE_VIEWBOX, PATH_MARK, fallbackSvg }
 
 export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}): HeroMarkInstance {
   const c0 = canvas.getContext('2d')
   if (!c0 || typeof Path2D === 'undefined' || typeof DOMMatrix === 'undefined') return NOOP
   const opt = options
   const reveal = opt.mode === 'reveal'
-  const settleAt = reveal ? T_REVEAL : T_SETTLED
+  const slices = !reveal && opt.intro === 'slices'
+  const settleAt = reveal ? T_REVEAL : slices ? T_SLICES : T_SETTLED
   const readInk = (): string =>
     opt.color || getComputedStyle(canvas).getPropertyValue('--plate-ink').trim() || '#1D5C5E'
   const bleed = bleedOf(opt.bleed)
@@ -74,7 +81,7 @@ export function mount(canvas: HTMLCanvasElement, options: HeroMarkOptions = {}):
   let alive = !reveal && !!opt.alive
   let aliveCost = 0
   let aliveFrames = 0
-  const paint = painter(R, reveal, light, () => alive)
+  const paint = painter(R, reveal, light, () => alive, slices, opt.drift !== false)
   const drawIdle = R.idle
   const rebase = R.rebase
   const idleMs = 1000 / Math.max(1, opt.idleFps ?? 20)

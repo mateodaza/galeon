@@ -33,6 +33,8 @@ export interface DisplayTitle {
   readonly lines: readonly (readonly [text: string, hang: number])[]
   readonly phone: readonly string[]
   readonly size?: { readonly desktop: number; readonly phone: number }
+  /** A word that arrives redacted and is disclosed a moment later (styles/hero.css). */
+  readonly redact?: string
 }
 
 export interface Step {
@@ -78,9 +80,9 @@ export const HERO = {
     ],
     phone: ['Privacy', 'at the level', 'you need.'],
   } satisfies DisplayTitle,
-  /** Rendered as one paragraph with the three technologies in bold; the lead is two phrases. */
+  /** Rendered as one paragraph with the three technologies in bold. */
   lede: {
-    lead: `${BRAND} keeps payments on public blockchains private | with`,
+    lead: `${BRAND} keeps payments on public blockchains private with`,
     tech: ['stealth addresses', 'privacy pools', 'zero-knowledge proofs'],
     tail: 'Use only what you need.',
   },
@@ -111,6 +113,7 @@ export const HOW = {
     ],
     phone: ['Three levels', 'of privacy.'],
     size: { desktop: 124, phone: 44 },
+    redact: 'privacy',
   } satisfies DisplayTitle,
   lede: 'Start with the first level. Add the other two when you need them.',
   steps: [

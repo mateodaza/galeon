@@ -153,6 +153,7 @@
 
 /* ---------- closing: the mark returns, in sea on dark ---------- */
 .site .closing {
+  position: relative;
   margin-top: 200px;
   padding: 150px 0;
 }
@@ -184,6 +185,23 @@
 }
 .site .close-copy .actions {
   margin-top: 36px;
+  position: relative;
+  z-index: 4;
+}
+/* the hide-and-show glitch over the hero's mark and the closing band (glitch-layer.tsx):
+   over everything but the buttons, never in the way */
+.site .glitch-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site .glitch-layer {
+    display: none;
+  }
 }
 
 /* tablet: the ledes take more of the width; the creed's answer stays on the right */

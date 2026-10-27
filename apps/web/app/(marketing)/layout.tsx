@@ -1,3 +1,4 @@
+import { TitleReveal } from '@/components/marketing/title-reveal'
 import type { Viewport } from 'next'
 import localFont from 'next/font/local'
 import { Fragment_Mono } from 'next/font/google'
@@ -123,6 +124,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </a>
       <SiteNav />
       <main id="main">{children}</main>
+      <TitleReveal />
       <SiteFooter />
     </div>
   )

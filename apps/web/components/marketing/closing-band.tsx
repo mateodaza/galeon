@@ -1,13 +1,15 @@
 import { CLOSE } from '@/content/landing'
 import { ClosingMark } from './closing-mark'
 import { DisplayTitle } from './display-title'
+import { GlitchLayer } from './glitch-layer'
 import { Phrased } from './phrased'
 import { MarkPlate } from './mark-plate'
 import { SiteLinkAnchor } from './site-link'
 
 /**
- * The close: the mark again, alive in sea-on-dark lines on the deep band, and
- * the one request we make. The engraving inks in when the band comes into view.
+ * The close: the mark again, still, in sea-on-dark lines on the deep band, and
+ * the one request we make. A glitch hides parts of the section now and then,
+ * and wherever a mouse rests on it.
  */
 export function ClosingBand() {
   return (
@@ -29,6 +31,7 @@ export function ClosingBand() {
           </div>
         </div>
       </div>
+      <GlitchLayer lines=".close-title .ln, .close-copy .body" blocks=".close-plate" ambient />
     </section>
   )
 }

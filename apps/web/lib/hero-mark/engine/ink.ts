@@ -20,10 +20,10 @@ const DRIFT_PERIOD = 10
  * (in pitches) stays far below half a pitch, and its phase changes little from one thread to the
  * next, so neighbouring lines never touch. The sails' rows sway by SAIL_SWAY pitches.
  */
-const WAVE_W = 0.5
-const WAVE_R = 0.32
-const WAVE_PERIOD = 8
-const SAIL_SWAY = 0.22
+const WAVE_W = 0.22
+const WAVE_R = 0.14
+const WAVE_PERIOD = 12
+const SAIL_SWAY = 0.08
 
 export type InkMode = 'full' | 'static' | 'band'
 
