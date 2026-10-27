@@ -65,12 +65,19 @@ function trace(side: number, a: number, curl: number, sigma: number, ds: number)
   return C
 }
 
+/** A fixed share in 0..1 per thread: the same every frame, different from its neighbours. */
+function stagger(k: number): number {
+  const v = Math.sin(k * 12.9898 + 4.1414) * 43758.5453
+  return v - Math.floor(v)
+}
+
 /** Length (units) of the free part of thread k on one side. */
 function tailLength(G: Geometry, st: FrameState, k: number, side: number): number {
   const th = G.threads[k]
   const n = G.threads.length
-  // the sheaf's leading end comes to a point, like a burin's exit: the middle threads run furthest
-  const prof = 0.45 + 0.55 * Math.sin((Math.PI * (k + 0.5)) / n)
+  // the sheaf's leading end comes to a point, like a burin's exit: the middle threads run furthest,
+  // and each row ends at its own length, so the end feathers instead of stopping on one cut
+  const prof = (0.45 + 0.55 * Math.sin((Math.PI * (k + 0.5)) / n)) * (0.6 + 0.8 * stagger(k))
   // scrolled away, the unwound threads run out longer, straight on, back toward the sea
   const Lmin = (3 + 9 * Math.pow(1 - st.E, 1.5) + 10 * st.sc) * prof
   const half = side ? th.halfL : th.halfR

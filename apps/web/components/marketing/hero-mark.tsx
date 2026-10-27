@@ -4,8 +4,9 @@ import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { T_SETTLED } from '@/lib/hero-mark/engine'
 import { plateBox, reducedFlag, usePlateEngine, type PlateEngine } from './use-plate-engine'
 
-/** How far the moon turns, in degrees, as the hero scrolls away. */
+/** How far the moon turns, in degrees, and how far it fades, as the hero scrolls away. */
 const TURN = -9
+const FADE = 0.45
 
 const heroOf = (stage: HTMLElement) => stage.closest<HTMLElement>('[data-hero]')
 
@@ -24,7 +25,7 @@ function heroProgress(hero: HTMLElement | null): number {
 
 const HERO_ENGINE: PlateEngine = {
   // start settled rather than from blank paper when the static mark already faded in (late
-  // hydration) or the formation has played in this tab; the URL flags still win in the engine
+  // hydration) or the formation has played in this page load; the URL flags still win in the engine
   options: (stage, canvas, late) => ({
     layout: () => plateBox(stage, canvas),
     startAt: late || formed ? T_SETTLED : 0,
@@ -35,24 +36,15 @@ const HERO_ENGINE: PlateEngine = {
     alive: true,
     idleFps: 30,
   }),
-  // the lines loosen as the hero scrolls away
-  attach(handle, stage) {
-    const hero = heroOf(stage)
-    const onScroll = () => handle.setScroll(heroProgress(hero))
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  },
 }
 
 /** Eases out: the turn starts with the scroll and slows as the hero leaves. */
 const easeOut = (p: number) => 1 - (1 - p) * (1 - p)
 
 /**
- * As the hero scrolls away the moon turns a few degrees about its centre
- * (transform only, nothing else moves), while the engine unwinds its upper
- * horn back toward the sea; the two read as one gesture. Off under reduced
- * motion and the `#reduced` flag.
+ * As the hero scrolls away the moon turns a few degrees about its centre and
+ * fades a little, whole (transform and opacity only, nothing else moves). Off
+ * under reduced motion and the `#reduced` flag.
  */
 function useHeroTurn(stageRef: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
@@ -63,8 +55,9 @@ function useHeroTurn(stageRef: RefObject<HTMLDivElement | null>) {
     let raf = 0
     const frame = () => {
       raf = 0
-      const p = motion.matches || reducedFlag() ? 0 : heroProgress(hero)
-      stage.style.transform = p > 0.001 ? `rotate(${(TURN * easeOut(p)).toFixed(2)}deg)` : ''
+      const p = motion.matches || reducedFlag() ? 0 : easeOut(heroProgress(hero))
+      stage.style.transform = p > 0.001 ? `rotate(${(TURN * p).toFixed(2)}deg)` : ''
+      stage.style.opacity = p > 0.001 ? (1 - FADE * p).toFixed(3) : ''
     }
     const request = () => {
       if (!raf) raf = requestAnimationFrame(frame)
@@ -79,13 +72,13 @@ function useHeroTurn(stageRef: RefObject<HTMLDivElement | null>) {
       window.removeEventListener('hashchange', request)
       motion.removeEventListener('change', request)
       stage.style.transform = ''
+      stage.style.opacity = ''
     }
   }, [stageRef])
 }
 
 /**
- * The hero's engraved mark: the engine on a canvas, fed the hero's scroll
- * progress, with the static SVG (`children`) as its fallback. The formation
+ * The hero's engraved mark: the engine on a canvas, with the static SVG (`children`) as its fallback. The formation
  * plays on every page load; a client-side return to / starts settled. Once
  * settled, the lines keep a slow travelling wave. The engine reads the review
  * flags itself (`#t=3.8`, `#still`, `#scroll=0.4`) and follows hashchange;

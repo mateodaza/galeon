@@ -6,7 +6,7 @@
  *   1.7 to 3.4  the waterline rows lift and wind onto circle O: every row shares one wrap
  *               angle, so no two lines ever cross, and the ink darkens right behind the front
  *   2.3 to 3.8  the sails take ink in place, foot first, from rows that were already there
- *   2.5 to 4.2  the rest of the sea withdraws, farthest first
+ *   1.7 to 3.8  the rest of the sea withdraws while the rows wind, farthest first
  *   about 3.8   the mark reads; 4.5 it has landed; 5.5 settled, and only the water band drifts
  *
  * Every beat is BEATS (the round-5 timing) stretched by PACE, so the proportions hold and the
@@ -31,8 +31,9 @@ const BEATS = {
   hoistA: 1.36,
   hoistSpread: 0.42,
   hoistDur: 0.44,
-  retireA: 1.45,
-  retireB: 2.45,
+  // the sea thins while the rows wind, so the moon forms out of it rather than on top of it
+  retireA: 1.0,
+  retireB: 2.2,
   bowlA: 1.7,
   bowlB: 2.3,
   settled: 3.2,
