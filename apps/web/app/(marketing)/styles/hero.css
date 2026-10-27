@@ -1,0 +1,334 @@
+/* =============================================================================
+   Hero: the headline on the left, the engraved mark on the right. The mark is
+   a canvas over a static SVG; --plate-ink (base.css) is its line colour.
+   ============================================================================= */
+
+.site .hero {
+  --hero-h: clamp(640px, calc(var(--vh, 100svh) - var(--nav)), 980px);
+  height: var(--hero-h);
+  position: relative;
+}
+/* the copy block sits a little above centre, its top near the plate's */
+.site .hero-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gap);
+  grid-template-rows: 0.8fr auto auto auto auto 1.2fr;
+}
+.site .eyebrow {
+  grid-column: 1/8;
+  grid-row: 2;
+  justify-self: start;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sea);
+  margin-bottom: 30px;
+}
+.site .hero h1 {
+  grid-column: 1/9;
+  grid-row: 3;
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+  position: relative;
+  z-index: 2;
+  font-size: clamp(56px, calc(var(--W) * 0.0925), 136px);
+}
+.site .hero .lede {
+  grid-column: 1/7;
+  grid-row: 4;
+  margin-top: 36px;
+  max-width: 31em;
+}
+/* the three technologies named in the lede; a name never splits */
+.site .hero .lede strong {
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.site .hero .actions {
+  grid-column: 1/7;
+  grid-row: 5;
+  margin-top: 32px;
+}
+
+/* the plate: the engraved mark, canvas over a static SVG */
+.site .hero-plate {
+  --plate: min(calc(var(--W) * 0.44), calc(var(--hero-h) - 120px));
+  grid-column: 7/13;
+  grid-row: 1/-1;
+  align-self: center;
+  justify-self: end;
+  /* the ink box (not the plate square) meets the content edge on the right */
+  margin-right: calc(var(--plate) * -0.039);
+  width: var(--plate);
+  position: relative;
+  z-index: 1;
+}
+/* the hero's words sit above the canvas, which reaches past the plate */
+.site .hero .eyebrow,
+.site .hero .lede,
+.site .hero .actions {
+  position: relative;
+  z-index: 2;
+}
+/* the buttons sit above the hover glitch (glitch-layer.tsx), which hides the
+   mark and the words but never them */
+.site .hero .actions {
+  z-index: 4;
+}
+.site .plate {
+  /* how far the canvas reaches past the plate square, as a share of it:
+     room for the sea to dissolve, kept short on the headline's side */
+  --bleed-t: 0.1;
+  --bleed-r: 0.04;
+  --bleed-b: 0.1;
+  --bleed-l: 0.06;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1/1;
+}
+.site .plate .fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* The engine reads the plate square from the DOM, so these insets are the
+   only place the bleed is set. */
+.site .plate canvas {
+  position: absolute;
+  top: calc(var(--bleed-t) * -100%);
+  left: calc(var(--bleed-l) * -100%);
+  width: calc((1 + var(--bleed-l) + var(--bleed-r)) * 100%);
+  height: calc((1 + var(--bleed-t) + var(--bleed-b)) * 100%);
+  display: block;
+  pointer-events: none;
+}
+/* The canvas draws the mark when the engine runs; its first frame is blank
+   paper, as before hydration. The SVG shows without JavaScript (see the
+   noscript style in the layout), under reduced motion, if the engine fails,
+   or if it has not drawn after 2.5 s (the engine then starts settled). */
+.site .plate .fallback {
+  opacity: 0;
+  animation: plate-fallback 0.5s ease 2.5s forwards;
+}
+.site .plate[data-state='live'] .fallback {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.site .plate[data-state='static'] .fallback {
+  animation: none;
+  opacity: 1;
+}
+.site .plate[data-state='static'] canvas {
+  display: none;
+}
+@keyframes plate-fallback {
+  to {
+    opacity: 1;
+  }
+}
+
+/* narrow two-column hero: a smaller headline, and the canvas barely reaches
+   left, so the sea never runs behind the end of "receive" */
+@media (min-width: 901px) and (max-width: 1140px) {
+  .site .hero h1 {
+    font-size: calc(var(--W) * 0.0785);
+  }
+  .site .hero .plate {
+    --bleed-l: 0.02;
+  }
+}
+@media (max-width: 900px) {
+  .site .hero {
+    height: auto;
+    padding: 40px 0 84px;
+  }
+  .site .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+  .site .hero-grid > * {
+    grid-column: 1/-1 !important;
+    grid-row: auto !important;
+  }
+  .site .hero h1 {
+    font-size: 11.6vw;
+  }
+  /* the mark leads, the words follow it: capped by the screen's height, so the
+     headline still starts in the first screen */
+  /* the mark leads as a cover, large and centred, the words flush left under
+     it, as in the closing band */
+  .site .hero-plate {
+    --plate: min(78%, 440px, max(240px, calc(100svh - 500px)));
+    order: -1;
+    justify-self: center;
+    margin: 8px 0 34px;
+  }
+  /* the mark sits on top: keep the sea off the words below it */
+  .site .hero .plate {
+    --bleed-t: 0.06;
+    --bleed-r: 0.08;
+    --bleed-b: 0.08;
+    --bleed-l: 0.08;
+  }
+  .site .hero .lede {
+    margin-top: 26px;
+  }
+}
+/* phones: the whole hero, mark to buttons, fits the first screen; the mark
+   takes the height the words leave it */
+@media (max-width: 760px) {
+  .site .hero {
+    padding: 12px 0 64px;
+  }
+  .site .eyebrow {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .site .hero h1 {
+    font-size: var(--ph, 11.6vw);
+  }
+  .site .hero .lede {
+    margin-top: 12px;
+    font-size: 15.5px;
+    line-height: 1.45;
+  }
+  .site .hero-plate {
+    --plate: min(78%, 320px, max(196px, calc(100svh - 456px)));
+    margin: 2px 0 22px;
+  }
+  /* both actions on one row */
+  .site .hero .actions {
+    margin-top: 18px;
+    flex-wrap: nowrap;
+    gap: 18px;
+  }
+  .site .hero .btn {
+    height: 48px;
+    padding: 0 16px 0 18px;
+    font-size: 14.5px;
+    white-space: nowrap;
+  }
+  .site .hero .link {
+    font-size: 14.5px;
+    white-space: nowrap;
+  }
+}
+/* phones turned sideways: the width-led headline would fill the whole screen
+   on its own, so its size is capped by the screen's height */
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  .site .hero h1 {
+    font-size: min(var(--ph, 11.6vw), 15vh);
+  }
+}
+/* First state: the headline is set one phrase at a time, each rising out of its own line, while
+   the mark is being found; the lede and the buttons follow. CSS only, so it plays on every load,
+   with or without JavaScript. The clip leaves room for descenders. The section titles further
+   down rise the same way as they come into view (title-reveal.tsx). */
+.site .hero h1 .ln,
+.site[data-reveal] .display[data-in] .ln {
+  animation: hero-line 0.95s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 0.45s);
+}
+/* A title's redacted word (DisplayTitle's `redact`) arrives under a solid bar,
+   like a classified document, holds a moment after its line has risen, then
+   the bar glitches away in stepped jumps. Only with the reveal running: without
+   it, or under reduced motion, the word simply shows. */
+.site .redact {
+  position: relative;
+}
+.site[data-reveal] .display .redact::after {
+  content: '';
+  position: absolute;
+  inset: 0.1em -0.05em 0.02em;
+  background: var(--ink);
+}
+.site[data-reveal] .display[data-in] .redact::after {
+  animation: redact-lift 0.42s steps(1, end) both;
+  animation-delay: calc(var(--i, 0) * 0.45s + 1.9s);
+}
+@keyframes redact-lift {
+  0% {
+    clip-path: inset(0);
+    transform: none;
+  }
+  20% {
+    clip-path: inset(0);
+    transform: translateX(-0.06em);
+  }
+  35% {
+    clip-path: inset(0 30% 0 0);
+    transform: translateX(0.04em);
+  }
+  50% {
+    clip-path: inset(25% 0 35% 10%);
+    transform: none;
+  }
+  65% {
+    clip-path: inset(0 55% 40% 0);
+    transform: translateX(-0.03em);
+  }
+  80% {
+    clip-path: inset(60% 10% 0 70%);
+  }
+  100% {
+    clip-path: inset(50% 50% 50% 50%);
+  }
+}
+/* a section title waits, hidden, until it comes into view */
+.site[data-reveal] main > section:not(.hero) .display:not([data-in]) .ln {
+  opacity: 0;
+}
+.site .hero .lede,
+.site .hero .actions {
+  animation: hero-fade 0.9s ease both;
+  animation-delay: 1.5s;
+}
+.site .hero .actions {
+  animation-delay: 1.75s;
+}
+@keyframes hero-line {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+    clip-path: inset(-0.1em -0.1em 100% -0.1em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(-0.1em -0.1em -0.3em -0.1em);
+  }
+}
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site .hero h1 .ln,
+  .site[data-reveal] .display .ln,
+  .site .hero .lede,
+  .site .hero .actions {
+    animation: none;
+    opacity: 1;
+  }
+  .site[data-reveal] .display .redact::after {
+    display: none;
+  }
+  .site .plate .fallback {
+    animation: none;
+    opacity: 1;
+  }
+  .site .plate canvas {
+    display: none;
+  }
+}

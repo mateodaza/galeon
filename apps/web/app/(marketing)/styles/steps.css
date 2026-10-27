@@ -1,0 +1,129 @@
+/* =============================================================================
+   How it works: the three levels as cards. Each leads with its number in the
+   accent, its name and the technology behind it, then its diagram on a tinted
+   plate, then the one-line promise and the detail.
+   ============================================================================= */
+
+.site .steps {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--gap);
+  margin-top: 84px;
+  list-style: none;
+}
+.site .step {
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+  display: flex;
+  flex-direction: column;
+}
+.site .step-n {
+  display: block;
+  font-weight: 300;
+  font-size: 72px;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: var(--sea);
+  font-variant-numeric: tabular-nums;
+}
+.site .step-head h3 {
+  margin-top: 22px;
+  font-weight: 300;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+/* the technology, named plainly, so the reader can look it up */
+.site .step-tech {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sea);
+}
+/* the diagram on its own plate, a step darker than the page */
+.site .step-fig {
+  margin: 28px 0 26px;
+  padding: 28px 26px;
+  background: var(--paper-2);
+  border-radius: 2px;
+  transition: box-shadow 0.25s;
+}
+.site .step:hover .step-fig {
+  box-shadow: inset 0 0 0 1px var(--sea);
+}
+.site .diagram {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+/* the promise is the line people read; the detail is there for whoever wants it */
+.site .step-line {
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.016em;
+  color: var(--ink);
+  margin-bottom: 14px;
+  max-width: 19em;
+}
+.site .step .small {
+  max-width: 30em;
+}
+
+/* between phone and wide desktop: one per row, the plate beside the words */
+@media (min-width: 761px) and (max-width: 1140px) {
+  .site .steps {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 72px;
+  }
+  .site .step {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: calc(var(--gap) * 2);
+    align-content: start;
+  }
+  .site .step-head {
+    grid-column: 1/-1;
+  }
+  .site .step-fig {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    margin: 28px 0 0;
+  }
+  .site .step-line,
+  .site .step .small {
+    grid-column: 2;
+  }
+  .site .step-line {
+    margin-top: 28px;
+  }
+}
+@media (max-width: 760px) {
+  .site .steps {
+    grid-template-columns: 1fr;
+    row-gap: 56px;
+    margin-top: 48px;
+  }
+  .site .step-n {
+    font-size: 56px;
+  }
+  /* a step title stays below the band statements and the hero */
+  .site .step-head h3 {
+    margin-top: 16px;
+    font-size: 30px;
+  }
+  .site .step-fig {
+    padding: 22px 18px;
+  }
+  .site .step-line {
+    font-size: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site .step-fig {
+    transition: none;
+  }
+}

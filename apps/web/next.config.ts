@@ -3,6 +3,15 @@ import path from 'path'
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@galeon/stealth', '@galeon/pool', 'maci-crypto', 'poseidon-lite'],
+  // The social-card renderer reads its fonts from disk at request time.
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./lib/og/fonts/**'],
+    '/twitter-image': ['./lib/og/fonts/**'],
+    '/about/opengraph-image': ['./lib/og/fonts/**'],
+    '/about/twitter-image': ['./lib/og/fonts/**'],
+    '/roadmap/opengraph-image': ['./lib/og/fonts/**'],
+    '/roadmap/twitter-image': ['./lib/og/fonts/**'],
+  },
   // Ensure crypto libraries only run on client side
   webpack: (config, { isServer }) => {
     if (isServer) {

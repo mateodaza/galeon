@@ -1,7 +1,19 @@
 # Frontend (apps/web) Progress
 
 > Next.js 16 + React 19 frontend with Reown AppKit
-> Last updated: 2026-01-09
+> Last updated: 2026-10-26
+
+## Public site (2026-10-26)
+
+- [x] Routes split into `app/(marketing)` (static, server components, no wallet code) and `app/(app)` (wagmi providers, `noindex`)
+- [x] Landing, About and Roadmap rebuilt in the approved paper, ink and sea design (`DESIGN.md`); copy in `content/`, brand name from `lib/site.ts`
+- [x] Hero mark: canvas engine behind `mount(canvas, options)` in `lib/hero-mark/engine/`, static SVG fallback for no JavaScript and reduced motion
+- [x] Mateo's chosen logo everywhere: `components/brand` (`Mark`, `MarkNav`, `Lockup`), wallet nav and header, favicon, apple icon, manifest icons, `public/brand`
+- [x] Fonts: Switzer self-hosted (`app/fonts`), Fragment Mono; Fraunces, Public Sans and IBM Plex Mono removed
+- [x] SEO: metadata from the copy deck, social cards redrawn, JSON-LD without FAQPage, robots, sitemap, manifest
+- [x] Hero animation: the sea's lines wind onto the moon and become the mark (round 5 engine); headline and mark re-balanced at 1440, tablet and phone
+- [ ] Set `CONTACT_EMAIL` and `NEXT_PUBLIC_SITE_URL` once galeonprotocol.org has mail and DNS
+- [ ] Refresh `LITEPAPER.md` (v0.1) or repoint the litepaper links; confirm "Hosted app paused" before launch
 
 ## Setup
 

@@ -28,6 +28,7 @@ import { AuthProvider } from '@/contexts/auth-context'
 import { StealthProvider } from '@/contexts/stealth-context'
 import { PoolProvider } from '@/contexts/pool-context'
 import { NetworkGuard } from '@/components/network-guard'
+import { SITE_URL } from '@/lib/site'
 
 /**
  * TanStack Query client instance.
@@ -58,9 +59,9 @@ const queryClient = new QueryClient({
  */
 const metadata = {
   name: 'Galeon',
-  description: 'Private payments using stealth addresses',
-  url: 'https://www.galeon.finance',
-  icons: ['/icon.png'],
+  description: 'Open-source privacy for public blockchains',
+  url: SITE_URL,
+  icons: [`${SITE_URL}/brand/galeon-icon-512.png`],
 }
 
 /**

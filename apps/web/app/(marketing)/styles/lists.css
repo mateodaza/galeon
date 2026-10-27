@@ -1,0 +1,293 @@
+/* =============================================================================
+   The landing's tables and lists: who sees what, the trust ledger (what holds
+   by design, what whoever runs it sets), and who it is for.
+   ============================================================================= */
+
+/* ---------- who sees what ---------- */
+.site .who {
+  grid-column: 1/-1;
+  margin-top: 88px;
+}
+.site .who-head,
+.site .who-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gap);
+}
+.site .who-head {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.site .who-head > span {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+/* what stays hidden is its own tinted column, top to bottom, in the accent */
+.site .who {
+  --hid: color-mix(in srgb, var(--sea) 9%, var(--paper));
+}
+.site .who .c3 {
+  background: var(--hid);
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.site .who-head .c3 {
+  color: var(--sea);
+}
+.site .who-head span,
+.site .who-row > * {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.site .who-row > * {
+  flex-direction: column;
+  gap: 6px;
+}
+.site .who .c1 {
+  grid-column: 1/4;
+}
+.site .who .c2 {
+  grid-column: 4/9;
+}
+.site .who .c3 {
+  grid-column: 9/13;
+}
+.site .who-row {
+  border-bottom: 1px solid var(--rule);
+}
+.site .who-row > * {
+  padding-top: 26px;
+  padding-bottom: 30px;
+}
+.site .who-row h3 {
+  font-weight: 300;
+  font-size: 27px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  padding-right: 24px;
+}
+.site .who-row p {
+  font-size: 15.5px;
+  line-height: 1.58;
+  color: var(--ink);
+  max-width: 31em;
+  /* short cells: even lines, never a lone last word */
+  text-wrap: balance;
+}
+.site .who-row .c3 p {
+  max-width: 26.5em;
+  color: var(--sea);
+}
+.site .who-row b {
+  display: none;
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.site .k {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  align-self: center;
+  display: inline-block;
+}
+.site .k-solid {
+  background: var(--sea);
+}
+.site .k-lines {
+  background: repeating-linear-gradient(180deg, var(--sea) 0 1px, transparent 1px 2.6px);
+  box-shadow: inset 0 0 0 0.6px var(--sea);
+}
+
+/* ---------- trust: what holds by design, what whoever runs it sets ---------- */
+.site .ledger {
+  margin-top: 84px;
+  align-items: start;
+}
+.site .col-a {
+  grid-column: 1/6;
+}
+.site .col-b {
+  grid-column: 8/13;
+}
+.site .ledger h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.site .ledger h3 i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.site .col-a h3 i {
+  background: var(--ink);
+}
+.site .col-b h3 i {
+  box-shadow: inset 0 0 0 1.4px var(--ink);
+}
+/* the holds qualifier closes its list, as the link closes the other column */
+.site .qual {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+.site .qual::before {
+  content: '';
+  width: 2px;
+  align-self: stretch;
+  background: var(--sea);
+  flex: none;
+}
+.site .ledger ul {
+  list-style: none;
+}
+.site .ledger li {
+  padding: 20px 20px 22px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.site .ledger strong {
+  display: block;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  margin-bottom: 6px;
+}
+.site .ledger p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 34em;
+}
+.site .ledger .qual {
+  max-width: none;
+}
+.site .foot-notes {
+  margin-top: 30px;
+}
+.site .foot-notes .link {
+  font-size: 14.5px;
+}
+
+/* ---------- who it is for ---------- */
+.site .aud {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--gap);
+  margin-top: 84px;
+  list-style: none;
+}
+.site .aud li {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.site .aud h3 {
+  font-weight: 300;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  margin-bottom: 16px;
+}
+.site .aud p {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 29em;
+}
+.site .devs {
+  grid-column: 1/-1;
+  margin-top: 44px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+
+/* ---------- tablet ---------- */
+@media (max-width: 1100px) {
+  .site .who .c1 {
+    grid-column: 1/5;
+  }
+  .site .who .c2 {
+    grid-column: 5/9;
+  }
+  .site .col-a {
+    grid-column: 1/7;
+  }
+  .site .col-b {
+    grid-column: 7/13;
+  }
+  .site .aud {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 44px;
+  }
+}
+@media (max-width: 900px) {
+  .site .col-a,
+  .site .col-b {
+    grid-column: 1/-1;
+  }
+  .site .col-b {
+    margin-top: 64px;
+  }
+}
+
+/* ---------- phone: the table becomes cards, each cell with its key ---------- */
+@media (max-width: 760px) {
+  .site .who {
+    margin-top: 44px;
+  }
+  .site .who-head {
+    display: none;
+  }
+  .site .who-row {
+    grid-template-columns: 1fr;
+    padding: 22px 0 24px;
+  }
+  .site .who-row > * {
+    padding-top: 0;
+    padding-bottom: 14px;
+  }
+  .site .who-row > .c3 {
+    margin-top: 4px;
+    padding: 16px 16px 18px;
+  }
+  .site .who .c1,
+  .site .who .c2,
+  .site .who .c3 {
+    grid-column: 1/-1;
+  }
+  .site .who-row b {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .site .who-row h3 {
+    font-size: 24px;
+  }
+  .site .ledger {
+    margin-top: 48px;
+  }
+  .site .col-b {
+    margin-top: 56px;
+  }
+  .site .aud {
+    grid-template-columns: 1fr;
+    row-gap: 36px;
+    margin-top: 44px;
+  }
+}

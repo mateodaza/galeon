@@ -1,0 +1,283 @@
+/* =============================================================================
+   The landing's bands and steps: the ink band (why), how it works, the deep
+   band (principle) and the closing deep band. The bands are dark in both
+   themes and carry sea on dark. The three level cards are in steps.css, the
+   tables and lists in lists.css.
+   ============================================================================= */
+
+.site .sect {
+  padding-top: 184px;
+}
+.site .cols > .display {
+  grid-column: 1/-1;
+}
+.site .band {
+  margin-top: 184px;
+  padding: 160px 0 156px;
+}
+/* The hero's own bottom row already leaves room under its buttons, so the
+   first band only adds the rest of the usual gap between sections. */
+.site .hero + .band {
+  margin-top: 24px;
+}
+.site .on-dark {
+  color: var(--on);
+  --plate-ink: var(--sea-dk);
+}
+.site .on-dark .label {
+  color: var(--sea-dk);
+}
+.site .on-dark .body {
+  color: var(--on-2);
+}
+.site .on-dark ::selection {
+  background: var(--sea-dk);
+  color: var(--on-ink);
+}
+.site .band-ink {
+  background: var(--band-ink);
+}
+/* the soft dark: ink with a little sea in it, its accent sea on dark */
+.site .band-deep {
+  background: var(--band-deep);
+}
+.site .band-ink,
+.site .band-deep {
+  box-shadow:
+    inset 0 1px 0 var(--band-edge),
+    inset 0 -1px 0 var(--band-edge);
+}
+
+/* ---------- on a public chain ---------- */
+.site .why-a {
+  grid-column: 1/9;
+  margin-top: 56px;
+  max-width: 34em;
+  font-size: 21px;
+}
+/* how it works follows the dark band closely: the band already set the section apart */
+.site #how {
+  padding-top: 132px;
+}
+
+/* ---------- how it works ---------- */
+/* the ledes sit on the left edge, under their titles */
+.site .how-lede,
+.site .who-lede,
+.site .trust-intro {
+  grid-column: 1/9;
+  margin-top: 52px;
+  max-width: 34em;
+}
+/* short ledes split evenly rather than leave a word alone */
+.site .why-a,
+.site .how-lede,
+.site .who-lede,
+.site .trust-intro .body,
+.site .principle-copy .body,
+.site .close-copy .body,
+.site .step-line,
+.site .qual {
+  text-wrap: balance;
+}
+/* the step diagrams: lines and type from the tokens, so they follow the theme */
+.site .d-ink {
+  stroke: var(--ink);
+  fill: none;
+  stroke-width: 1;
+}
+.site .d-soft {
+  stroke: var(--ink-3);
+  fill: none;
+  stroke-width: 1;
+}
+.site .d-dash {
+  stroke: var(--ink-3);
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.site .d-dash-ink {
+  stroke: var(--ink);
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.site .d-rule {
+  stroke: var(--rule-2);
+  stroke-width: 1;
+}
+.site .d-paper {
+  fill: var(--paper);
+}
+.site .d-fill {
+  fill: var(--ink);
+}
+.site .d-sea {
+  fill: var(--sea);
+}
+.site .d-row {
+  fill: var(--ink-3);
+}
+.site .d-t,
+.site .d-t-ink,
+.site .d-t-soft {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-2);
+}
+.site .d-t-ink {
+  fill: var(--ink);
+}
+.site .d-t-soft {
+  fill: var(--ink-3);
+}
+
+/* ---------- principle: the creed set in sea on dark ---------- */
+.site #principle .display {
+  color: var(--sea-dk);
+}
+/* the answer sits low on the right, under the end of "responsibility", so
+   the band reads as one diagonal from the creed's first word down to it */
+.site .principle-copy {
+  grid-column: 8/13;
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--on-rule-2);
+}
+.site .principle-copy .body {
+  font-size: 19px;
+  color: var(--on);
+  max-width: 30em;
+}
+
+/* ---------- closing: the mark returns, in sea on dark ---------- */
+.site .closing {
+  position: relative;
+  margin-top: 200px;
+  padding: 150px 0;
+}
+.site .close-grid {
+  align-items: center;
+}
+.site .close-plate {
+  grid-column: 1/6;
+  grid-row: 1/3;
+  width: 100%;
+  max-width: 600px;
+  justify-self: start;
+}
+.site .closing .close-title {
+  grid-column: 6/13;
+  grid-row: 1;
+  align-self: end;
+}
+/* the request sits flush under "Yours / to tell.", one edge for the column */
+.site .closing .close-copy {
+  grid-column: 6/12;
+  grid-row: 2;
+  align-self: start;
+  margin-top: 52px;
+}
+.site .close-copy .body {
+  font-size: 18px;
+  color: var(--on);
+}
+.site .close-copy .actions {
+  margin-top: 36px;
+  position: relative;
+  z-index: 4;
+}
+/* the hide-and-show glitch over the hero's mark and the closing band (glitch-layer.tsx):
+   over everything but the buttons, never in the way */
+.site .glitch-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site .glitch-layer {
+    display: none;
+  }
+}
+
+/* tablet: the ledes take more of the width; the creed's answer stays on the right */
+@media (max-width: 1100px) {
+  .site .why-a,
+  .site .how-lede,
+  .site .who-lede,
+  .site .trust-intro {
+    grid-column: 1/12;
+  }
+  .site .principle-copy {
+    grid-column: 6/13;
+  }
+}
+@media (max-width: 900px) {
+  /* the hero is as tall as its content here, ending on its padding */
+  .site .hero + .band {
+    margin-top: 100px;
+  }
+  .site .close-plate {
+    grid-column: 1/-1;
+    grid-row: auto;
+    max-width: 520px;
+    justify-self: center;
+  }
+  .site .closing .close-title,
+  .site .closing .close-copy {
+    grid-column: 1/-1;
+    grid-row: auto;
+  }
+  .site .closing .close-title {
+    margin-top: 40px;
+  }
+}
+@media (max-width: 760px) {
+  .site .sect {
+    padding-top: 116px;
+  }
+  .site #how {
+    padding-top: 84px;
+  }
+  .site .why-a {
+    font-size: 18px;
+  }
+  .site .band {
+    margin-top: 116px;
+    padding: 96px 0 92px;
+  }
+  .site .hero + .band {
+    margin-top: 52px;
+  }
+  .site .why-a,
+  .site .how-lede,
+  .site .who-lede,
+  .site .trust-intro,
+  .site .principle-copy {
+    margin-top: 30px;
+  }
+  .site .closing {
+    margin-top: 116px;
+    padding: 84px 0 92px;
+  }
+  .site .close-plate {
+    max-width: 300px;
+  }
+  /* the phone body size, as everywhere else; the request then reads on one line */
+  .site .close-copy .body {
+    font-size: 16.5px;
+  }
+  .site .closing .close-title,
+  .site .closing .close-copy {
+    margin-top: 28px;
+  }
+}
+@media (max-width: 376px) {
+  .site .diagram text {
+    font-size: 11.8px;
+  }
+}

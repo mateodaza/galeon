@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { formatEther } from 'viem'
 import { Shield } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
+import { Lockup } from '@/components/brand/lockup'
 import { usePoolContext } from '@/contexts/pool-context'
 import { cn } from '@/lib/utils'
 
@@ -41,8 +41,7 @@ export function Header({ nav, showWallet = true }: HeaderProps) {
     <header className="flex items-center justify-between border-b px-6 py-4">
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
-          <span className="text-foreground text-xl font-bold">Galeon</span>
+          <Lockup className="text-foreground h-7 w-auto" />
         </Link>
         {nav && nav.length > 0 && (
           <nav className="flex items-center gap-1">

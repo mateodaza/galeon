@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { WalletButton } from '@/components/wallet-button'
+import { Lockup } from '@/components/brand/lockup'
 
 interface NavItem {
   href: string
@@ -28,6 +28,11 @@ interface FloatingNavProps {
    * @default 'dark'
    */
   variant?: 'dark' | 'light'
+  /**
+   * Where the logo leads; the previous site under /legacy keeps its own home.
+   * @default '/'
+   */
+  homeHref?: string
 }
 
 const variants = {
@@ -58,7 +63,7 @@ const variants = {
  * Transparent glass effect with rounded corners, centered nav links.
  * Responsive: hamburger menu on mobile.
  */
-export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
+export function FloatingNav({ nav, variant = 'dark', homeHref = '/' }: FloatingNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const navLinks = nav ?? defaultNavLinks
@@ -74,11 +79,10 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
       >
         {/* Logo */}
         <Link
-          href="/"
+          href={homeHref}
           className={`flex items-center gap-2 rounded-full px-4 py-2 transition-colors ${styles.logo}`}
         >
-          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
-          <span className="font-semibold">Galeon</span>
+          <Lockup className="h-7 w-auto" />
         </Link>
 
         {/* Divider */}
@@ -111,9 +115,11 @@ export function FloatingNav({ nav, variant = 'dark' }: FloatingNavProps) {
         className={`mx-auto flex w-full max-w-md items-center justify-between rounded-full border px-3 py-2 shadow-lg backdrop-blur-xl sm:hidden ${styles.nav}`}
       >
         {/* Logo */}
-        <Link href="/" className={`flex items-center gap-2 rounded-full px-2 py-1 ${styles.logo}`}>
-          <Image src="/galeon-logo.png" alt="Galeon" width={32} height={32} className="h-8 w-8" />
-          <span className="font-semibold">Galeon</span>
+        <Link
+          href={homeHref}
+          className={`flex items-center gap-2 rounded-full px-2 py-1 ${styles.logo}`}
+        >
+          <Lockup className="h-7 w-auto" />
         </Link>
 
         {/* Hamburger */}
