@@ -123,14 +123,14 @@ export const HOW = {
       name: 'Hidden in plain sight',
       mono: 'One-time addresses · EIP-5564',
       line: 'Each payment lands | at its own one-time address.',
-      text: 'A Port is a payment link you share. Every payment through it gets a fresh address that only your keys can spend from. Payers use the wallet they already have.',
+      text: 'A Port is a payment link you share. Every payment through it gets a fresh address that only your keys can spend from. The Port itself is public, with the wallet that created it, so create it from a wallet that does not name you. Payers use the wallet they already have.',
     },
     {
       n: '02',
       name: 'Out of reach',
-      mono: 'Screened pool · Privacy Pools model',
-      line: 'Funds pass through a screened pool, | and the chain stops showing | which deposit paid which withdrawal.',
-      text: 'Only money that came through a Port can enter. Your browser proves your deposit is in the approved set without saying which one, and the contract checks that proof on-chain.',
+      mono: 'Approval-gated pool · Privacy Pools model',
+      line: 'Funds pass through an approval-gated pool, | and the chain stops showing | which deposit paid which withdrawal.',
+      text: 'Only money that came through a Port can enter. Your browser proves your deposit is in the approved set without saying which one, and the contract checks that proof on-chain. Who approves deposits is up to whoever runs it: the reference deployment approves every one.',
     },
     {
       n: '03',
@@ -203,7 +203,7 @@ export const WHO = {
       who: `Whoever runs ${BRAND}`,
       sees: 'Every payment to Ports whose viewing keys it holds, with payer, amount and memo. The reference app holds them and checks your pool notes through its server, so it can link your deposits to your withdrawals.',
       hidden:
-        'Your spending keys. They are derived on your device and never sent anywhere, so it cannot spend your funds.',
+        'Your spending keys. They are derived on your device and never sent anywhere, so the viewing keys it holds cannot spend. Funds in the pool also rely on whoever can upgrade the contracts.',
     },
     {
       who: 'An auditor you choose',
@@ -240,7 +240,10 @@ export const TRUST = {
     title: 'Set by whoever runs it',
     items: [
       ['Viewing keys', 'Who holds Port viewing keys, and so who sees payments to those Ports.'],
-      ['Screening', 'The screening policy, and who approves deposits.'],
+      [
+        'Screening',
+        'The screening policy, and who approves deposits. The reference deployment approves every deposit.',
+      ],
       ['Relayers', 'Which relayers send private withdrawals.'],
       ['Proving setup', 'Who runs the setup for each circuit. A public ceremony is recommended.'],
       [
@@ -269,15 +272,15 @@ export const AUDIENCE = {
   items: [
     [
       'Programmes',
-      'Aid and cash-transfer programmes that pay people on a public chain, without publishing a list of the people they help.',
+      'Aid and cash-transfer programmes that pay people on a public chain, without each payment landing in a wallet that names the person.',
     ],
     [
       'Organisations',
-      'Teams that pay staff or suppliers on a public chain, without putting every payee on display.',
+      "Teams that pay staff or suppliers on a public chain, without every payment landing in someone's everyday wallet.",
     ],
     [
       'People',
-      'Anyone paid on a public chain who would rather a stranger could not add up their income.',
+      'Anyone paid on a public chain who would rather their payments did not pile up in one wallet anyone can read.',
     ],
   ] as const,
   developers:

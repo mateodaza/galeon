@@ -183,7 +183,7 @@ function TeamSlide() {
           <Person name="Mateo Daza" role="Product + frontend" />
           <Person name="Carlos Quintero" role="Backend + protocol · Lead developer" />
           <p className="mt-8 border-t border-white/15 pt-6 text-base text-cyan-50/80">
-            Cartagena On Chain is the applicant and proposed funded-period operator.
+            CartagenaOnChain is the applicant and proposed funded-period operator.
           </p>
         </section>
         <section>

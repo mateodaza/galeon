@@ -90,7 +90,7 @@ The distinction between allowlist and blocklist models is not just an implementa
 
 In a blocklist model (used by Railgun's Private Proofs of Innocence), the default state is "everyone is approved." Users prove their funds do not appear on a list of known bad actors. This is reactive: the system only catches threats it already knows about. A new exploit, a freshly sanctioned address, or a sophisticated laundering scheme can enter the pool before the blocklist is updated. The compliance guarantee is backward-looking.
 
-In an allowlist model (the Privacy Pools approach), the default state is "nobody is approved until verified." The ASP actively decides which deposits are eligible for private withdrawal. This is proactive: new deposits sit in the pool but cannot be privately withdrawn until the ASP includes them. A bad actor who deposits funds cannot extract them privately because their label will never appear in the approved set.
+In an allowlist model (the Privacy Pools approach), the default state is "nobody is approved until verified." The ASP actively decides which deposits are eligible for private withdrawal. This is proactive: new deposits sit in the pool but cannot be privately withdrawn until the ASP includes them. A bad actor who deposits funds cannot extract them privately if the ASP screens deposits and never approves their label. The reference ASP in this repository approves every new deposit automatically (it does not yet check a blocklist), so an operator must implement real screening before relying on this property. Ragequit, which returns funds publicly to the original depositor, does not need approval.
 
 This creates a stronger compliance posture. Regulators and institutions can reason about the allowlist model more easily because the question changes from "can you prove this user is not bad?" to "can you prove this user was explicitly vetted?" The burden of proof shifts in a way that mirrors how traditional financial compliance works: you verify your customers, not retroactively check them against evolving lists.
 
@@ -186,11 +186,11 @@ No other protocol currently combines EIP-5564 stealth addresses, the Privacy Poo
 - Shipwreck tax reports with PDF export (US/CO jurisdictions)
 - Full user flow: setup, create Port, share payment link, pay, detect, collect
 - Ragequit mechanism (contract-level emergency exit)
+- Merged deposits (merge-on-deposit in the pool contracts and the client; the merge circuit's source is not yet published)
 - Working protocol on EVM mainnet
 
 ### In Development
 
-- Account model with merge-on-deposit (constant-time withdrawals regardless of deposit history)
 - Decentralized relayer network
 - Client-side viewing key management
 - Multi-chain deployment
@@ -513,10 +513,10 @@ Shipwreck is not a regulatory filing tool and does not claim to satisfy any spec
 
 Galeon provides privacy from public blockchain observers. In its current architecture, it does not provide privacy from the Galeon operator (due to server-side viewing key custody). The system is designed so that:
 
-- An observer with access only to on-chain data cannot link stealth addresses to recipients.
-- An observer cannot link pool deposits to withdrawals.
+- An observer with access only to on-chain data sees a fresh stealth address for every payment. Each payment's announcement names its Port, though, and the Port is registered on-chain by the wallet that created it, so receiver privacy depends on creating Ports from a wallet that is not otherwise linked to the recipient.
+- An observer cannot directly link pool deposits to withdrawals; in a small pool, timing and amounts can still hint at a match.
 - The ASP operator cannot steal funds or forge proofs.
-- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius).
+- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). Port keys are derived from a 32-bit index of the Port ID, so two Port IDs can in principle share an index and therefore keys; deriving from the full identifier is planned.
 
 ### 13.2 Known Attack Surfaces
 
