@@ -516,7 +516,7 @@ Galeon provides privacy from public blockchain observers. In its current archite
 - An observer with access only to on-chain data sees a fresh stealth address for every payment. Each payment's announcement names its Port, though, and the Port is registered on-chain by the wallet that created it, so receiver privacy depends on creating Ports from a wallet that is not otherwise linked to the recipient.
 - An observer cannot directly link pool deposits to withdrawals; in a small pool, timing and amounts can still hint at a match.
 - The ASP operator cannot steal funds or forge proofs.
-- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). Port keys are derived from a 32-bit index of the Port ID, so two Port IDs can in principle share an index and therefore keys; deriving from the full identifier is planned.
+- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). New Ports derive their keys from the full Port ID (derivation v2). Ports created earlier derived them from a 32-bit index of the ID (v1), which two Port IDs can in principle share, and with it their keys; those Ports keep their v1 keys, so funds at their addresses stay reachable.
 
 ### 13.2 Known Attack Surfaces
 

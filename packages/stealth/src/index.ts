@@ -30,6 +30,17 @@ export {
   keccak256Hash,
 } from './keys'
 
+// Re-export versioned Port key derivation
+export {
+  CURRENT_PORT_KEY_VERSION,
+  derivePortKeysFromId,
+  derivePortKeysVersioned,
+  normalizePortId,
+  portIndexFromId,
+  resolvePortKeys,
+  type PortKeyVersion,
+} from './port-keys'
+
 // Re-export address functions
 export {
   generateStealthAddress,

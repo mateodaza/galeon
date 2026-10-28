@@ -6,7 +6,7 @@
  * Reads ports from backend API.
  * Creates ports via two-step flow:
  * 1. Create port in backend → get UUID
- * 2. Derive keys using UUID hash as seed
+ * 2. Derive keys from the full on-chain portId
  * 3. Update port with stealth keys
  * 4. Send on-chain tx → wait for receipt → confirm
  */
@@ -14,9 +14,9 @@
 import { useMemo, useState, useCallback } from 'react'
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { keccak256, toHex, encodePacked, stringToBytes } from 'viem'
+import { keccak256, toHex, encodePacked } from 'viem'
 import { galeonRegistryAbi, isSupportedChain, getStealthContracts } from '@/lib/contracts'
-import { derivePortKeys, formatStealthMetaAddress } from '@galeon/stealth'
+import { derivePortKeysFromId, formatStealthMetaAddress } from '@galeon/stealth'
 import { useStealthContext } from '@/contexts/stealth-context'
 import { useAuth } from '@/contexts/auth-context'
 import { portsApi, type PortResponse, type PortStatus } from '@/lib/api'
@@ -36,15 +36,6 @@ export interface Port {
   totalCollected: string // Total collected in wei
   paymentCount: number // Number of confirmed receipts
   archived: boolean
-}
-
-/**
- * Convert UUID to a deterministic 32-bit number for key derivation.
- * Uses first 4 bytes of keccak256 hash.
- */
-function uuidToPortIndex(uuid: string): number {
-  const hash = keccak256(stringToBytes(uuid))
-  return parseInt(hash.slice(2, 10), 16)
 }
 
 /**
@@ -106,7 +97,7 @@ export function usePorts(options?: { enablePolling?: boolean; pollingInterval?: 
  *
  * Two-step flow to avoid key reuse:
  * 1. Create port in backend → get UUID
- * 2. Derive keys using UUID hash as portIndex seed
+ * 2. Derive keys from the full on-chain portId
  * 3. Update port with stealth keys
  * 4. Send on-chain tx → wait for receipt → confirm
  */
@@ -187,9 +178,9 @@ export function useCreatePort() {
         sameCase: onChainPortId === normalizedPortId,
       })
 
-      // Step 2: Derive keys using on-chain portId (NOT backend UUID)
-      const portIndex = uuidToPortIndex(normalizedPortId)
-      const portKeys = derivePortKeys(masterSignature, portIndex)
+      // Step 2: Derive keys from the full on-chain portId (NOT backend UUID): derivation v2,
+      // so no two Ports can share keys (v1 reduced the ID to a 32-bit index)
+      const portKeys = derivePortKeysFromId(masterSignature, normalizedPortId)
 
       // Format stealth meta-address as string for backend
       const stealthMetaAddress = formatStealthMetaAddress(

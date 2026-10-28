@@ -95,7 +95,7 @@
 
 ## Audit Fixes (2025-12-27)
 
-- [x] Per-port key isolation - `derivePortKeys(masterSignature, portIndex)`
+- [x] Per-port key isolation - `derivePortKeysFromId(masterSignature, portId)` (v2, full ID); Ports created earlier keep v1 (`derivePortKeys` with a 32-bit index), found by `resolvePortKeys`
 - [x] Network guard - Wrong-chain warning with switch button
 - [x] Graceful env handling - Warn instead of crash on missing WalletConnect ID
 - [x] Verify page - "Coming Soon" badge added
