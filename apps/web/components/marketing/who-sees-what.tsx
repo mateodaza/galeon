@@ -2,12 +2,13 @@ import { WHO } from '@/content/landing'
 import { DisplayTitle } from './display-title'
 import { keepWhole, Phrased } from './phrased'
 import { SectionLabel } from './section-label'
+import { TrustLedger } from './trust-ledger'
 
 /** Keys for the two columns: solid for what a party sees, lines for what stays withheld. */
 const SEES = <i className="k k-solid" aria-hidden="true" />
 const WITHHELD = <i className="k k-lines" aria-hidden="true" />
 
-/** What each party can learn, whoever runs the deployment included. */
+/** What each party can learn, whoever runs the deployment included, then where the trust sits. */
 export function WhoSeesWhat() {
   return (
     <section className="sect" id="who" aria-labelledby="who-h">
@@ -56,6 +57,7 @@ export function WhoSeesWhat() {
           </div>
         </div>
       </div>
+      <TrustLedger />
     </section>
   )
 }

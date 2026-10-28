@@ -4,7 +4,6 @@ import { ClosingBand } from '@/components/marketing/closing-band'
 import { Hero } from '@/components/marketing/hero'
 import { HowItWorks } from '@/components/marketing/how-it-works'
 import { PrincipleBand } from '@/components/marketing/principle-band'
-import { TrustLedger } from '@/components/marketing/trust-ledger'
 import { WhoSeesWhat } from '@/components/marketing/who-sees-what'
 import { WhyBand } from '@/components/marketing/why-band'
 
@@ -22,7 +21,6 @@ export default function Home() {
       <HowItWorks />
       <PrincipleBand />
       <WhoSeesWhat />
-      <TrustLedger />
       <Audiences />
       <ClosingBand />
     </>

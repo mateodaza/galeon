@@ -41,7 +41,6 @@ export const ORG = {
 export const NAV = [
   { href: '/#how', label: 'How it works' },
   { href: '/#who', label: 'Who sees what' },
-  { href: '/#trust', label: 'Trust' },
   { href: '/about', label: 'About' },
   { href: '/roadmap', label: 'Roadmap' },
 ] as const

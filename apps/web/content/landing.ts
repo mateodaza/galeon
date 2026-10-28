@@ -187,71 +187,55 @@ export const WHO = {
   } satisfies DisplayTitle,
   lede: `What each party can learn, including whoever runs ${BRAND}.`,
   cols: { who: 'Who', sees: 'Sees', hidden: 'Does not see' },
+  /** One short line a cell: the detail is in the litepaper's trust model (TRUST.link). */
   rows: [
     {
       who: 'Anyone reading the chain',
-      sees: "Each payment's sender, amount and one-time address. The Port it reached, with that Port's name and the wallet that created it. Every deposit into the pool and every withdrawal.",
-      hidden:
-        'Which deposit paid for which withdrawal. In a small pool, timing and amounts can still hint at a match.',
+      sees: 'Each payment, its Port and the wallet that created the Port. Every pool deposit and withdrawal.',
+      hidden: 'Which deposit paid which withdrawal, though a small pool can still hint.',
     },
     {
       who: 'Whoever pays you',
-      sees: 'What they paid and where it landed. The Port is on-chain with the wallet that created it, so they can also find its other payments.',
-      hidden: 'Your keys, or where the money goes after a private withdrawal.',
+      sees: "What they paid, and the Port's other payments.",
+      hidden: 'Your keys, or where funds go after a private withdrawal.',
     },
     {
       who: `Whoever runs ${BRAND}`,
-      sees: 'Every payment to Ports whose viewing keys it holds, with payer, amount and memo. The reference app holds them and checks your pool notes through its server, so it can link your deposits to your withdrawals.',
-      hidden:
-        'Your spending keys. They are derived on your device and never sent anywhere, so the viewing keys it holds cannot spend. Funds in the pool also rely on whoever can upgrade the contracts.',
+      sees: 'Payments to the Ports whose viewing keys it holds, and which of your deposits became which withdrawals.',
+      hidden: 'Your spending keys, so its viewing keys alone cannot spend.',
     },
     {
       who: 'An auditor you choose',
-      sees: 'The report you hand over, with the date, amount and other party of each payment in it.',
-      hidden: 'Anything outside the report, beyond what the chain already shows.',
+      sees: 'The report you hand over.',
+      hidden: 'Anything else the chain does not already show.',
     },
   ],
 } as const
 
+/** Under the table: where the trust sits, as two short lists. */
 export const TRUST = {
-  label: 'Trust',
-  title: {
-    lines: [['Where the trust sits.', 0]],
-    phone: ['Where the trust sits.'],
-    size: { desktop: 112, phone: 42 },
-  } satisfies DisplayTitle,
-  intro: `${BRAND} is a framework, so trust sits in two places.`,
   holds: {
     title: 'Holds by design',
-    /** Set after the list, so both columns start level. */
-    qualifier: 'These hold while the contracts run as deployed.',
     items: [
-      ['Spending keys', 'Derived on your device and never sent anywhere.'],
-      ['Proofs', 'Built in your browser and verified on-chain.'],
-      ['Deposits', 'The pool accepts only money that arrived through a Port.'],
-      ['A way out', 'Any deposit can be taken back, in public, by its depositor.'],
-      [
-        'Open source',
-        'The contracts, the app and the libraries are public on GitHub under MIT, Apache-2.0 and GPL-3.0, so anyone can run their own deployment.',
-      ],
-    ] as const,
+      'Spending keys stay on your device',
+      'Proofs are verified on-chain',
+      'Only money that came through a Port enters the pool',
+      'Any deposit can be taken back, in public',
+      'Open source: MIT, Apache-2.0 and GPL-3.0',
+    ],
   },
   operator: {
     title: 'Set by whoever runs it',
     items: [
-      ['Viewing keys', 'Who holds Port viewing keys, and so who sees payments to those Ports.'],
-      [
-        'Screening',
-        'The screening policy, and who approves deposits. The reference deployment approves every deposit.',
-      ],
-      ['Relayers', 'Which relayers send private withdrawals.'],
-      ['Proving setup', 'Who runs the setup for each circuit. A public ceremony is recommended.'],
-      [
-        'Upgrades',
-        'Who can upgrade or pause the contracts. A multisig with a delay is the recommended setup.',
-      ],
-    ] as const,
+      'Who holds viewing keys',
+      'Screening: the reference deployment approves every deposit',
+      'Which relayers send withdrawals',
+      'Who runs the proving setup',
+      'Who can upgrade or pause the contracts',
+    ],
   },
+  qualifier:
+    'The first list holds while the contracts run as deployed: | whoever can upgrade them can change it.',
   link: {
     label: 'Trust model and known limitations',
     href: `${LINKS.litepaper}#4-trust-model-and-current-limitations`,
