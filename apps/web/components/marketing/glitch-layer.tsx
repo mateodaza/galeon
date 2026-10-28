@@ -21,6 +21,8 @@ const SIZE = 18
 const SIZE_VAR = 30
 const REACH_X = 96
 const REACH_Y = 56
+/** A cluster under a resting mouse lifts on its own after HOLD_MAX s, so text is never kept hidden; a new one needs the mouse to move on. */
+const HOLD_MAX = 1.5
 /** A mouse moves on to a new cluster once it is LEAVE px from the old one's centre, but no sooner than MIN_GAP s. */
 const LEAVE = 70
 const MIN_GAP = 0.3
@@ -193,6 +195,7 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const fine = window.matchMedia('(hover: hover) and (pointer: fine)')
     let raf = 0
+    let timer: ReturnType<typeof setTimeout> | 0 = 0
     let visible = false
     let boxes: Box[] = []
     let hidden: Hidden[] = []
@@ -234,6 +237,7 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
         release(held)
         held = null
       }
+      if (held && held.until === null && clock - held.from > HOLD_MAX) release(held)
       // with no mouse, a piece of the content hides now and then on its own
       if (ambient && pointer === null && !hidden.length && clock >= nextAmbient && boxes.length) {
         const k = ids
@@ -266,9 +270,25 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
         for (const h of hidden) drawHidden(c, h, clock, bg, accent)
         c.restore()
       }
-      raf = requestAnimationFrame(frame)
+      // frames only while something is hidden; a mouse move, or with no mouse over the band the
+      // next ambient glitch, wakes it (a resting mouse schedules nothing)
+      if (hidden.length) raf = requestAnimationFrame(frame)
+      else {
+        last = 0
+        if (ambient && pointer === null && boxes.length)
+          timer = setTimeout(
+            () => {
+              timer = 0
+              clock = Math.max(clock, nextAmbient)
+              start()
+            },
+            Math.max(0, nextAmbient - clock) * 1000
+          )
+      }
     }
     const start = () => {
+      if (timer) clearTimeout(timer)
+      timer = 0
       if (!raf) raf = requestAnimationFrame(frame)
     }
 
@@ -280,6 +300,9 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
     }
     const onLeave = () => {
       pointer = null
+      // the next ambient glitch waits a full rest after the mouse leaves, never fires at once
+      nextAmbient = Math.max(nextAmbient, clock + REST)
+      start()
     }
     // the words may have moved since they were measured (they rise in on load): measure again
     const onEnter = () => {
@@ -301,6 +324,7 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
     band.addEventListener('pointerenter', onEnter)
     return () => {
       if (raf) cancelAnimationFrame(raf)
+      if (timer) clearTimeout(timer)
       io.disconnect()
       ro.disconnect()
       band.removeEventListener('pointermove', onMove)

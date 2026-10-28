@@ -31,7 +31,7 @@ export const LINKS = {
 } as const
 
 export const ORG = {
-  name: 'Cartagena On Chain',
+  name: 'CartagenaOnChain',
   url: 'https://cartagenaonchain.org/',
   x: 'https://x.com/ctg_onchain',
   linkedin: 'https://www.linkedin.com/company/cartagenaonchain/',

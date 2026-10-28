@@ -1,7 +1,23 @@
 import type { NextConfig } from 'next'
 import path from 'path'
 
+/**
+ * Response headers on every route. The site may not be framed (clickjacking),
+ * sends only its origin to other sites, and forbids MIME sniffing. A full
+ * content security policy is not set yet: it has to be tested against the
+ * wallet app's third-party scripts first.
+ */
+const SECURITY_HEADERS = [
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+]
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: '/:path*', headers: SECURITY_HEADERS }]
+  },
   transpilePackages: ['@galeon/stealth', '@galeon/pool', 'maci-crypto', 'poseidon-lite'],
   // The social-card renderer reads its fonts from disk at request time.
   outputFileTracingIncludes: {

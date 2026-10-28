@@ -219,6 +219,12 @@
     white-space: nowrap;
   }
 }
+/* the narrowest phones: the two actions do not fit one row, so they wrap */
+@media (max-width: 359px) {
+  .site .hero .actions {
+    flex-wrap: wrap;
+  }
+}
 /* phones turned sideways: the width-led headline would fill the whole screen
    on its own, so its size is capped by the screen's height */
 @media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
@@ -237,8 +243,11 @@
 }
 /* A title's redacted word (DisplayTitle's `redact`) arrives under a solid bar,
    like a classified document, holds a moment after its line has risen, then
-   the bar glitches away in stepped jumps. Only with the reveal running: without
-   it, or under reduced motion, the word simply shows. */
+   the bar glitches away in stepped jumps. Once the line is in, the bar's own
+   style is hidden: the animation only shows it while it plays (its first frame
+   fills the wait), so when it ends nothing is left, whatever a browser does
+   with the last frame (Safari on iOS kept a corner of it). Only with the reveal
+   running: without it, or under reduced motion, the word simply shows. */
 .site .redact {
   position: relative;
 }
@@ -249,37 +258,48 @@
   background: var(--ink);
 }
 .site[data-reveal] .display[data-in] .redact::after {
-  animation: redact-lift 0.42s steps(1, end) both;
+  opacity: 0;
+  visibility: hidden;
+  animation: redact-lift 0.42s steps(1, end) backwards;
   animation-delay: calc(var(--i, 0) * 0.45s + 1.9s);
 }
 @keyframes redact-lift {
   0% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(0);
     transform: none;
   }
   20% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(0);
     transform: translateX(-0.06em);
   }
   35% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(0 30% 0 0);
     transform: translateX(0.04em);
   }
   50% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(25% 0 35% 10%);
     transform: none;
   }
   65% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(0 55% 40% 0);
     transform: translateX(-0.03em);
   }
   80% {
+    opacity: 1;
+    visibility: visible;
     clip-path: inset(60% 10% 0 70%);
   }
-  /* gone for good: Safari on iOS keeps the last visible clip when the clip
-     collapses to nothing, so the bar also fades and leaves the layout */
   100% {
-    clip-path: inset(0 0 100% 0);
     opacity: 0;
     visibility: hidden;
   }
@@ -323,6 +343,9 @@
   .site .hero .lede,
   .site .hero .actions {
     animation: none;
+    opacity: 1;
+  }
+  .site[data-reveal] main > section:not(.hero) .display:not([data-in]) .ln {
     opacity: 1;
   }
   .site[data-reveal] .display .redact::after {

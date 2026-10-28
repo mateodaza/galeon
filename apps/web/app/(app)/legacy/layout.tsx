@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function LegacyLayout({ children }: { children: React.ReactNode }) {
   return (
     // Moves the old floating nav (a fixed header) below the banner.
-    <div className="overflow-x-clip [&_header.fixed]:top-14 sm:[&_header.fixed]:top-11">
+    <div className="overflow-x-clip [&_header.fixed]:top-[4.25rem] sm:[&_header.fixed]:top-12 lg:[&_header.fixed]:top-11">
       <LegacyBanner />
       {children}
     </div>

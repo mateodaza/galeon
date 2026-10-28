@@ -43,12 +43,12 @@ export const ABOUT = {
       {
         n: '01',
         name: 'Hidden in plain sight',
-        text: 'A Port is a payment link backed by a stealth meta-address. Each payment lands at a fresh one-time address under EIP-5564. Every Port has its own keys, so one leaked viewing key exposes only that Port.',
+        text: 'A Port is a payment link backed by a stealth meta-address. Each payment lands at a fresh one-time address under EIP-5564. Port keys are derived using a Port-specific index. The current 32-bit index can collide, causing two Ports under the same master signature to share keys. Full-identifier derivation is planned.',
       },
       {
         n: '02',
         name: 'Out of reach',
-        text: 'Money that arrived through a Port can enter a shared pool. A private withdrawal proves its deposit is in the approved set without saying which one. This is the model from the Privacy Pools paper.',
+        text: 'Money that arrived through a Port can enter a shared pool. A private withdrawal proves its deposit is in the approved set without saying which one. This is the model from the Privacy Pools paper. Who approves deposits is up to whoever runs it; the reference deployment approves every one.',
       },
       {
         n: '03',
