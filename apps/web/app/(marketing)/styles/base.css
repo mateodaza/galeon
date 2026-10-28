@@ -144,8 +144,7 @@ html[data-theme='dark']:has(.site) {
 .site li {
   text-wrap: pretty;
 }
-.site h3,
-.site .ledger strong {
+.site h3 {
   text-wrap: balance;
 }
 /* a sentence or clause set as one unit (Phrased): lines break between them first */

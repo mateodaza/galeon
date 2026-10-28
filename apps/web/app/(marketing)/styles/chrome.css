@@ -246,7 +246,7 @@
   }
 }
 @media (max-width: 999px) {
-  /* five section links no longer fit beside the tools here, so the menu takes over */
+  /* the section links no longer fit beside the tools here, so the menu takes over */
   .site .nav-sections {
     display: none;
   }
