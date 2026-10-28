@@ -72,7 +72,7 @@ Galeon solves this with stealth addresses, following EIP-5564 for the announceme
 
 Galeon organizes stealth addresses into Ports. A Port is a named payment endpoint with its own key pair. Alice might create a Port called "Freelance" for client payments and another called "Donations" for open-source contributions. Port types (permanent, recurring, one-time, burner) map to real-world payment patterns.
 
-Ports isolate keys: each Port derives its spending and viewing keys with HKDF, using a Port-specific value as the salt, so a leaked viewing key exposes that Port's payments rather than every payment, as it would under a single keypair. Port keys are derived using a Port-specific index. The current 32-bit index can collide, causing two Ports under the same master signature to share keys. Full-identifier derivation is planned.
+Ports isolate keys: each Port derives its spending and viewing keys with HKDF, using a Port-specific value as the salt, so a leaked viewing key exposes that Port's payments rather than every payment, as it would under a single keypair. Port keys are derived from the full Port ID, so two Ports under the same master signature do not share keys. Ports created before this change used a 32-bit index, which can collide; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### Layer 2: Privacy Pool (Sender Privacy + Compliance)
 
@@ -230,7 +230,7 @@ The signature bytes serve as the input key material (IKM) for HKDF. A fixed non-
 
 Each derivation produces 32 bytes, which are reduced modulo the secp256k1 curve order to obtain a valid private key. The modular reduction bias is negligible at approximately 2^-128.
 
-For per-Port key isolation, the Port index (a non-negative integer) is encoded as a 32-byte big-endian value and used as the HKDF salt, replacing the default salt. Ports with different indices get independent keys, because the HKDF salt differs. Port keys are derived using a Port-specific index. The current 32-bit index can collide, causing two Ports under the same master signature to share keys. Full-identifier derivation is planned.
+For per-Port key isolation, the HKDF salt is the 32-byte keccak256 of the full Port ID, under its own derivation domain (`galeon-port-derivation-v2`), replacing the default salt; Ports with different IDs get independent keys. Ports created before this change used a 32-bit index of the ID, encoded as a 32-byte big-endian value, as the salt (v1). That index can collide, so two such Ports under the same master signature could share keys; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### 7.2 Stealth Address Generation (EIP-5564)
 
@@ -516,7 +516,7 @@ Galeon provides privacy from public blockchain observers. In its current archite
 - An observer with access only to on-chain data sees a fresh stealth address for every payment, but each payment's announcement names its Port, and the Port is registered on-chain by the wallet that created it, so every payment is publicly linked to that Port and wallet. A fresh wallet narrows what this reveals; it does not by itself make the recipient anonymous.
 - An observer cannot directly link pool deposits to withdrawals; in a small pool, timing and amounts can still hint at a match.
 - The ASP operator cannot steal funds or forge proofs.
-- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). Port keys are derived using a Port-specific index. The current 32-bit index can collide, causing two Ports under the same master signature to share keys. Full-identifier derivation is planned.
+- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). Port keys are derived from the full Port ID, so two Ports under the same master signature do not share keys. Ports created before this change used a 32-bit index, which can collide; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### 13.2 Known Attack Surfaces
 

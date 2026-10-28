@@ -60,7 +60,7 @@ const client = createStealthClient(5000, { chainPrefix: 'eth' }) // Use st:eth: 
 | `contracts`                                    | `object`         | Contract addresses         |
 | `schemeId`                                     | `number`         | EIP-5564 scheme (always 1) |
 | `deriveKeys(sig)`                              | `function`       | Derive stealth keys        |
-| `derivePortKeys(sig, index)`                   | `function`       | Derive Port-specific keys  |
+| `derivePortKeys(sig, index)`                   | `function`       | Port keys, v1 (by index)   |
 | `generateAddress(metaAddr)`                    | `function`       | Generate stealth address   |
 | `scan(announcements, spendingKey, viewingKey)` | `function`       | Scan for payments          |
 
@@ -83,16 +83,35 @@ const keys = deriveStealthKeys(signature, 'mnt')
 // keys.stealthMetaAddress  - st:mnt:0x...
 ```
 
-#### `derivePortKeys(masterSignature, portIndex, chainPrefix?)`
+#### `derivePortKeysFromId(masterSignature, portId, chainPrefix?)`
 
-Derive cryptographically independent keys for a specific Port.
+Derive a Port's keys from its full ID (derivation v2): the HKDF salt is the
+32-byte keccak256 of the ID, so distinct Port IDs get independent keys. New
+Ports use this.
 
 ```typescript
-import { derivePortKeys } from '@galeon/stealth'
+import { derivePortKeysFromId } from '@galeon/stealth'
 
-const port0Keys = derivePortKeys(masterSig, 0)
-const port1Keys = derivePortKeys(masterSig, 1)
-// port0Keys and port1Keys are independent
+const keys = derivePortKeysFromId(masterSig, onChainPortId) // bytes32 hex
+```
+
+#### `resolvePortKeys(masterSignature, portId, stealthMetaAddress, chainPrefix?)`
+
+Find a Port's keys when its meta-address is known (registered on-chain): tries
+v2, then v1, and returns `{ keys, version }` for the one whose meta-address
+matches, or `null`. Use it wherever keys are re-derived to scan or spend, so
+Ports created before v2 keep working.
+
+#### `derivePortKeys(masterSignature, portIndex, chainPrefix?)`
+
+Derivation v1: keys for a numeric Port index. Ports created before v2 used
+`portIndexFromId(portId)`, the first four bytes of keccak256 of the ID, as the
+index; two IDs can share it and then share keys, so new Ports must not use it.
+
+```typescript
+import { derivePortKeys, portIndexFromId } from '@galeon/stealth'
+
+const legacy = derivePortKeys(masterSig, portIndexFromId(portId))
 ```
 
 #### `parseStealthMetaAddress(metaAddress)`

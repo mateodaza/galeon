@@ -11,7 +11,6 @@ import { useCallback, useState } from 'react'
 import { useSignMessage, useAccount } from 'wagmi'
 import {
   deriveStealthKeys,
-  derivePortKeys,
   generateStealthAddress,
   parseStealthMetaAddress,
   type StealthKeys,
@@ -60,25 +59,6 @@ export function useStealth() {
   }, [address, signMessageAsync])
 
   /**
-   * Derive keys for a specific Port.
-   * Requires master keys to be derived first.
-   */
-  const derivePortKeysFromMaster = useCallback(
-    async (portIndex: number) => {
-      if (!address) {
-        throw new Error('Wallet not connected')
-      }
-
-      const signature = await signMessageAsync({
-        message: KEY_DERIVATION_MESSAGE,
-      })
-
-      return derivePortKeys(signature, portIndex)
-    },
-    [address, signMessageAsync]
-  )
-
-  /**
    * Generate a stealth address for payment.
    */
   const generateAddress = useCallback((stealthMetaAddress: string) => {
@@ -106,7 +86,6 @@ export function useStealth() {
     keys,
     isDerivingKeys,
     deriveKeys,
-    derivePortKeysFromMaster,
     generateAddress,
     parseMetaAddress,
     hasKeys: keys !== null,

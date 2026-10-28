@@ -18,23 +18,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
-import {
-  formatEther,
-  parseEther,
-  type Hex,
-  keccak256,
-  stringToBytes,
-  type Address,
-  encodeFunctionData,
-} from 'viem'
+import { formatEther, parseEther, type Hex, type Address, encodeFunctionData } from 'viem'
 import { useStealthContext } from '@/contexts/stealth-context'
 import { usePoolContext, type PoolDeposit } from '@/contexts/pool-context'
-import {
-  scanAnnouncements,
-  derivePortKeys,
-  formatStealthMetaAddress,
-  type Announcement,
-} from '@galeon/stealth'
+import { scanAnnouncements, resolvePortKeys, type Announcement } from '@galeon/stealth'
 import {
   createDepositSecrets,
   createWithdrawalSecrets,
@@ -65,15 +52,6 @@ import { poseidonHash, recoverMergeDeposit, type MergeDepositEvent } from '@gale
 import { safeParseEther } from '@/lib/utils'
 import { isSupportedChain, getStealthContracts, galeonRegistryAbi } from '@/lib/contracts'
 import { encodeAbiParameters, parseEventLogs } from 'viem'
-
-/**
- * Convert UUID to a deterministic 32-bit number for key derivation.
- * Uses first 4 bytes of keccak256 hash.
- */
-function uuidToPortIndex(uuid: string): number {
-  const hash = keccak256(stringToBytes(uuid))
-  return parseInt(hash.slice(2, 10), 16)
-}
 
 /**
  * Minimum balance required to collect a payment on Mantle.
@@ -274,88 +252,25 @@ export function useCollection() {
         // The on-chain portId is always lowercase from keccak256, but database may store it differently
         const normalizedPortId = port.indexerPortId.toLowerCase()
 
-        // Debug: Show the raw bytes that uuidToPortIndex will hash
-        const rawBytesHex = Array.from(stringToBytes(normalizedPortId))
-          .slice(0, 10)
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join(' ')
-
-        console.log('[scan] Port', port.name, 'indexerPortId:', {
-          raw: port.indexerPortId,
-          normalized: normalizedPortId,
-          sameCase: port.indexerPortId === normalizedPortId,
-          first10Bytes: rawBytesHex,
-          length: port.indexerPortId.length,
-        })
-
-        const portIndex = uuidToPortIndex(normalizedPortId)
-        const portKeys = derivePortKeys(masterSignature, portIndex)
-
-        // CRITICAL: Verify derived keys match the on-chain stealth meta-address
-        // This ensures we never scan with wrong keys (which would miss payments)
-        const derivedStealthMeta = formatStealthMetaAddress(
-          portKeys.spendingPublicKey,
-          portKeys.viewingPublicKey,
-          'mnt'
-        )
-        const keysMatch =
-          port.stealthMetaAddress?.toLowerCase() === derivedStealthMeta.toLowerCase()
-
-        console.log('[scan] Port', port.name, 'key verification:', {
-          portIndex,
-          indexerPortId: port.indexerPortId,
-          normalizedPortId,
-          onChainMeta: port.stealthMetaAddress?.slice(0, 50) + '...',
-          derivedMeta: derivedStealthMeta.slice(0, 50) + '...',
-          keysMatch,
-        })
-
-        // If keys don't match, try fallback: derive from backend UUID (legacy ports)
-        let finalPortKeys = portKeys
-        let usedFallback = false
-
-        if (!keysMatch) {
-          // Try legacy key derivation using backend UUID
-          console.log('[scan] Trying legacy key derivation for port', port.name)
-          const legacyPortIndex = uuidToPortIndex(port.id)
-          const legacyKeys = derivePortKeys(masterSignature, legacyPortIndex)
-          const legacyMeta = formatStealthMetaAddress(
-            legacyKeys.spendingPublicKey,
-            legacyKeys.viewingPublicKey,
-            'mnt'
+        // The Port's keys, checked against its published stealth meta-address so a scan never
+        // runs with wrong keys: the full-ID derivation (v2) first, then the 32-bit index of
+        // the on-chain ID (v1, Ports created before v2), then the oldest Ports, whose v1 index
+        // came from the backend UUID.
+        const resolved = port.stealthMetaAddress
+          ? (resolvePortKeys(masterSignature, normalizedPortId, port.stealthMetaAddress) ??
+            resolvePortKeys(masterSignature, port.id, port.stealthMetaAddress))
+          : null
+        if (!resolved) {
+          console.warn(
+            '[scan] Skipping port',
+            port.name,
+            '- no key derivation matches its stealth meta-address (another wallet, or corrupted)'
           )
-          const legacyMatch = port.stealthMetaAddress?.toLowerCase() === legacyMeta.toLowerCase()
-
-          console.log('[scan] Port', port.name, 'legacy key verification:', {
-            legacyPortIndex,
-            backendUUID: port.id,
-            storedMeta: port.stealthMetaAddress?.slice(0, 50) + '...',
-            legacyMeta: legacyMeta.slice(0, 50) + '...',
-            legacyMatch,
-          })
-
-          if (legacyMatch) {
-            console.log('[scan] Legacy keys matched for port', port.name, '✓')
-            finalPortKeys = legacyKeys
-            usedFallback = true
-          } else {
-            // Neither new nor legacy keys match - skip this port
-            console.warn('[scan] Skipping port', port.name, '- neither new nor legacy keys match')
-            console.warn(
-              '[scan] This port may have been created with a different wallet or is corrupted'
-            )
-            console.warn('[scan] Stored stealth meta:', port.stealthMetaAddress)
-            console.warn('[scan] Derived from indexerPortId:', derivedStealthMeta)
-            console.warn('[scan] Derived from backend UUID:', legacyMeta)
-            continue
-          }
+          continue
         }
+        const finalPortKeys = resolved.keys
 
-        console.log(
-          '[scan] Scanning port:',
-          port.name,
-          usedFallback ? '✓ (legacy keys)' : '✓ keys verified'
-        )
+        console.log('[scan] Scanning port:', port.name, `✓ keys verified (v${resolved.version})`)
 
         const portPayments = scanAnnouncements(
           announcements,

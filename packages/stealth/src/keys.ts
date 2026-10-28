@@ -40,7 +40,7 @@ const DEFAULT_SALT = new Uint8Array([
  *
  * Uses rejection sampling to avoid modular bias (though negligible at ~2^-128).
  */
-function derivePrivateKey(
+export function derivePrivateKey(
   ikm: Uint8Array,
   domain: string,
   salt: Uint8Array = DEFAULT_SALT
@@ -119,10 +119,14 @@ export function deriveStealthKeys(
 }
 
 /**
- * Derive unique keys for a Port from a master signature and port index.
+ * Derive unique keys for a Port from a master signature and port index
+ * (derivation v1).
  *
- * Each Port gets cryptographically independent keys, so compromising
- * one Port's viewing key reveals nothing about other Ports.
+ * Each index gets cryptographically independent keys, so compromising one
+ * Port's viewing key reveals nothing about other Ports with other indices.
+ * Ports created in the app before derivation v2 used `portIndexFromId(portId)`
+ * as the index, a 32-bit value that two Port IDs can share; new Ports use
+ * `derivePortKeysFromId` (port-keys.ts), which uses the full ID.
  *
  * @param masterSignature - User's master stealth signature (0x-prefixed hex)
  * @param portIndex - Unique index for this Port (0, 1, 2, ...)
@@ -150,22 +154,39 @@ export function derivePortKeys(
     throw new Error('Port index must be a non-negative integer')
   }
 
-  const sigBytes = hexToBytes(masterSignature.slice(2))
-  if (sigBytes.length < 64) {
-    throw new Error('Invalid signature: too short (minimum 64 bytes)')
-  }
-
   // Use port index as salt for HKDF derivation
   // This ensures each port gets completely independent keys
   const portSalt = new Uint8Array(32)
   new DataView(portSalt.buffer).setUint32(0, portIndex, false)
 
+  return portKeysFromSalt(signatureBytes(masterSignature), DOMAIN_PORT, portSalt, chainPrefix)
+}
+
+/** The master signature's bytes, checked to be long enough to derive from. */
+export function signatureBytes(masterSignature: `0x${string}`): Uint8Array {
+  const sigBytes = hexToBytes(masterSignature.slice(2))
+  if (sigBytes.length < 64) {
+    throw new Error('Invalid signature: too short (minimum 64 bytes)')
+  }
+  return sigBytes
+}
+
+/**
+ * A Port's spending and viewing keys from the master signature's bytes, under a
+ * derivation domain (its version) and a per-Port salt.
+ */
+export function portKeysFromSalt(
+  sigBytes: Uint8Array,
+  domain: string,
+  portSalt: Uint8Array,
+  chainPrefix: StealthChainPrefix = DEFAULT_PREFIX
+): StealthKeys {
   // Derive port-specific spending key
-  const spendingPrivateKey = derivePrivateKey(sigBytes, `${DOMAIN_PORT}-spending`, portSalt)
+  const spendingPrivateKey = derivePrivateKey(sigBytes, `${domain}-spending`, portSalt)
   const spendingPublicKey = secp256k1.getPublicKey(spendingPrivateKey, true)
 
   // Derive port-specific viewing key
-  const viewingPrivateKey = derivePrivateKey(sigBytes, `${DOMAIN_PORT}-viewing`, portSalt)
+  const viewingPrivateKey = derivePrivateKey(sigBytes, `${domain}-viewing`, portSalt)
   const viewingPublicKey = secp256k1.getPublicKey(viewingPrivateKey, true)
 
   // Build stealth meta-address
