@@ -43,7 +43,7 @@ export const ABOUT = {
       {
         n: '01',
         name: 'Hidden in plain sight',
-        text: 'A Port is a payment link backed by a stealth meta-address. Each payment lands at a fresh one-time address under EIP-5564. Every Port gets its own keys, derived from its full ID, so a leaked viewing key exposes that Port, not the others. (Ports created before this derived them from a 32-bit index of the ID, which two IDs can in principle share; they keep those keys.)',
+        text: 'A Port is a payment link backed by a stealth meta-address. Each payment lands at a fresh one-time address under EIP-5564. Port keys are derived from the full Port ID, so two Ports under the same master signature do not share keys. Ports created before this change used a 32-bit index, which can collide; they keep the keys they were created with.',
       },
       {
         n: '02',

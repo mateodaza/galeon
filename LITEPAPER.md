@@ -35,7 +35,7 @@ Existing privacy tools solved this by making everything anonymous, which made th
 
 Privacy Pools, based on the 2023 paper co-authored by Vitalik Buterin and Chainalysis's Jacob Illum, proved you can have both: users deposit into a pool and prove their funds come from a compliant set (an Association Set Provider tree) without revealing which specific deposit is theirs, giving the user privacy while keeping the system auditable. Since then, the design space has split between blocklist models (prove you are not on a sanctions list) and allowlist models (prove membership in a set of approved participants). Each makes different trade-offs between openness and compliance strictness.
 
-What has been missing is a system that combines receiver privacy (so payers cannot trace recipients), sender privacy (so withdrawals cannot be linked to deposits), and compliance tooling (so users can prove the legitimacy of their funds when needed). Galeon is that system.
+What has been missing is a system that combines receiver privacy (a fresh address for every payment, so payments do not pile up at one address), sender privacy (so withdrawals cannot be linked to deposits), and compliance tooling (so users can prove the legitimacy of their funds when needed). Galeon is that system.
 
 ## 2. Three-Layer Architecture
 
@@ -68,21 +68,21 @@ graph TD
 
 The first problem is address reuse. When Alice gives Bob her Ethereum address, Bob can see every other transaction Alice has ever made with that address. Every future payment Alice receives there is also visible to Bob. This makes it impossible to maintain financial privacy across multiple relationships.
 
-Galeon solves this with stealth addresses, following EIP-5564 for the announcement scheme and referencing EIP-6538 for the meta-address format. Instead of publishing a regular Ethereum address, Alice publishes a stealth meta-address. When Bob wants to pay Alice, his wallet uses Alice's meta-address to derive a fresh, one-time address that only Alice can detect and control. From the perspective of any outside observer, the payment goes to an address with no visible connection to Alice.
+Galeon solves this with stealth addresses, following EIP-5564 for the announcement scheme and referencing EIP-6538 for the meta-address format. Instead of publishing a regular Ethereum address, Alice publishes a stealth meta-address. When Bob wants to pay Alice, his wallet uses Alice's meta-address to derive a fresh, one-time address that only Alice can detect and control. To an outside observer the payment lands at an address that has never been used before. It is still publicly linked to Alice's Port: every payment's announcement names its Port, and the Port is registered on-chain by the wallet that created it. Creating Ports from a fresh wallet narrows what that link reveals, but does not by itself make Alice anonymous; how that wallet was funded, or where collected funds go, can still identify her.
 
-Galeon organizes stealth addresses into Ports. A Port is a named payment endpoint with its own cryptographically independent key pair. Alice might create a Port called "Freelance" for client payments and another called "Donations" for open-source contributions. If the viewing key for one Port is compromised, no other Port is affected. Port types (permanent, recurring, one-time, burner) map to real-world payment patterns.
+Galeon organizes stealth addresses into Ports. A Port is a named payment endpoint with its own key pair. Alice might create a Port called "Freelance" for client payments and another called "Donations" for open-source contributions. Port types (permanent, recurring, one-time, burner) map to real-world payment patterns.
 
-The key innovation here is per-Port key isolation. Each Port derives its spending and viewing keys independently using HKDF with the Port index as a unique salt. Compromise of one Port's viewing key reveals nothing about any other Port. This is a meaningful improvement over single-keypair stealth address schemes where one leak exposes everything.
+Ports isolate keys: each Port derives its spending and viewing keys with HKDF, using a Port-specific value as the salt, so a leaked viewing key exposes that Port's payments rather than every payment, as it would under a single keypair. Port keys are derived from the full Port ID, so two Ports under the same master signature do not share keys. Ports created before this change used a 32-bit index, which can collide; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### Layer 2: Privacy Pool (Sender Privacy + Compliance)
 
-Stealth addresses protect the recipient, but the sender's address is still visible on-chain. Anyone can see where the funds came from. For many use cases, this is just as problematic as recipient exposure.
+Stealth addresses give the recipient a fresh address for every payment, but the sender's address is still visible on-chain. Anyone can see where the funds came from. For many use cases, this is just as problematic as recipient exposure.
 
 Galeon addresses sender privacy through a Privacy Pool based on the model proposed in the Privacy Pools paper. Users deposit funds into the pool by creating a cryptographic commitment. When they want to withdraw, they generate a zero-knowledge proof demonstrating ownership of a valid deposit and membership in an approved set, without revealing which specific deposit is theirs.
 
 The compliance mechanism is an Association Set Provider (ASP). The ASP maintains a Merkle tree of approved deposit labels. To withdraw from the pool, a user must prove that their deposit's label is included in the ASP's current tree. This is the allowlist model: rather than proving you are not on a bad list, you prove you are on an approved list.
 
-This design has an important constraint: only funds received through Galeon Ports can enter the pool. The system tracks a verified balance for each stealth address, recording how much was received through legitimate Port payments. This prevents users from depositing funds sent directly to stealth addresses from unknown sources, ensuring the entire anonymity set consists of verified participants.
+This design has an important constraint: only funds received through Galeon Ports can enter the pool. The pool limits deposits using recorded Port-payment balances. This does not establish participant identity or lawful provenance. The reference ASP automatically approves deposits.
 
 #### The ASP Philosophy: Allowlists, Not Blocklists
 
@@ -120,7 +120,7 @@ Alice creates a Port called "Freelance Income" in the Galeon app. She receives a
 
 Bob opens the link and connects his wallet. The Galeon interface uses Alice's stealth meta-address to derive a one-time stealth address and prompts Bob to send 100 USDC. Bob confirms the transaction in his wallet.
 
-The payment lands at a stealth address that has no visible connection to Alice on-chain. The contract emits an announcement event containing the ephemeral public key, a view tag, and the Port identifier.
+The payment lands at a fresh stealth address. The contract emits an announcement event containing the ephemeral public key, a view tag, and the Port identifier, so the payment is publicly linked to Alice's Port and to the wallet that created it.
 
 Alice opens Galeon and her client scans recent announcement events using her viewing key. The view tag allows her to discard 99.6% of non-matching announcements early, skipping the full address derivation step. When a match is found, the client derives the stealth private key and displays the incoming payment. Alice collects the funds to her wallet with a single transaction.
 
@@ -230,7 +230,7 @@ The signature bytes serve as the input key material (IKM) for HKDF. A fixed non-
 
 Each derivation produces 32 bytes, which are reduced modulo the secp256k1 curve order to obtain a valid private key. The modular reduction bias is negligible at approximately 2^-128.
 
-For per-Port key isolation, the Port index (a non-negative integer) is encoded as a 32-byte big-endian value and used as the HKDF salt, replacing the default salt. This ensures that each Port's spending and viewing keys are cryptographically independent. Compromising Port 0's viewing key reveals nothing about Port 1's keys because the HKDF salt differs.
+For per-Port key isolation, the HKDF salt is the 32-byte keccak256 of the full Port ID, under its own derivation domain (`galeon-port-derivation-v2`), replacing the default salt; Ports with different IDs get independent keys. Ports created before this change used a 32-bit index of the ID, encoded as a 32-byte big-endian value, as the salt (v1). That index can collide, so two such Ports under the same master signature could share keys; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### 7.2 Stealth Address Generation (EIP-5564)
 
@@ -315,7 +315,7 @@ The registry manages Ports, processes payments, and tracks verified balances. Ke
 
 - **Port registration**: Links a `portId` to a stealth meta-address on-chain. Stores Port metadata (name, type, status).
 - **Payment processing**: Accepts native currency or ERC-20 tokens, transfers them to the derived stealth address, and emits an announcement through the ERC5564Announcer in a single transaction.
-- **Verified balance tracking**: Records how much each stealth address received through legitimate Port payments. This balance is consumed when funds are deposited into the Privacy Pool, preventing double-deposit attacks.
+- **Verified balance tracking**: Records how much each stealth address received through Port payments (this says nothing about who paid or where the funds came from). This balance is consumed when funds are deposited into the Privacy Pool, preventing double-deposit attacks.
 - **Stealth address freezing**: Allows deactivation of stealth addresses associated with closed Ports. Frozen addresses cannot deposit into the pool.
 - **Receipt anchoring**: Anchors keccak256 hashes of payment receipts on-chain via `ReceiptAnchored` events, creating a verifiable record of payment metadata.
 
@@ -513,10 +513,10 @@ Shipwreck is not a regulatory filing tool and does not claim to satisfy any spec
 
 Galeon provides privacy from public blockchain observers. In its current architecture, it does not provide privacy from the Galeon operator (due to server-side viewing key custody). The system is designed so that:
 
-- An observer with access only to on-chain data sees a fresh stealth address for every payment. Each payment's announcement names its Port, though, and the Port is registered on-chain by the wallet that created it, so receiver privacy depends on creating Ports from a wallet that is not otherwise linked to the recipient.
+- An observer with access only to on-chain data sees a fresh stealth address for every payment, but each payment's announcement names its Port, and the Port is registered on-chain by the wallet that created it, so every payment is publicly linked to that Port and wallet. A fresh wallet narrows what this reveals; it does not by itself make the recipient anonymous.
 - An observer cannot directly link pool deposits to withdrawals; in a small pool, timing and amounts can still hint at a match.
 - The ASP operator cannot steal funds or forge proofs.
-- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). New Ports derive their keys from the full Port ID (derivation v2). Ports created earlier derived them from a 32-bit index of the ID (v1), which two Port IDs can in principle share, and with it their keys; those Ports keep their v1 keys, so funds at their addresses stay reachable.
+- A compromised Port viewing key exposes only that Port's payments (per-Port key isolation limits the blast radius). Port keys are derived from the full Port ID, so two Ports under the same master signature do not share keys. Ports created before this change used a 32-bit index, which can collide; they keep the keys they were created with, so funds at their addresses stay reachable.
 
 ### 13.2 Known Attack Surfaces
 
