@@ -103,6 +103,11 @@
   box-shadow: inset 0 0 0 0.6px var(--sea);
 }
 
+/* the drawer button replaces the name on phones only (who-row.tsx) */
+.site .who-drawer {
+  display: none;
+}
+
 /* ---------- trust, under the table: what holds by design, what whoever runs it sets ---------- */
 .site .ledger {
   margin-top: 72px;
@@ -237,7 +242,7 @@
   }
 }
 
-/* ---------- phone: the table becomes cards, each cell with its key ---------- */
+/* ---------- phone: the table becomes drawers, each cell with its key ---------- */
 @media (max-width: 760px) {
   .site .who {
     margin-top: 44px;
@@ -270,6 +275,73 @@
   .site .who-row h3 {
     font-size: 24px;
   }
+  /* each row is a drawer: the name opens what that party sees and does not see */
+  .site .who-name {
+    display: none;
+  }
+  .site .who-row .who-drawer {
+    display: block;
+    align-self: stretch;
+    padding-right: 0;
+  }
+  .site .who-drawer button {
+    appearance: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  /* a plus that becomes a minus */
+  .site .who-chev {
+    position: relative;
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .site .who-chev::before,
+  .site .who-chev::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1.5px;
+    margin-top: -0.75px;
+    background: var(--sea);
+    transition: transform 0.25s ease;
+  }
+  .site .who-chev::after {
+    transform: rotate(90deg);
+  }
+  .site .who-row[data-open] .who-chev::after {
+    transform: rotate(0deg);
+  }
+  .site .who-row[data-drawer]:not([data-open]) {
+    padding: 18px 0;
+  }
+  .site .who-row[data-drawer]:not([data-open]) > .c1 {
+    padding-bottom: 0;
+  }
+  .site .who-row[data-drawer]:not([data-open]) > .c2,
+  .site .who-row[data-drawer]:not([data-open]) > .c3 {
+    display: none;
+  }
+  .site .who-row[data-drawer][data-open] > .c2,
+  .site .who-row[data-drawer][data-open] > .c3 {
+    animation: who-open 0.28s ease both;
+  }
+  .site .who-row[data-drawer][data-open] > .c1 {
+    padding-bottom: 16px;
+  }
   .site .ledger {
     margin-top: 48px;
   }
@@ -280,5 +352,25 @@
     grid-template-columns: 1fr;
     row-gap: 36px;
     margin-top: 44px;
+  }
+}
+@keyframes who-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site .who-row[data-drawer][data-open] > .c2,
+  .site .who-row[data-drawer][data-open] > .c3 {
+    animation: none;
+  }
+  .site .who-chev::before,
+  .site .who-chev::after {
+    transition: none;
   }
 }
