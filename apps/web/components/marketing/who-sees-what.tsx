@@ -3,12 +3,16 @@ import { DisplayTitle } from './display-title'
 import { keepWhole, Phrased } from './phrased'
 import { SectionLabel } from './section-label'
 import { TrustLedger } from './trust-ledger'
+import { WhoRow } from './who-row'
 
 /** Keys for the two columns: solid for what a party sees, lines for what stays withheld. */
 const SEES = <i className="k k-solid" aria-hidden="true" />
 const WITHHELD = <i className="k k-lines" aria-hidden="true" />
 
-/** What each party can learn, whoever runs the deployment included, then where the trust sits. */
+/**
+ * What each party can learn, whoever runs the deployment included, then where
+ * the trust sits. On phones each row is a drawer (who-row.tsx).
+ */
 export function WhoSeesWhat() {
   return (
     <section className="sect" id="who" aria-labelledby="who-h">
@@ -33,26 +37,15 @@ export function WhoSeesWhat() {
                 {WHO.cols.hidden}
               </span>
             </div>
-            {WHO.rows.map((r) => (
-              <div className="who-row" role="row" key={r.who}>
-                <div className="c1" role="rowheader">
-                  <h3>{r.who}</h3>
-                </div>
-                <div className="c2" role="cell">
-                  <b aria-hidden="true">
-                    {SEES}
-                    {WHO.cols.sees}
-                  </b>
-                  <p>{keepWhole(r.sees)}</p>
-                </div>
-                <div className="c3" role="cell">
-                  <b aria-hidden="true">
-                    {WITHHELD}
-                    {WHO.cols.hidden}
-                  </b>
-                  <p>{keepWhole(r.hidden)}</p>
-                </div>
-              </div>
+            {WHO.rows.map((r, i) => (
+              <WhoRow
+                key={r.who}
+                who={r.who}
+                sees={keepWhole(r.sees)}
+                hidden={keepWhole(r.hidden)}
+                cols={WHO.cols}
+                startOpen={i === 0}
+              />
             ))}
           </div>
         </div>
