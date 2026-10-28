@@ -1,21 +1,22 @@
 /* =============================================================================
    About and Roadmap: a page head, then sub-sections that reuse the landing's
    lists (.aud), a two-column definition list (.pairs) and short prose with
-   its links (.open-copy).
+   its links (.open-copy). Titles, ledes and their columns match the landing's
+   sections, so every page reads at one size from one left edge.
    ============================================================================= */
 
 .site .page-head {
   padding-top: 120px;
 }
 .site .page-lede {
-  grid-column: 4/12;
+  grid-column: 1/9;
   margin-top: 52px;
   max-width: 34em;
   text-wrap: balance;
 }
 /* a few plain sentences in the lede column, their links underneath */
 .site .open-copy {
-  grid-column: 4/12;
+  grid-column: 1/9;
   margin-top: 52px;
   display: grid;
   gap: 26px;
@@ -27,7 +28,7 @@
   gap: 12px 28px;
 }
 .site .story {
-  grid-column: 4/12;
+  grid-column: 1/9;
   margin-top: 56px;
   display: grid;
   gap: 18px;
@@ -98,64 +99,42 @@
   color: var(--ink-2);
 }
 
-/* ---------- the mark and its construction ---------- */
-.site .mark-copy {
-  grid-column: 1/6;
-  margin-top: 52px;
-  display: grid;
-  gap: 18px;
-  align-self: start;
-  max-width: 30em;
-}
-.site .mark-figure {
-  grid-column: 7/13;
-  margin-top: 52px;
-  max-width: 520px;
-  justify-self: end;
-  width: 100%;
-}
-.site .construction {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.site .construction .c-lines {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 0.1;
-  opacity: 0.5;
-}
-.site .construction .c-lines-on {
-  stroke: var(--paper);
-  opacity: 0.55;
-}
-.site .construction .c-mark {
-  fill: var(--sea);
-}
-.site .construction .c-points {
-  fill: var(--ink);
-}
-
 @media (max-width: 1100px) {
   .site .page-lede,
   .site .open-copy,
   .site .story {
-    grid-column: 2/12;
+    grid-column: 1/12;
   }
   .site .pairs {
     grid-template-columns: minmax(0, 1fr);
   }
-  .site .mark-copy {
-    grid-column: 1/7;
+}
+/* phones: a long list of short items becomes drawers (drawer-item.tsx) */
+@media (max-width: 900px) {
+  .site .aud-grid {
+    row-gap: 0;
+  }
+  .site .drawer-item .drawer-toggle {
+    display: block;
+    margin-bottom: 0;
+    font-size: 24px;
+  }
+  .site .drawer-item[data-drawer] {
+    padding: 14px 0 16px;
+  }
+  .site .drawer-item[data-drawer] p {
+    margin-top: 10px;
+  }
+  .site .drawer-item[data-drawer]:not([data-open]) p {
+    display: none;
+  }
+  .site .drawer-item[data-drawer][data-open] p {
+    animation: drawer-open 0.28s ease both;
   }
 }
-@media (max-width: 900px) {
-  .site .mark-copy,
-  .site .mark-figure {
-    grid-column: 1/-1;
-  }
-  .site .mark-figure {
-    justify-self: start;
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+  .site .drawer-item[data-drawer][data-open] p {
+    animation: none;
   }
 }
 @media (max-width: 760px) {

@@ -35,8 +35,8 @@ export function WhoRow({ who, sees, hidden, cols, startOpen = false }: WhoRowPro
       data-open={open ? '' : undefined}
     >
       <div className="c1" role="rowheader">
-        <h3 className="who-name">{who}</h3>
-        <h3 className="who-drawer">
+        <h3 className="drawer-name">{who}</h3>
+        <h3 className="drawer-toggle">
           <button
             type="button"
             aria-expanded={open}
@@ -44,7 +44,7 @@ export function WhoRow({ who, sees, hidden, cols, startOpen = false }: WhoRowPro
             onClick={() => setOpen((o) => !o)}
           >
             <span>{who}</span>
-            <i className="who-chev" aria-hidden="true" />
+            <i className="chev" aria-hidden="true" />
           </button>
         </h3>
       </div>
