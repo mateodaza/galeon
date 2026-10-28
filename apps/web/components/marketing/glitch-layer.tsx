@@ -270,11 +270,12 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
         for (const h of hidden) drawHidden(c, h, clock, bg, accent)
         c.restore()
       }
-      // frames only while something is hidden; a mouse move or the next ambient glitch wakes it
+      // frames only while something is hidden; a mouse move, or with no mouse over the band the
+      // next ambient glitch, wakes it (a resting mouse schedules nothing)
       if (hidden.length) raf = requestAnimationFrame(frame)
       else {
         last = 0
-        if (ambient && boxes.length)
+        if (ambient && pointer === null && boxes.length)
           timer = setTimeout(
             () => {
               timer = 0
@@ -299,6 +300,8 @@ export function GlitchLayer({ lines, blocks, ambient = false, scale = 1 }: Glitc
     }
     const onLeave = () => {
       pointer = null
+      // the next ambient glitch waits a full rest after the mouse leaves, never fires at once
+      nextAmbient = Math.max(nextAmbient, clock + REST)
       start()
     }
     // the words may have moved since they were measured (they rise in on load): measure again
