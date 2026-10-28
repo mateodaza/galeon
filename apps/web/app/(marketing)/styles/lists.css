@@ -103,8 +103,8 @@
   box-shadow: inset 0 0 0 0.6px var(--sea);
 }
 
-/* the drawer button replaces the name on phones only (who-row.tsx) */
-.site .who-drawer {
+/* the drawer button replaces the name on phones only (who-row.tsx, drawer-item.tsx) */
+.site .drawer-toggle {
   display: none;
 }
 
@@ -276,15 +276,15 @@
     font-size: 24px;
   }
   /* each row is a drawer: the name opens what that party sees and does not see */
-  .site .who-name {
+  .site .drawer-name {
     display: none;
   }
-  .site .who-row .who-drawer {
+  .site .who-row .drawer-toggle {
     display: block;
     align-self: stretch;
     padding-right: 0;
   }
-  .site .who-drawer button {
+  .site .drawer-toggle button {
     appearance: none;
     width: 100%;
     display: flex;
@@ -301,14 +301,14 @@
     cursor: pointer;
   }
   /* a plus that becomes a minus */
-  .site .who-chev {
+  .site .chev {
     position: relative;
     width: 14px;
     height: 14px;
     flex: none;
   }
-  .site .who-chev::before,
-  .site .who-chev::after {
+  .site .chev::before,
+  .site .chev::after {
     content: '';
     position: absolute;
     left: 0;
@@ -319,10 +319,10 @@
     background: var(--sea);
     transition: transform 0.25s ease;
   }
-  .site .who-chev::after {
+  .site .chev::after {
     transform: rotate(90deg);
   }
-  .site .who-row[data-open] .who-chev::after {
+  .site [data-open] .chev::after {
     transform: rotate(0deg);
   }
   .site .who-row[data-drawer]:not([data-open]) {
@@ -337,7 +337,7 @@
   }
   .site .who-row[data-drawer][data-open] > .c2,
   .site .who-row[data-drawer][data-open] > .c3 {
-    animation: who-open 0.28s ease both;
+    animation: drawer-open 0.28s ease both;
   }
   .site .who-row[data-drawer][data-open] > .c1 {
     padding-bottom: 16px;
@@ -354,7 +354,7 @@
     margin-top: 44px;
   }
 }
-@keyframes who-open {
+@keyframes drawer-open {
   from {
     opacity: 0;
     transform: translateY(-6px);
@@ -369,8 +369,8 @@
   .site .who-row[data-drawer][data-open] > .c3 {
     animation: none;
   }
-  .site .who-chev::before,
-  .site .who-chev::after {
+  .site .chev::before,
+  .site .chev::after {
     transition: none;
   }
 }

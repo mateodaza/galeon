@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { DisplayTitle } from '@/components/marketing/display-title'
 import { keepWhole, Phrased } from '@/components/marketing/phrased'
-import { MarkConstruction } from '@/components/marketing/mark-construction'
 import { SectionLabel } from '@/components/marketing/section-label'
 import { SiteLinkAnchor } from '@/components/marketing/site-link'
 import { ABOUT } from '@/content/about'
@@ -14,7 +13,7 @@ export const metadata: Metadata = pageMetadata({
   path: '/about',
 })
 
-const { what, open, mark } = ABOUT
+const { what, open } = ABOUT
 
 export default function AboutPage() {
   return (
@@ -76,21 +75,6 @@ export default function AboutPage() {
               ))}
             </p>
           </div>
-        </div>
-      </section>
-
-      <section className="sub" aria-labelledby="mark-h">
-        <div className="wrap cols mark-grid">
-          <SectionLabel label={mark.label} />
-          <DisplayTitle id="mark-h" title={mark.title} />
-          <div className="mark-copy">
-            <p className="body">
-              <Phrased text={mark.body} clauses />
-            </p>
-          </div>
-          <figure className="mark-figure">
-            <MarkConstruction label={mark.figure} />
-          </figure>
         </div>
       </section>
     </>

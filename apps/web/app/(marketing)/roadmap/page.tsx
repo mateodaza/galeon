@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DisplayTitle } from '@/components/marketing/display-title'
+import { DrawerItem } from '@/components/marketing/drawer-item'
 import { keepWhole, Phrased } from '@/components/marketing/phrased'
 import { SectionLabel } from '@/components/marketing/section-label'
 import { SiteLinkAnchor } from '@/components/marketing/site-link'
@@ -49,11 +50,8 @@ export default function RoadmapPage() {
           <SectionLabel label={next.label} />
           <DisplayTitle id="next-h" title={next.title} />
           <ul className="aud aud-grid">
-            {next.items.map((it) => (
-              <li key={it.name}>
-                <h3>{it.name}</h3>
-                <p>{keepWhole(it.text)}</p>
-              </li>
+            {next.items.map((it, i) => (
+              <DrawerItem key={it.name} name={it.name} text={it.text} startOpen={i === 0} />
             ))}
           </ul>
           <div className="devs after">
